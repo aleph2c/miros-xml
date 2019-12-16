@@ -16,6 +16,9 @@ from miros import signals
 from miros import ActiveObject
 from miros import return_status
 
+class ScmChart(ActiveObject):
+  def __init__(self, name):
+    super().__init__(name)
 
 class XmlToMiros():
   namespaces = {
@@ -24,6 +27,7 @@ class XmlToMiros():
     }
 
   def __init__(self, path_to_xml):
+
     self.file_path = Path(path_to_xml).resolve()
     if isinstance(self.file_path, Path):
       file_path = str(self.file_path)
@@ -33,6 +37,8 @@ class XmlToMiros():
 
     self.tree = ElementTree.parse(file_path)
     self.root = self.tree.getroot()
+
+    self.state_chart = ScmChart(name=self.get_name())
 
     # We need to make a list of tags with the namespace prefix
     # so that we can spare our client from having to add the 
@@ -78,6 +84,8 @@ class XmlToMiros():
       # xi feature isn't fixed until 3.9 see https://bugs.python.org/issue20928 
       self.recurse_scxml(fn=fn)
 
+    self._state_dict = self.build_statechart_dict(self.root)
+
   def findall(self, xpath, ns=None, node=None):
     '''find all subnodes of node given the xpath search parameter
 
@@ -116,7 +124,6 @@ class XmlToMiros():
 
     return search_root.findall(_xpath)
 
-
   def finder(self, ns, node=None):
     nodes = []
     if node is None:
@@ -142,21 +149,32 @@ class XmlToMiros():
 
     if node is None:
       node = self.root
-    
-    if type(fn) == list:
-      fns = fn
-      [fn(node, parent) for fn in fns]
-    else:
-      fn(node, parent)
 
-    nodes = child_function(node)
+    _parent = None
+    if parent != None:
+      for sibling in child_function(parent):
+        if node.attrib['id'] == sibling.attrib['id']:
+          _parent = node
+          break;
+      
+    children = child_function(node)
 
-    for child in nodes:
+    for child in children:
+      
+      if type(fn) == list:
+        fns = fn
+        [fn(child, _parent) for fn in fns]
+      else:
+        fn(child, _parent)
+
       self.recurse(
         child_function=child_function,
         fn=fn,
         node=child,
-        parent=node)
+        parent=_parent)
+
+  def get_name(self):
+    return self.root.attrib['name']
 
   @staticmethod
   def including_xml(node):
@@ -167,4 +185,19 @@ class XmlToMiros():
       file_name = include_element[0].attrib['href']
       ie = include_element[0]
     return result, file_name, ie
+
+  def build_statechart_dict(self, node):
+    state_dict = {}
+    def state_to_dict(node, parent):
+      name = node.attrib['id']
+      parent = None if parent == None else \
+        self.get_tag_without_namespace(parent)
+      state_dict[name] = {}
+      state_dict[name]['p'] = parent
+      state_dict[name]['cl'] = []
+      state_dict[name]['cl'].append({'ENTRY_SIGNAL': None})
+
+    self.recurse_scxml(fn=state_to_dict)
+    return state_dict
+
 

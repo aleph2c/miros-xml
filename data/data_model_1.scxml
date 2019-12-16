@@ -1,0 +1,18 @@
+<scxml datamodel="python" name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+  <datamodel>
+    <data expr="true" id="var_bool"/>
+    <data expr="1" id="var_int"/>
+    <data expr="&quot;This is a string!&quot;" id="var_string"/>
+    <data expr="{&quot;1&quot;:1, &quot;2&quot;:2, &quot;3&quot;:3, &quot;4&quot;:4, &quot;5&quot;:5 }" id="var_dict"/>
+  </datamodel>
+  <state id="Shape1">
+    <onentry>
+      <log expr="&quot;{} Type:{}&quot;.format(var_bool, type(var_bool))" label="var_bool"/>
+      <log expr="&quot;{} Type:{}&quot;.format(var_int, type(var_int))" label="var_int"/>
+      <log expr="&quot;{} Type;{}&quot;.format(var_string,type(var_string))" label="var_string"/>
+      <log expr="&quot;{} Type;{}&quot;.format(var_dict ,type(var_dict))" label="var_dict"/>
+    </onentry>
+    <transition target="End"/>
+  </state>
+  <final id="End"/>
+</scxml>
