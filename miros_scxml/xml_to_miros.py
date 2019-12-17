@@ -24,8 +24,34 @@ class XmlToMiros():
   namespaces = {
     'sc': 'http://www.w3.org/2005/07/scxml',
     'xi': 'http://www.w3.org/2001/XInclude'
-    }
-
+  }
+  supported_tags = [
+    'state',
+    'parallel',
+    'transition',
+    'initial',
+    'final',
+    'onentry',
+    'onexit',
+    'history',
+    'raise',
+    'if',
+    'else',
+    'elseif',
+    'foreach',
+    'log',
+    'datamodel',
+    'data',
+    'assign',
+    'donedata',
+    'content',
+    'param',
+    'script',
+    'send',
+    'cancel',
+    'invoke',
+    'finalize'
+  ]
   def __init__(self, path_to_xml):
 
     self.file_path = Path(path_to_xml).resolve()
@@ -51,7 +77,7 @@ class XmlToMiros():
 
     states = self.root.findall('sc:parallel', XmlToMiros.namespaces)
 
-    self.find_states = partial(self.finder, 
+    self.find_states = partial(self.findall_multiple_tags, 
       ["{"+XmlToMiros.namespaces['sc']+"}state",
       "{"+XmlToMiros.namespaces['sc']+"}parallel",
       "{"+XmlToMiros.namespaces['sc']+"}final"])
@@ -60,6 +86,19 @@ class XmlToMiros():
     self.is_state = partial(self.is_tag, 'state')
     self.is_parallel = partial(self.is_tag, 'parallel')
     self.is_final = partial(self.is_tag, 'final')
+
+    # Create functions which can find through the namespace garbage
+    # self.findall_fn['onentry']
+    # self.findall_fn['onexit']
+    # ..
+    # see XmlToMiros.supported_tags
+    self.findall_fn = \
+    { 
+      name : partial(self._findall, "{"+XmlToMiros.namespaces['sc']+"}"+name) \
+        for name \
+        in XmlToMiros.supported_tags
+    }
+
 
     self.recurse_scxml = partial(self.recurse, self.find_states)
 
@@ -124,7 +163,7 @@ class XmlToMiros():
 
     return search_root.findall(_xpath)
 
-  def finder(self, ns, node=None):
+  def findall_multiple_tags(self, ns, node=None):
     nodes = []
     if node is None:
       node = self.root
@@ -132,6 +171,9 @@ class XmlToMiros():
     for arg in ns:
       nodes += node.findall(arg)
     return nodes
+
+  def _findall(self, arg, node=None):
+    return node.findall(arg)
 
   def get_tag_without_namespace(self, node):
     return node.tag.split('}')[-1]
@@ -188,6 +230,14 @@ class XmlToMiros():
 
   def build_statechart_dict(self, node):
     state_dict = {}
+    def index_for_signal(_list, signal_name):
+      index = -1
+      for i, item in enumerate(_list):
+        if signal_name in item:
+          index = i
+          break
+      return index
+
     def state_to_dict(node, parent):
       name = node.attrib['id']
       parent = None if parent == None else \
@@ -195,9 +245,72 @@ class XmlToMiros():
       state_dict[name] = {}
       state_dict[name]['p'] = parent
       state_dict[name]['cl'] = []
-      state_dict[name]['cl'].append({'ENTRY_SIGNAL': None})
+      state_dict[name]['cl'].append(
+        {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
+      )
+      state_dict[name]['cl'].append(
+        {'INIT_SIGNAL': 'status = return_status.HANDLED'}
+      )
+       
+      state_dict[name]['cl'].append(
+        {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
+      )
+      state_dict[name]['cl'].append(
+        {'EXIT_SIGNAL': 'status = return_state.HANDLED'}
+      )
 
+      def prepend_log(node, signal_name):
+        log_nodes = self.findall_fn['log'](node)
+        for log_node in log_nodes:
+          string = "self.scribble(\'{}\')\n".format(
+            self.escape_quotes(log_node.attrib['expr'])
+            )
+          index = index_for_signal(state_dict[name]['cl'], signal_name)
+          string += state_dict[name]['cl'][index][signal_name]
+          state_dict[name]['cl'][index] = {signal_name:string}
+
+      entry_nodes = self.findall_fn['onentry'](node)
+      for entry_node in entry_nodes:
+        prepend_log(entry_node, 'ENTRY_SIGNAL')
+
+      init_nodes = self.findall_fn['initial'](node)
+      for init_node in init_nodes:
+        prepend_log(init_node, 'INIT_SIGNAL')
+
+      immediate_transition_nodes = self.findall_fn['transition'](node)
+      for node in immediate_transition_nodes:
+        code_string = "status = self.trans({})".format(node.attrib['target'])
+        index = index_for_signal(state_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
+        state_dict[name]['cl'][index] = \
+          {'SCXML_INIT_SIGNAL': code_string}
+        prepend_log(node, 'SCXML_INIT_SIGNAL')
+
+      exit_nodes = self.findall_fn['onexit'](node)
+      for exit_node in exit_nodes:
+        prepend_log(exit_node, 'EXIT_SIGNAL')
+
+        #log_nodes = self.findall_fn['log'](entry_node)
+
+        #for log_node in log_nodes:
+        #  string = "self.scribble(\'{}\')\n".format(
+        #    self.escape_quotes(log_node.attrib['expr'])
+        #    )
+        #  index = index_for_signal(state_dict[name]['cl'], 'ENTRY_SIGNAL')
+        #  string += state_dict[name]['cl'][index]['ENTRY_SIGNAL']
+        #  state_dict[name]['cl'][index] = {'ENTRY_SIGNAL':string}
+
+    # recursively build the state_dict
     self.recurse_scxml(fn=state_to_dict)
     return state_dict
+
+  @staticmethod
+  def escape_quotes(string):
+    _trans_dict = {
+      "'": "\\'", 
+      '"': '\\"'
+    }
+    result = string.translate(str.maketrans(_trans_dict)) 
+    return result
+
 
 

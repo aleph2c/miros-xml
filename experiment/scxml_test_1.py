@@ -17,7 +17,7 @@ def Start(chart, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     chart.scribble("Hello from 'start'")
     status = chart.trans(Work)
-  elif(e.signal == signals.scxml_immediate):
+  elif(e.signal == signals.SCXML_INIT_SIGNAL):
     status = chart.trans(Work)
   else:
     chart.temp.fun = chart.top
@@ -39,5 +39,5 @@ if __name__ == '__main__':
   ao = ActiveObject('scxml')
   ao.live_spy = True
   ao.start_at(Start)
-  ao.post_fifo(Event(signal=signals.scxml_immediate))
+  ao.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))
   time.sleep(0.1)

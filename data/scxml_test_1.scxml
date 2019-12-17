@@ -1,7 +1,7 @@
 <scxml name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
   <state id="Start">
     <onentry>
-      <log expr="Hello from 'start'"/>
+      <log expr='Hello from "start"'/>
     </onentry>
     <transition target="Work"/>
   </state>
