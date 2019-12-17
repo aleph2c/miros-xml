@@ -1,0 +1,30 @@
+[[xml_to_miros]]
+= Subgoals: Support the following features =
+  * [ ] scxml [[scxml|link]]
+  * [ ] datamodel [[datamodel|link]]
+  * [ ] script [[script|link]]
+  * [ ] state
+  * [ ] parallel
+  * [ ] transition
+  * [ ] initial
+  * [ ] final
+  * [ ] onentry
+  * [ ] onexit
+  * [ ] history
+  * [ ] raise
+  * [ ] if
+  * [ ] entry
+  * [ ] else
+  * [ ] elsif
+  * [ ] foreach
+  * [ ] log
+  * [ ] data
+  * [ ] assign
+  * [ ] donedata
+  * [ ] content
+  * [ ] param
+  * [ ] send
+  * [ ] cancel
+  * [ ] invoke
+  * [ ] finalize
+  * [ ] basic http I/O processor

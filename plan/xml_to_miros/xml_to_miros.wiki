@@ -1,0 +1,82 @@
+*XML to Miros*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.xml_to_miros|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.xml_to_miros|subgoals]])
+    Working miros statecharts from XML
+    
+    I would understand SCXML -- currently don't understand what they are
+                                getting at and how to tie it to Python
+
+  *What is the problem?*
+    SCXML is large, and it ties into the XML morass
+
+  *Resources:*
+    [[https://www.w3.org/TR/scxml/|scxml spec]] 
+    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html|ElementTree XML API]]
+    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html#xpath-support|xpath support]]
+    [[https://realpython.com/python-thinking-recursively/|python recursion article]]
+    [[https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2|A good quick start]]
+    [[https://www.youtube.com/watch?v=rFxXDO8-keg|Getting Started with Python XML]] 
+    [[http://aiweb.cs.washington.edu/research/projects/xmltk/xmldata/|example xml datasets]]
+    [[https://github.com/jroxendal/PySCXML/tree/master/examples/scxml_sandbox/example_docs|pyscxml example docs]]
+    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
+    [[https://www.researchgate.net/publication/272355963_From_Harel_To_Kripke_A_Provable_Datamodel_for_SCXML|Kripke]]
+    
+    [[https://www.youtube.com/watch?v=5ebxa-nIpiE&feature=youtu.be&list=PLUbY_L_9E-b_YuK-IWjUWYxcpcKccSX1N|video tutorial for SCXML]]
+  
+  *Discoveries:* ([[notes.xml_to_miros|notes]])
+  
+= Orient =
+  *Symptoms:* [[symptoms.xml_to_miros|symptoms]]
+
+== Questions ==
+  *Questions for XML to Miros: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your tests?
+    Do you know what to test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+    How do I include other XML prior to parsing?
+    How do I get code in the XML?
+    How do I get the signal names from a chart?
+    How does the datamodel work?
+    How do I inject python code into a chart?
+    How will I ever know that I'm done, this thing seems to go on forever
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+  * [ ] Read Alex Zhornyak's excellent tutorial
+  * [ ] Consider how to reference his tests in this project
+
+  [[#Questions]]
+  *Idea/Hypotheses for XML to Miros: >=5*
+  * [X] Build a pytest system
+  * [X] Create a set of xml data blobs which can be used
+    * [X] standard xml
+    * [X] scxml files with parallel regions
+  * [X] Have class accept file_path to xml data
+  * [X] Confirm class can read the data
+  * [X] Build namespace garbage into the class
+  * [X] Get a specific .//tag//[@name='whatever'] so we can test if things are working
+  * [X] Get an example recursive function working against data
+  * [X] Get example which injects other xml prior to parse (xi) (python 3.9 fixes this)
+  * [X] See if you can handle event names like "error.execution" with miros
+  * [ ] Build out subgoals
+  * [ ] Track down tests for confirm build is working
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.xml_to_miros|plan]]) ==
+
+= Act =
+  
+

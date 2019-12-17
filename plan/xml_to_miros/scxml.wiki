@@ -1,0 +1,110 @@
+[[subgoals.xml_to_miros|back]]
+*Scxml*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.scxml|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.scxml|subgoals]])
+    Understanding of this element as it applies to the SCXML standard.  List
+    work required for the xml to miros processor.
+    
+    Set up testing infrastructure for this node
+
+  *What is the problem?*
+    It's tied to another of other elements I don't understand yet.
+
+  *Discoveries:* ([[notes.scxml|notes]])
+  
+  [[https://www.w3.org/TR/scxml/#scxml|link scxml in standard]]
+  [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|link to scxml doc]]
+  [[https://www.youtube.com/watch?v=0CYftU1-7Ns&feature=youtu.be|link to scxml tutorial video]]
+  
+  The SCXML document must have at least one [[state]], [[parallel]] or [[final]]
+  child.  At the initialization time, the SCXML Processor must enter the
+  states specified by the 'initial' attribute, if it is present.  If it is not
+  present, the Processor must enter the first state in the document order.
+  Platforms should document their default [[datamodel]].
+  
+  *Specification:*
+  * [ ] If scxml has initial tag, start_at must work there.
+  * [ ] Otherwise, start_at must run at the first state/final/parallel seen in
+        the document
+  * [ ] The "name" element must be the name of the active object
+  * [ ] The "xmlns" must be set to "http:www.w3.org/2005/07/scxml"
+  * [ ] The version must be set to "1.0"
+  * [ ] The [[datamodel]] describes the datamodel for the chart, we will support
+        "null" and something yet to be determined
+  * [ ] "binding" can be "early" or "late", read
+        [[https://www.w3.org/TR/scxml/#DataBinding|this] for details.  If the
+        binding is "early" the SCXML processor must create all of the data
+        elements and assign their initial values at the documentation
+        initialization time.  If the binding is "late" the SCXML processor must
+        create the data elements at documentation initialization time, but must
+        assign the specified initial value to a given data ement only when the
+        state the contains it, is entered for the first time, before any markup.
+  * [ ] Children:
+    * [ ] [[state]]
+    * [ ] [[parallel]]
+    * [ ] [[final]]
+    * [ ] [[script]]
+    * [ ] [[datamodel]] defines the datamodel
+   
+= Orient =
+  *Symptoms:* [[symptoms.scxml|symptoms]]
+
+== Questions ==
+  *Questions for Scxml: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+
+  [[#Questions]]
+  *Work required to verify specification: >=5*
+  * [X] Create a testing tag, scxml
+  * [X] Create a testing file, scxml_test.py
+  * [X] Read [[datamodel]] tutorial
+  * [X] Read [[script]] tutorial
+  * [ ] Build up the state_dict
+  * [ ] Build a statechart from the first state_dict
+  * [ ] Compare the spy output against the expected output
+  * [ ] Add an adjusted 
+        [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|datamodel]]
+        from the scxml tutorial 
+  * [ ] Compare the spy output against the expected output
+  * [ ] Add an adjusted 
+        [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|early spec]]
+        from the scxml tutorial 
+  * [ ] Compare the spy output against the expected output
+  * [ ] Add an adjusted 
+        [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|late spec]]
+        from the scxml tutorial 
+  * [ ] Compare the spy output against the expected output
+  * [ ] Add an adjusted 
+        [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|start at first state]]
+        from the scxml tutorial 
+  * [ ] Compare the spy output against the expected output
+  * [ ] Add an adjusted 
+        [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|start at first state]]
+        from the scxml tutorial 
+  * [ ] Compare the spy output against the expected output
+  * [ ] Create a document of features not supported in README.md
+  * [ ] Add "initial" in parallel state not supported
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.scxml|plan]]) ==
+
+= Act =
+  
+
