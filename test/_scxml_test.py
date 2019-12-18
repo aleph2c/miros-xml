@@ -12,6 +12,7 @@ from functools import partial
 from collections import deque
 from collections import namedtuple
 
+from miros import pp
 from miros import Event
 from miros import spy_on
 from miros import signals
@@ -21,6 +22,7 @@ from miros import return_status
 dir_path = os.path.dirname(os.path.realpath(__file__))
 data_path = Path(dir_path) / '..' / 'data'
 
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
@@ -55,6 +57,7 @@ def test_scxml_get_name():
 #   {'SCXML_INIT_SIGNAL':"status = return_state.HANDLED"}
 # )
 # state_dict['start_at'] = 'Start'
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_xml_dict_structured_well():
   '''
@@ -87,6 +90,7 @@ def test_scxml_xml_dict_structured_well():
   assert None == xml_chart._state_dict['Start']['p']
   assert None == xml_chart._state_dict['Work']['p']
 
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_xml_dict_contents():
 
@@ -124,4 +128,26 @@ def test_scxml_xml_dict_contents():
     )
 
   assert("self.scribble('Hello from \\'work\\'')\nstatus = return_status.HANDLED" == entry_state_code)
+
+@pytest.mark.skip()
+@pytest.mark.scxml
+def test_start_at_with_single_initial():
+  path = data_path / 'scxml_test_1.scxml'
+  xml_chart = XmlToMiros(path)
+  assert xml_chart._state_dict['start_at'] == 'Start'
+
+  path = data_path / 'scxml_test_2.scxml'
+  xml_chart = XmlToMiros(path)
+  assert xml_chart._state_dict['start_at'] == 'Work'
+
+@pytest.mark.scxml
+def test_build_a_small_chart():
+  path = data_path / 'scxml_test_1.scxml'
+  print("")
+  xml_chart = XmlToMiros(path)
+  xml_chart.write_to_file(data_path / 'scxml_test_1_miros.py')
+  #pp(xml_chart._state_dict)
+
+
+
 

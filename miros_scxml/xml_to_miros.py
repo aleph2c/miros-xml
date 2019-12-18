@@ -10,13 +10,14 @@ from functools import partial
 from collections import deque
 from collections import namedtuple
 
+from miros import pp
 from miros import Event
 from miros import spy_on
 from miros import signals
 from miros import ActiveObject
 from miros import return_status
 
-class ScmChart(ActiveObject):
+class ScxmlChart(ActiveObject):
   def __init__(self, name):
     super().__init__(name)
 
@@ -26,6 +27,7 @@ class XmlToMiros():
     'xi': 'http://www.w3.org/2001/XInclude'
   }
   supported_tags = [
+    'scxml',
     'state',
     'parallel',
     'transition',
@@ -64,7 +66,7 @@ class XmlToMiros():
     self.tree = ElementTree.parse(file_path)
     self.root = self.tree.getroot()
 
-    self.state_chart = ScmChart(name=self.get_name())
+    #self.state_chart = ScxmlChart(name=self.get_name())
 
     # We need to make a list of tags with the namespace prefix
     # so that we can spare our client from having to add the 
@@ -124,6 +126,12 @@ class XmlToMiros():
       self.recurse_scxml(fn=fn)
 
     self._state_dict = self.build_statechart_dict(self.root)
+    self._code = self.write_code()
+
+
+  def write_to_file(self, file_name):
+    with open(str(file_name), "w") as fp:
+      fp.write(self._code)
 
   def findall(self, xpath, ns=None, node=None):
     '''find all subnodes of node given the xpath search parameter
@@ -230,6 +238,13 @@ class XmlToMiros():
 
   def build_statechart_dict(self, node):
     state_dict = {}
+
+    if 'initial' in node.attrib:
+      state_dict['start_at'] = node.attrib['initial']
+    else:
+      state_dict['start_at'] = \
+        self.find_states(node)[0].attrib['id']
+
     def index_for_signal(_list, signal_name):
       index = -1
       for i, item in enumerate(_list):
@@ -312,5 +327,134 @@ class XmlToMiros():
     result = string.translate(str.maketrans(_trans_dict)) 
     return result
 
+  def write_code(self, indent_amount=None, custom_imports=None):
 
+    if indent_amount is None:
+      indent_amount = "  "
+
+    start_code_template = \
+'''
+ao = ScxmlChart(name={})
+ao.live_spy=True
+ao.live_trace=True
+ao.start_at({starting_state})
+'''
+
+    if custom_imports is None:
+      imports = ""
+    else:
+      imports = "\n".split(custom_imports)
+
+    pre_instantiation_template = """
+import re
+import time
+import logging
+from functools import partial
+from collections import namedtuple
+
+from miros import pp
+from miros import Event
+from miros import spy_on
+from miros import signals
+from miros import ActiveObject
+from miros import return_status
+{custom_imports}
+{state_code}
+"""
+    instantiation_template = """
+{pre_instantiation_code}
+class ScxmlChart(ActiveObject):
+{i}def __init__(self, name):
+{i}{i}super().__init__(name)
+
+ao = ScxmlChart(\"{name}\")
+ao.live_spy = True
+"""
+
+    post_instantiation_code = """
+{instantiation_code}
+{start_code}
+"""
+    file_code = ""
+    state_code = ""
+    start_at = ""
+    name = self.get_name()
+    for (state_name, v) in self._state_dict.items():
+      if state_name != 'start_at':
+        state_code += self._write_state_code(state_name, v, indent_amount) + "\n"
+      else:
+        starting_state = v
+
+    start_code = \
+      "ao.start_at({starting_state})".format(starting_state=starting_state)
+
+    pre_instantiation_code = \
+      pre_instantiation_template.format(custom_imports=imports,
+        state_code=state_code)
+    instantiation_code = instantiation_template.format(
+      pre_instantiation_code=pre_instantiation_code,
+      name=name,
+      i=indent_amount)
+    code = post_instantiation_code.format(
+      instantiation_code=instantiation_code,
+      start_code=start_code)
+
+    return code
+
+  # {
+  #   'cl': 
+  #     [
+  #       {'ENTRY_SIGNAL': 
+  #         'self.scribble(\'Hello from \\"start\\"\')\nstatus = return_status.HANDLED'},
+  #       {'INIT_SIGNAL': 'status = return_status.HANDLED'},
+  #       {'SCXML_INIT_SIGNAL': 'status = self.trans(Work)'},
+  #       {'EXIT_SIGNAL': 'status = return_state.HANDLED'}],
+  #   'p': None
+  # }
+
+  @staticmethod
+  def _write_state_code(state_name, state_dict, indent_amount=None):
+    if indent_amount is None:
+      indent_amount = "  "
+
+    state_template = '''@spy_on
+def {state_name}(self, e):
+{i}status = return_status.UNHANDLED
+{cls}{i}else:
+{i}{i}self.temp.fun = {parent_state}
+{i}{i}status = return_status.SUPER
+{i}return status
+'''
+    first_cl_template = '''{i}if(e.signal == signals.{signal_name}):
+{event_code}'''
+
+    following_cl_template = '''{i}elif(e.signal == signals.{signal_name}):
+{event_code}'''
+    cls = ""
+    signal_name, event_code = next(iter(state_dict.items()))
+    for index, catch_dict in enumerate(state_dict['cl']):
+      signal_name, event_code = next(iter(catch_dict.items()))
+      
+      tokens = event_code.split("\n")
+      event_code = "{i}{i}{code}\n".format(i=indent_amount, code=tokens[0])
+      new_tokens = ["{i}{i}{code}\n".format(i=indent_amount, code=token) for token in tokens[1:]]
+      event_code += "\n".join(new_tokens)
+      if index == 0:
+        cls = first_cl_template.format(
+          i=indent_amount,
+          signal_name=signal_name,
+          event_code= event_code)
+      else:
+        cls += following_cl_template.format(
+          i=indent_amount,
+          signal_name=signal_name,
+          event_code= event_code)
+
+    parent_state = "self.top" if state_dict['p'] is None else state_dict['p']
+    state_code = state_template.format(
+        i=indent_amount,
+        state_name=state_name,
+        cls=cls,
+        parent_state=parent_state)
+    return state_code
 
