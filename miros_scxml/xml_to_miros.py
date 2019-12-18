@@ -26,6 +26,7 @@ class XmlToMiros():
     'sc': 'http://www.w3.org/2005/07/scxml',
     'xi': 'http://www.w3.org/2001/XInclude'
   }
+
   supported_tags = [
     'scxml',
     'state',
@@ -101,9 +102,11 @@ class XmlToMiros():
         in XmlToMiros.supported_tags
     }
 
-
     self.recurse_scxml = partial(self.recurse, self.find_states)
 
+    # One level include feature forced into this package.
+    # etree will be fixed in Python 3.9.0 but for now we have to manually add 
+    # included XML
     if sys.version_info < (3,9,0):
       def fn(node, parent):
         include_found, file_name, include_element = self.including_xml(node)
@@ -130,6 +133,23 @@ class XmlToMiros():
 
 
   def write_to_file(self, file_name):
+    '''Write the miros code generated from the XML to file.
+
+    **Args**:
+       | ``file_name`` (Path|str): The file_name for your miros statechart code.
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+       from pathlib import Path
+       from miros_scxml.xml_to_miros import XmlToMiros
+
+       xml_path = data_path / 'scxml_test_1.scxml'
+       xml_chart = XmlToMiros(xml_path)
+       xml_chart.write_to_file(data_path / 'scxml_test_1_miros.py')
+
+    '''
     with open(str(file_name), "w") as fp:
       fp.write(self._code)
 
@@ -172,6 +192,30 @@ class XmlToMiros():
     return search_root.findall(_xpath)
 
   def findall_multiple_tags(self, ns, node=None):
+    '''A base function to search for multiple tag types in XML, from which to
+       build useful partial functions.
+
+    **Note**:
+       Not intended for direct use (partial function utility; see example)
+
+    **Args**:
+       | ``ns`` (dict): namespace dictionary
+       | ``node=None`` (Element): The Element to search
+
+
+    **Returns**:
+       (list): list of Elements nodes which match the search
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+      self.find_states = partial(self.findall_multiple_tags, 
+        ["{"+XmlToMiros.namespaces['sc']+"}state",
+        "{"+XmlToMiros.namespaces['sc']+"}parallel",
+        "{"+XmlToMiros.namespaces['sc']+"}final"])
+
+    '''
     nodes = []
     if node is None:
       node = self.root
@@ -181,9 +225,43 @@ class XmlToMiros():
     return nodes
 
   def _findall(self, arg, node=None):
+    '''A partial template function to build other find functions from
+
+    **Args**:
+       | ``arg`` (str): Xpath search string
+       | ``node=None`` (Element): XML element
+
+
+    **Returns**:
+       (list): list of matching child Element nodes
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+      self.findall_fn = \
+      { 
+        name : partial(self._findall, 
+          "{"+XmlToMiros.namespaces['sc']+"}"+name) \
+          for name \
+          in XmlToMiros.supported_tags
+      }
+      log_nodes = self.findall_fn['log'](node)
+
+    '''
     return node.findall(arg)
 
   def get_tag_without_namespace(self, node):
+    '''Get the tag name without the namespace information prepended to it
+
+    **Args**:
+       | ``node`` (Element): The element to search
+
+
+    **Returns**:
+       (str): The tag name as a string
+
+    '''
     return node.tag.split('}')[-1]
 
   def is_tag(self, arg, node):

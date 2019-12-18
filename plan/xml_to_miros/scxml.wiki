@@ -75,7 +75,7 @@
   * [X] Read [[datamodel]] tutorial
   * [X] Read [[script]] tutorial
   * [X] Build up the state_dict
-  * [ ] Build a statechart from the first state_dict
+  * [X] Build a statechart from the first state_dict
   * [ ] Compare the spy output against the expected output
   * [ ] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|datamodel]]
