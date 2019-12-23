@@ -1,25 +1,22 @@
+# import re
 import sys
+# import time
+import uuid
+# import logging
+import os as risky_os
 from pathlib import Path
+from functools import partial
+# from collections import deque
 from xml.etree import ElementTree
-from functools import partial
+# from collections import namedtuple
 
-import re
-import time
-import logging
-from functools import partial
-from collections import deque
-from collections import namedtuple
 
-from miros import pp
-from miros import Event
-from miros import spy_on
-from miros import signals
-from miros import ActiveObject
-from miros import return_status
-
-class ScxmlChart(ActiveObject):
-  def __init__(self, name):
-    super().__init__(name)
+# from miros import pp
+# from miros import Event
+# from miros import spy_on
+# from miros import signals
+# from miros import ActiveObject
+# from miros import return_status
 
 class XmlToMiros():
   namespaces = {
@@ -41,7 +38,8 @@ class XmlToMiros():
     'if',
     'else',
     'elseif',
-    'foreach',
+    'debug',
+    # 'foreach',
     'log',
     'datamodel',
     'data',
@@ -55,8 +53,9 @@ class XmlToMiros():
     'invoke',
     'finalize'
   ]
-  def __init__(self, path_to_xml):
+  def __init__(self, path_to_xml, log_file=None, unique=None):
 
+    self.debugger = False
     self.file_path = Path(path_to_xml).resolve()
     if isinstance(self.file_path, Path):
       file_path = str(self.file_path)
@@ -64,10 +63,19 @@ class XmlToMiros():
       file_path = self.file_path
       self.file_path = Path(self.file_path)
 
+    if log_file is None:
+      full_path = Path(path_to_xml)
+      file_name = full_path.stem
+      directory = full_path.resolve().parent
+      self.log_file = str(directory / ("%s.log" % file_name))
+
     self.tree = ElementTree.parse(file_path)
     self.root = self.tree.getroot()
 
-    #self.state_chart = ScxmlChart(name=self.get_name())
+    # We want to ensure our ScxmlChart class name is unique hasn't been named
+    self.chart_suffix = "" if unique is None else  str(uuid.uuid4())[0:8]
+    self.scxml_chart_class  = 'ScxmlChart' + self.chart_suffix
+    self.scxml_chart_superclass  = 'InstrumentedActiveObject' + self.chart_suffix
 
     # We need to make a list of tags with the namespace prefix
     # so that we can spare our client from having to add the 
@@ -78,13 +86,10 @@ class XmlToMiros():
       name = tag.split('}')[-1]
       self.tag_lookup[name] = tag
 
-    states = self.root.findall('sc:parallel', XmlToMiros.namespaces)
-
     self.find_states = partial(self.findall_multiple_tags, 
       ["{"+XmlToMiros.namespaces['sc']+"}state",
       "{"+XmlToMiros.namespaces['sc']+"}parallel",
       "{"+XmlToMiros.namespaces['sc']+"}final"])
-
 
     self.is_state = partial(self.is_tag, 'state')
     self.is_parallel = partial(self.is_tag, 'parallel')
@@ -109,7 +114,7 @@ class XmlToMiros():
     # included XML
     if sys.version_info < (3,9,0):
       def fn(node, parent):
-        include_found, file_name, include_element = self.including_xml(node)
+        include_found, file_name, include_element = self._including_xml(node)
         if include_found:
           print("-------------------------------------------- {}".format(file_name))
           sub_element = ElementTree.parse(file_name).getroot()
@@ -123,35 +128,123 @@ class XmlToMiros():
           # add the subelement to the node
           node.append(sub_element)
           node.remove(include_element)
-          a = 1
         
       # xi feature isn't fixed until 3.9 see https://bugs.python.org/issue20928 
       self.recurse_scxml(fn=fn)
 
     self._state_dict = self.build_statechart_dict(self.root)
-    self._code = self.write_code()
+    self._code = self._create_miros_code()
 
 
-  def write_to_file(self, file_name):
-    '''Write the miros code generated from the XML to file.
+  def make(self):
+    '''Make the statechart
 
-    **Args**:
-       | ``file_name`` (Path|str): The file_name for your miros statechart code.
+    **Note**:
+       Executing scxml in your program is like running any other program.  If
+       you let some outside party write code and run it on your machine, be away
+       they have full access and they can do damage or take your secrets.
+
+       If the <debug/> tag is included in a supported tag of the SCXML file,
+       python debug code will be added in the same directory as the SCXML file
+       and the debugger will be called in the location specified in the SCXML
+       file.  The python debug file will be left, and you will have to manually
+       delete it when you are done debugging your code.
+
+    **Returns**:
+       (ActiveObject): An instantiated instrumented statechart
 
     **Example(s)**:
       
     .. code-block:: python
        
        from pathlib import Path
-       from miros_scxml.xml_to_miros import XmlToMiros
-
-       xml_path = data_path / 'scxml_test_1.scxml'
-       xml_chart = XmlToMiros(xml_path)
-       xml_chart.write_to_file(data_path / 'scxml_test_1_miros.py')
+       xml_chart = XmlToMiros(path, unique=True)
+       ao = xml_chart.make()
+       ao.start()  # to start the statechart (starts a thread)
 
     '''
+    file_name, module_name, directory, statename = self._write_to_file()
+    sys.path.append(directory)
+
+    exec("from {module_name} import {statename} as ScxmlChart".format(
+      module_name=module_name, statename=statename
+      ), globals()
+    )
+
+    if not self.debugger:
+      risky_os.remove(file_name)
+
+    # If you run a linter it will say that this ScxmChart class is not
+    # defined, but it is defined and imported in the above exec call.  Linters
+    # aren't smart enough to 'see into' this kind of exec code.
+    return ScxmlChart(name=self.get_name(), log_file=self.log_file)
+
+  def _write_to_file(self, file_name=None, indent_amount=None):
+    '''Write the SCXML chart written as miros python code to a file.
+
+    **Note**:
+       Do this not that recommendation
+
+    **Args**:
+       | ``file_name=None`` (Path|str): The file_name, defaults to the placeing
+       |                                the resulting file with the same
+       |                                basename of the SCXML file used in the
+       |                                same directory that file was found.
+       | ``indent_amount=None`` (str): How many indents you want in your python
+       |                               file
+
+
+    **Returns**:
+       (tuple): (file_name, module_name, directory, statechart_class_name)
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+      file_name, module_name, directory, statename = self._write_to_file()
+      sys.path.append(directory)
+
+      exec("from {module_name} import {statename} as ScxmlChart".format(
+        module_name=module_name, statename=statename
+        ), globals()
+      )
+
+      if not self.debugger:
+        os.remove(file_name)
+
+      return ScxmlChart(name=self.get_name(), log_file=self.log_file)
+
+    '''
+    if indent_amount is None:
+      indent_amount = "  "
+
+    if file_name is None:
+      path_to_xml = Path(self.file_path)
+      module_base = path_to_xml.stem
+      directory = path_to_xml.resolve().parent
+      module_name = str("{}_{}".format(module_base, self.chart_suffix))
+      file_name = str(
+        directory / "{}.py".format(module_name)
+      )
+
+    directory = str(directory)
+
+    class_code = self._code
+    instantiation_code = self.instantiation_template().format(
+      class_code=class_code,
+      scxml_chart_class=self.scxml_chart_class,
+      log_file=self.log_file,
+      i=indent_amount,
+      name=self.get_name())
+
+    code = self.post_instantiation_template().format(
+      i=indent_amount,
+      instantiation_code=instantiation_code)
+
     with open(str(file_name), "w") as fp:
-      fp.write(self._code)
+      fp.write(code)
+
+    return file_name, module_name, directory, self.scxml_chart_class
 
   def findall(self, xpath, ns=None, node=None):
     '''find all subnodes of node given the xpath search parameter
@@ -272,6 +365,32 @@ class XmlToMiros():
     return elements
 
   def recurse(self, child_function=None, fn=None, node=None, parent=None):
+    '''Recurse the XML structure with a custom search function and one or more
+    customer worker functions.
+
+    The search function is used to find specific nodes to act upon and the
+    worker function(s) determine what to do once the node are found.
+
+    **Args**:
+       | ``child_function=None`` (fn): A function used to find the next batch of
+       |                               children from the XML document
+       | ``fn=None`` (list|fn):        A list of function or a function to run
+       |                               on every node that matched against the
+       |                               child_function in the XML document
+       | ``node=None`` (Element):      An etree Element of an XML doc
+       | ``parent=None`` (Element):    The parent node of the node
+
+    **Example(s)**:
+      
+    .. code-block:: python
+      
+      # build a recursive function using the self.find_states technique
+      self.recurse_scxml = partial(self.recurse, self.find_states)
+
+      # create the statechart dictionary structure
+      self.recurse_scxml(fn=state_to_dict)
+
+    '''
     if child_function is None:
       child_function = self.find_states
 
@@ -302,10 +421,59 @@ class XmlToMiros():
         parent=_parent)
 
   def get_name(self):
+    '''get the name of the Statechart from the provided SCXML document.'''
     return self.root.attrib['name']
 
   @staticmethod
-  def including_xml(node):
+  def _including_xml(node):
+    '''Include one level of xml into the document if the xi:include tag is seen.
+
+    **Note**:
+       This function shouldn't exist in this library, it should be a part of the
+       etree module.  Accounding to external docs, this include capability will
+       be fixed in Python 3.9
+
+    **Args**:
+       | ``node`` (Element): node to check for includes
+
+    **Returns**:
+       (tuple): include_element(bool), file_name(str), include_element(element)
+
+
+    **Example(s)**:
+      
+    .. code-block:: XML
+
+      <state id="Test2" xmlns:xi="http://www.w3.org/2001/XInclude">
+        <initial>
+          <transition target="Test2Sub1"/>
+        </initial>
+
+        <!-- This time we reference a state 
+             defined in an external file.   -->
+         <xi:include href="data/Test2Sub1.xml" parse="text"/>
+
+      </state>
+
+    .. code-block:: python
+       
+      include_found, file_name, include_element = self._including_xml(node)
+
+      if include_found:
+        print("-------------------------------------------- {}".format(file_name))
+        sub_element = ElementTree.parse(file_name).getroot()
+
+        for elem in sub_element.iter():
+          if elem.tag == 'xi':
+            pass
+          else:
+            elem.tag = "{"+XmlToMiros.namespaces['sc']+"}" + elem.tag
+
+      # add the sub-element to the node
+      node.append(sub_element)
+      node.remove(include_element)
+
+    '''
     result, file_name, ie = False, None, None
     include_element = node.findall('{'+XmlToMiros.namespaces['xi']+'}include')
     if len(include_element) != 0:
@@ -315,6 +483,23 @@ class XmlToMiros():
     return result, file_name, ie
 
   def build_statechart_dict(self, node):
+    '''Build a statechart dict from a given node
+
+    **Args**:
+       | ``node`` (Element): The element from which to begin building the
+                             statechart dictionary
+
+
+    **Returns**:
+       (dict): The statechart dictionary
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+      self._state_dict = self.build_statechart_dict(self.root)
+
+    '''
     state_dict = {}
 
     if 'initial' in node.attrib:
@@ -330,6 +515,17 @@ class XmlToMiros():
           index = i
           break
       return index
+
+    # {
+    #   'cl': 
+    #     [
+    #       {'ENTRY_SIGNAL': 
+    #         'self.scribble(\'Hello from \\"start\\"\')\nstatus = return_status.HANDLED'},
+    #       {'INIT_SIGNAL': 'status = return_status.HANDLED'},
+    #       {'SCXML_INIT_SIGNAL': 'status = self.trans(Work)'},
+    #       {'EXIT_SIGNAL': 'status = return_state.HANDLED'}],
+    #   'p': None
+    # }
 
     def state_to_dict(node, parent):
       name = node.attrib['id']
@@ -362,12 +558,23 @@ class XmlToMiros():
           string += state_dict[name]['cl'][index][signal_name]
           state_dict[name]['cl'][index] = {signal_name:string}
 
+      def prepend_debugger(node, signal_name):
+        log_nodes = self.findall_fn['debug'](node)
+        for log_node in log_nodes:
+          self.debugger = True
+          string = "import pdb; pdb.set_trace()\n"
+          index = index_for_signal(state_dict[name]['cl'], signal_name)
+          string += state_dict[name]['cl'][index][signal_name]
+          state_dict[name]['cl'][index] = {signal_name:string}
+
       entry_nodes = self.findall_fn['onentry'](node)
       for entry_node in entry_nodes:
+        prepend_debugger(entry_node, 'ENTRY_SIGNAL')
         prepend_log(entry_node, 'ENTRY_SIGNAL')
 
       init_nodes = self.findall_fn['initial'](node)
       for init_node in init_nodes:
+        prepend_debugger(entry_node, 'INIT_SIGNAL')
         prepend_log(init_node, 'INIT_SIGNAL')
 
       immediate_transition_nodes = self.findall_fn['transition'](node)
@@ -382,16 +589,6 @@ class XmlToMiros():
       for exit_node in exit_nodes:
         prepend_log(exit_node, 'EXIT_SIGNAL')
 
-        #log_nodes = self.findall_fn['log'](entry_node)
-
-        #for log_node in log_nodes:
-        #  string = "self.scribble(\'{}\')\n".format(
-        #    self.escape_quotes(log_node.attrib['expr'])
-        #    )
-        #  index = index_for_signal(state_dict[name]['cl'], 'ENTRY_SIGNAL')
-        #  string += state_dict[name]['cl'][index]['ENTRY_SIGNAL']
-        #  state_dict[name]['cl'][index] = {'ENTRY_SIGNAL':string}
-
     # recursively build the state_dict
     self.recurse_scxml(fn=state_to_dict)
     return state_dict
@@ -405,28 +602,12 @@ class XmlToMiros():
     result = string.translate(str.maketrans(_trans_dict)) 
     return result
 
-  def write_code(self, indent_amount=None, custom_imports=None):
-
-    if indent_amount is None:
-      indent_amount = "  "
-
-    start_code_template = \
-'''
-ao = ScxmlChart(name={})
-ao.live_spy=True
-ao.live_trace=True
-ao.start_at({starting_state})
-'''
-
-    if custom_imports is None:
-      imports = ""
-    else:
-      imports = "\n".split(custom_imports)
-
-    pre_instantiation_template = """
+  def pre_instantiation_template(self):
+    return """# autogenerated from {filepath}
 import re
 import time
 import logging
+from pathlib import Path
 from functools import partial
 from collections import namedtuple
 
@@ -437,72 +618,130 @@ from miros import signals
 from miros import ActiveObject
 from miros import return_status
 {custom_imports}
-{state_code}
-"""
-    instantiation_template = """
+{state_code}"""
+
+  def logging_class_definition_template(self):
+    return """
 {pre_instantiation_code}
-class ScxmlChart(ActiveObject):
-{i}def __init__(self, name):
+
+class {scxml_chart_superclass}(ActiveObject):
+{i}def __init__(self, name, log_file):
 {i}{i}super().__init__(name)
 
-ao = ScxmlChart(\"{name}\")
-ao.live_spy = True
-"""
+{i}{i}self.log_file = log_file
 
-    post_instantiation_code = """
-{instantiation_code}
-{start_code}
-"""
-    file_code = ""
+#{i}{i}self.clear_log()
+
+{i}{i}logging.basicConfig(
+{i}{i}{i}format='%(asctime)s %(levelname)s:%(message)s',
+{i}{i}{i}filemode='w',
+{i}{i}{i}filename=self.log_file,
+{i}{i}{i}level=logging.DEBUG)
+{i}{i}self.register_live_spy_callback(partial(self.spy_callback))
+{i}{i}self.register_live_trace_callback(partial(self.trace_callback))
+
+{i}def trace_callback(self, trace):
+{i}{i}'''trace without datetimestamp'''
+{i}{i}trace_without_datetime = re.search(r'(\[.+\]) (\[.+\].+)', trace).group(2)
+{i}{i}logging.debug("T: " + trace_without_datetime)
+
+{i}def spy_callback(self, spy):
+{i}{i}'''spy with machine name pre-pending'''
+{i}{i}print(spy)
+{i}{i}logging.debug("S: [%s] %s" % (self.name, spy))
+
+{i}def clear_log(self):
+{i}{i}with open(self.log_file, "w") as fp:
+{i}{i}{i}fp.write("I'm writing")"""
+
+  def class_definition_template(self):
+    return """{logging_class_code}
+
+class {scxml_chart_class}({scxml_chart_superclass}):
+{i}def __init__(self, name, log_file):
+{i}{i}super().__init__(name, log_file)
+
+{i}def start(self):
+{i}{i}self.start_at({starting_state})"""
+
+
+  def instantiation_template(self):
+    return """{class_code}
+
+if __name__ == '__main__':
+{i}ao = {scxml_chart_class}(\"{name}\", \"{log_file}\")
+{i}ao.live_spy = True"""
+
+  def post_instantiation_template(self):
+    return """{instantiation_code}
+{i}ao.start()"""
+
+  def _create_miros_code(self, indent_amount=None, custom_imports=None):
+    '''create the python code which can manifest the statechart
+
+    **Args**:
+       | ``indent_amount=None`` (str): A string of spaces
+       | ``custom_imports=None`` (type1): A string of custome imports
+
+
+    **Returns**:
+       (str): Python code which can run a statechart.
+
+    '''
+    if indent_amount is None:
+      indent_amount = "  "
+
+    if custom_imports is None:
+      imports = ""
+    else:
+      imports = "\n".split(custom_imports)
+
     state_code = ""
-    start_at = ""
-    name = self.get_name()
+
     for (state_name, v) in self._state_dict.items():
       if state_name != 'start_at':
         state_code += self._write_state_code(state_name, v, indent_amount) + "\n"
       else:
         starting_state = v
 
-    start_code = \
-      "ao.start_at({starting_state})".format(starting_state=starting_state)
-
     pre_instantiation_code = \
-      pre_instantiation_template.format(custom_imports=imports,
+      self.pre_instantiation_template().format(
+          log_file=self.log_file,
+          filepath=str(self.file_path),
+          uuid=self.chart_suffix,
+        custom_imports=imports,
         state_code=state_code)
-    instantiation_code = instantiation_template.format(
+
+    logging_class_code = self.logging_class_definition_template().format(
+      file_path=str(self.file_path),
+      scxml_chart_superclass=self.scxml_chart_superclass,
+      scxml_chart_class=self.scxml_chart_class,
       pre_instantiation_code=pre_instantiation_code,
-      name=name,
       i=indent_amount)
-    code = post_instantiation_code.format(
-      instantiation_code=instantiation_code,
-      start_code=start_code)
 
-    return code
+    class_code = self.class_definition_template().format(
+      logging_class_code=logging_class_code,
+      file_path=str(self.file_path),
+      scxml_chart_superclass=self.scxml_chart_superclass,
+      scxml_chart_class=self.scxml_chart_class,
+      pre_instantiation_code=pre_instantiation_code,
+      i=indent_amount,
+      starting_state=starting_state)
 
-  # {
-  #   'cl': 
-  #     [
-  #       {'ENTRY_SIGNAL': 
-  #         'self.scribble(\'Hello from \\"start\\"\')\nstatus = return_status.HANDLED'},
-  #       {'INIT_SIGNAL': 'status = return_status.HANDLED'},
-  #       {'SCXML_INIT_SIGNAL': 'status = self.trans(Work)'},
-  #       {'EXIT_SIGNAL': 'status = return_state.HANDLED'}],
-  #   'p': None
-  # }
-
+    return class_code
   @staticmethod
   def _write_state_code(state_name, state_dict, indent_amount=None):
     if indent_amount is None:
       indent_amount = "  "
 
-    state_template = '''@spy_on
+    state_template = '''
+@spy_on
 def {state_name}(self, e):
 {i}status = return_status.UNHANDLED
 {cls}{i}else:
 {i}{i}self.temp.fun = {parent_state}
 {i}{i}status = return_status.SUPER
-{i}return status
-'''
+{i}return status'''
     first_cl_template = '''{i}if(e.signal == signals.{signal_name}):
 {event_code}'''
 

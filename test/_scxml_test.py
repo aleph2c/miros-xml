@@ -1,3 +1,9 @@
+# Read the pytest.ini file if you want to port these tests to other projects:
+
+# The pytest.ini is full of warnings about pytest.  As a software project it has
+# been fetishized with a lot of on-by-default "features".  The "features" add
+# warning noise and highjack python's logging.
+
 import os
 import pytest
 from miros_scxml.xml_to_miros import XmlToMiros    
@@ -18,17 +24,48 @@ from miros import spy_on
 from miros import signals
 from miros import ActiveObject
 from miros import return_status
+from contextlib import contextmanager
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 data_path = Path(dir_path) / '..' / 'data'
 
-@pytest.mark.skip()
+@contextmanager
+def stripped(log_items):
+  def item_without_timestamp(item):
+    m = re.match(r"[0-9-:., ]+ DEBUG:S: (.+)$", item)
+    if(m is not None):
+      without_time_stamp = m.group(1)
+    else:
+      without_time_stamp = item
+    return without_time_stamp
+
+  targets = log_items
+  if len(targets) > 1:
+    stripped_target = []
+    for target_item in targets:
+      target_item = target_item.strip()
+      if len(target_item) != 0:
+        stripped_target_item = item_without_timestamp(target_item)
+        stripped_target.append(stripped_target_item)
+    yield(stripped_target)
+
+  else:
+    target = log
+    yield(item_without_timestamp(target))
+
+def get_log_as_stripped_string(path):
+  result = "\n"
+  with open(str((path).resolve())) as fp:
+    with stripped(fp.readlines()) as spy_lines:
+      for s in spy_lines:
+        result += s + '\n'
+  return result
+
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
   main = XmlToMiros(path)
   assert main.get_name() == "Scxml"  
-  assert isinstance(main.state_chart, ActiveObject)
 
 # state_dict = {}
 # state_dict['Start'] = {}
@@ -57,7 +94,6 @@ def test_scxml_get_name():
 #   {'SCXML_INIT_SIGNAL':"status = return_state.HANDLED"}
 # )
 # state_dict['start_at'] = 'Start'
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_xml_dict_structured_well():
   '''
@@ -90,7 +126,7 @@ def test_scxml_xml_dict_structured_well():
   assert None == xml_chart._state_dict['Start']['p']
   assert None == xml_chart._state_dict['Work']['p']
 
-@pytest.mark.skip()
+@pytest.mark.skip
 @pytest.mark.scxml
 def test_scxml_xml_dict_contents():
 
@@ -129,7 +165,6 @@ def test_scxml_xml_dict_contents():
 
   assert("self.scribble('Hello from \\'work\\'')\nstatus = return_status.HANDLED" == entry_state_code)
 
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_start_at_with_single_initial():
   path = data_path / 'scxml_test_1.scxml'
@@ -143,11 +178,28 @@ def test_start_at_with_single_initial():
 @pytest.mark.scxml
 def test_build_a_small_chart():
   path = data_path / 'scxml_test_1.scxml'
-  print("")
-  xml_chart = XmlToMiros(path)
-  xml_chart.write_to_file(data_path / 'scxml_test_1_miros.py')
-  #pp(xml_chart._state_dict)
+  xml_chart = XmlToMiros(path, unique=True)
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  ao.live_spy = True
+  ao.start()
+  time.sleep(0.1)
+
+  result = get_log_as_stripped_string(data_path / 'scxml_test_1.log')
+
+  target = """
+[Scxml] START
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
+[Scxml] ENTRY_SIGNAL:Start
+[Scxml] Hello from "start"
+[Scxml] INIT_SIGNAL:Start
+[Scxml] <- Queued:(0) Deferred:(0)
+"""
+  assert(target == result)
 
 
+
+
+
+  a = 1
 
 
