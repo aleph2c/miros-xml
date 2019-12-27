@@ -1,0 +1,25 @@
+<scxml datamodel="python" name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+  <datamodel>
+    <data expr="true" id="var_bool"/>
+    <data expr="1" id="var_int"/> 
+    <data expr="&quot;This is a string!&quot;" id="var_str"/>
+    <data expr="[1, 2, 3, 4, 5]" id="var_list"/>
+    <data expr="{&quot;key_1&quot;:&quot;value_1&quot;, &quot;key_2&quot;:&quot;value_2&quot;}" id="var_dict"/>
+  </datamodel>
+  <state id="Start">
+    <onentry>
+      <log expr='Hello from "start"'/>
+      <log expr="{} {}".format(var_bool, type(var_bool)/>
+      <log expr="{} {}".format(var_int, type(var_int)/>
+      <log expr="{} {}".format(var_str, type(var_str)/>
+      <log expr="{} {}".format(var_list, type(var_list)/>
+      <log expr="{} {}".format(var_dict, type(var_dict)/>
+    </onentry>
+    <transition target="Work"/>
+  </state>
+  <state id="Work">
+    <onentry>
+      <log expr="Hello from 'work'"/>
+    </onentry>
+  </state>
+</scxml>

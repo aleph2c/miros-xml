@@ -5,18 +5,12 @@
 # warning noise and highjack python's logging.
 
 import os
-import pytest
-from miros_scxml.xml_to_miros import XmlToMiros    
-from pathlib import Path
-from xml.etree.ElementTree import Element
-from xml.etree.ElementTree import ElementTree
-
 import re
 import time
-import logging
-from functools import partial
-from collections import deque
-from collections import namedtuple
+import pytest
+from pathlib import Path
+from contextlib import contextmanager
+from miros_scxml.xml_to_miros import XmlToMiros    
 
 from miros import pp
 from miros import Event
@@ -24,7 +18,6 @@ from miros import spy_on
 from miros import signals
 from miros import ActiveObject
 from miros import return_status
-from contextlib import contextmanager
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 data_path = Path(dir_path) / '..' / 'data'
@@ -61,6 +54,7 @@ def get_log_as_stripped_string(path):
         result += s + '\n'
   return result
 
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
@@ -94,6 +88,7 @@ def test_scxml_get_name():
 #   {'SCXML_INIT_SIGNAL':"status = return_state.HANDLED"}
 # )
 # state_dict['start_at'] = 'Start'
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_xml_dict_structured_well():
   '''
@@ -126,7 +121,7 @@ def test_scxml_xml_dict_structured_well():
   assert None == xml_chart._state_dict['Start']['p']
   assert None == xml_chart._state_dict['Work']['p']
 
-@pytest.mark.skip
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_xml_dict_contents():
 
@@ -165,6 +160,7 @@ def test_scxml_xml_dict_contents():
 
   assert("self.scribble('Hello from \\'work\\'')\nstatus = return_status.HANDLED" == entry_state_code)
 
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_start_at_with_single_initial():
   path = data_path / 'scxml_test_1.scxml'
@@ -178,28 +174,32 @@ def test_start_at_with_single_initial():
 @pytest.mark.scxml
 def test_build_a_small_chart():
   path = data_path / 'scxml_test_1.scxml'
-  xml_chart = XmlToMiros(path, unique=True)
+  xml_chart = XmlToMiros(path)
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
   time.sleep(0.1)
 
   result = get_log_as_stripped_string(data_path / 'scxml_test_1.log')
+  print(result)
 
   target = """
 [Scxml] START
 [Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
 [Scxml] ENTRY_SIGNAL:Start
+[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
 [Scxml] Hello from "start"
 [Scxml] INIT_SIGNAL:Start
+[Scxml] <- Queued:(1) Deferred:(0)
+[Scxml] SCXML_INIT_SIGNAL:Start
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Work
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
+[Scxml] EXIT_SIGNAL:Start
+[Scxml] ENTRY_SIGNAL:Work
+[Scxml] Hello from 'work'
+[Scxml] INIT_SIGNAL:Work
 [Scxml] <- Queued:(0) Deferred:(0)
 """
   assert(target == result)
-
-
-
-
-
-  a = 1
 
 

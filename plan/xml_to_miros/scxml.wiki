@@ -77,10 +77,22 @@
   * [X] Build up the state_dict
   * [X] Build a statechart from the first state_dict
   * [X] Compare the spy output against the expected output
-  * [ ] Create debug tag for debugging resulting chart
-  * [ ] Add an adjusted 
+  * [X] Create debug tag for debugging resulting chart
+  * [X] Add feature for initial posting between states.
+  * [ ] Fix the mess that is in the build_statechart_dict method
+  * [.] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|datamodel]]
         from the scxml tutorial 
+      * [X] create python datamodel in xml, scxml_test_3.scxml
+      * [ ] adjust code assert if data model is not python
+      * [ ] for each data in data model, create initialization in ActiveObject
+            class
+      * [ ] in statechart, log tags are the choosen datamodel
+      * [ ] evaluate log expression with self prepended to statements
+      * [ ] get minimal thing working, then push on, the datamodel will be
+            re-visited later
+      * [ ] Consider using Beazley's 'ply' as a parser for the datamodel to
+            build a mini language
   * [ ] Compare the spy output against the expected output
   * [ ] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|early spec]]

@@ -1,3 +1,8 @@
+# Read the pytest.ini file if you want to port these tests to other projects:
+
+# The pytest.ini is full of warnings about pytest.  As a software project it has
+# been fetishized with a lot of on-by-default "features".  The "features" add
+# warning noise and highjack python's logging.
 import os
 import pytest
 from miros_scxml.xml_to_miros import XmlToMiros    
@@ -21,21 +26,21 @@ from miros import return_status
 dir_path = os.path.dirname(os.path.realpath(__file__))
 data_path = Path(dir_path) / '..' / 'data'
 
-def test_file_path_is_path():
-  example1 = XmlToMiros(data_path / 'reed.xml')
-  assert(isinstance(example1.file_path, Path))
-  example2 = XmlToMiros(str(data_path / 'reed.xml'))
-  assert(isinstance(example2.file_path, Path))
+#def test_file_path_is_path():
+#  example1 = XmlToMiros(data_path / 'reed.xml')
+#  assert(isinstance(example1.file_path, Path))
+#  example2 = XmlToMiros(str(data_path / 'reed.xml'))
+#  assert(isinstance(example2.file_path, Path))
+#
+#def test_it_can_open_and_parse_xml():
+#  example1 = XmlToMiros(data_path / 'reed.xml')
+#  assert(isinstance(example1.root, Element))
 
-def test_it_can_open_and_parse_xml():
-  example1 = XmlToMiros(data_path / 'reed.xml')
-  assert(isinstance(example1.root, Element))
-
-def test_it_can_find_states_final_and_parallel():
-  example1 = XmlToMiros(data_path / 'microwave-02.scxml')
-
-  assert(len(example1.find_states()) == 1)
-  assert(example1.is_parallel(example1.find_states()[0]))
+#def test_it_can_find_states_final_and_parallel():
+#  example1 = XmlToMiros(data_path / 'microwave-02.scxml')
+#
+#  assert(len(example1.find_states()) == 1)
+#  assert(example1.is_parallel(example1.find_states()[0]))
 
 def test_recursive_function():
   path = data_path / 'microwave-02.scxml'

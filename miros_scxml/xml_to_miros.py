@@ -11,12 +11,75 @@ from xml.etree import ElementTree
 # from collections import namedtuple
 
 
-# from miros import pp
+from miros import pp
 # from miros import Event
 # from miros import spy_on
 # from miros import signals
 # from miros import ActiveObject
 # from miros import return_status
+
+#{ 'states': {
+#     'Start': 
+#      {
+#        'cl': 
+#        [
+#          {'ENTRY_SIGNAL':
+#             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
+#             'self.scribble(\'Hello from \\"start\\"\')\n'
+#             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
+#             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
+#             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
+#             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
+#             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
+#             'status = return_status.HANDLED'
+#          },
+#          {'INIT_SIGNAL':
+#            'status = return_status.HANDLED'
+#          },
+#          {'SCXML_INIT_SIGNAL':
+#            'status = self.trans(Work)'
+#          },
+#          {'EXIT_SIGNAL':
+#            'status = return_status.HANDLED'}
+#       ],
+#       'p': None
+#      },
+#     'Work':
+#     {
+#       'cl':
+#         [
+#           {'ENTRY_SIGNAL':
+#              "self.scribble('Hello from \\'work\\'')\n"
+#              'status = return_status.HANDLED'
+#           },
+#           {'INIT_SIGNAL':
+#             'status = return_status.HANDLED'
+#           },
+#           {'SCXML_INIT_SIGNAL':
+#             'status = return_status.HANDLED'
+#           },
+#           {'EXIT_SIGNAL':
+#             'status = return_status.HANDLED'
+#           }
+#        ],
+#      'p': None
+#     },
+#  }
+#  'start_at': 'Start'
+#  'data_model' : 'python',
+#  'data' :
+#    [
+#      "self.var_bool = true"
+#      "self.var_int = 1"
+#      "self.var_str = \"This is a string\""
+#      "self.var_list = [1, 2, 3, 4, 5]"
+#      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+#    ]
+#}
+
+
+    
+
 
 class XmlToMiros():
   namespaces = {
@@ -39,7 +102,7 @@ class XmlToMiros():
     'else',
     'elseif',
     'debug',
-    # 'foreach',
+    'foreach',
     'log',
     'datamodel',
     'data',
@@ -133,8 +196,96 @@ class XmlToMiros():
       self.recurse_scxml(fn=fn)
 
     self._state_dict = self.build_statechart_dict(self.root)
+    pp(self._state_dict)
     self._code = self._create_miros_code()
 
+  def initialize_state_chart_dict(self):
+    self.state_chart_dict = {}
+    self.state_chart_dict['name'] = None
+    self.state_chart_dict['start_at'] = None
+    self.state_chart_dict['states'] = {}
+    self.state_chart_dict['datamodel'] = None
+    self.state_chart_dict['data'] = []
+
+  def escape_quotes(self, string):
+    _trans_dict = {
+      "'": "\\'", 
+      '"': '\\"'
+    }
+    result = string.translate(str.maketrans(_trans_dict)) 
+    return result
+
+  def state_to_dict_ctor(self, state_dict, node, parent):
+    # 'Work':
+    # {
+    #   'cl':
+    #   [
+    #       {'ENTRY_SIGNAL':
+    #          "self.scribble('Hello from \\'work\\'')\n"
+    #          'status = return_status.HANDLED'
+    #       },
+    #       {'INIT_SIGNAL':
+    #         'status = return_status.HANDLED'
+    #       },
+    #       {'SCXML_INIT_SIGNAL':
+    #         'status = return_status.HANDLED'
+    #       },
+    #       {'EXIT_SIGNAL':
+    #         'status = return_status.HANDLED'
+    #       }
+    #    ],
+    #    'p': None
+    # }
+    name = node.attrib['id']
+    parent = None if parent == None else \
+      self.get_tag_without_namespace(parent)
+    # state_dict is enclosed
+    state_dict[name] = {}
+    state_dict[name]['p'] = parent
+    state_dict[name]['cl'] = []
+    state_dict[name]['cl'].append(
+      {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    state_dict[name]['cl'].append(
+      {'INIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+     
+    state_dict[name]['cl'].append(
+      {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    state_dict[name]['cl'].append(
+      {'EXIT_SIGNAL': 'status = return_statu.HANDLED'}
+    )
+
+  def prepend_log(self, node, signal_name):
+    '''convert <log>{contents}</log> to self.scribble({contents})'''
+    log_nodes = self.findall_fn['log'](node)
+    for log_node in log_nodes:
+      string = "self.scribble(\'{}\')\n".format(
+        self.escape_quotes(log_node.attrib['expr'])
+        )
+      index = index_for_signal(state_dict[name]['cl'], signal_name)
+      string += state_dict[name]['cl'][index][signal_name]
+      state_dict[name]['cl'][index] = {signal_name:string}
+
+  def prepend_debugger(self, node, signal_name):
+    '''convert <debugger\> to import pdb; pdb.set_trace()'''
+    log_nodes = self.findall_fn['debug'](node)
+    for log_node in log_nodes:
+      self.debugger = True
+      string = "import pdb; pdb.set_trace()\n"
+      index = index_for_signal(state_dict[name]['cl'], signal_name)
+      string += state_dict[name]['cl'][index][signal_name]
+      state_dict[name]['cl'][index] = {signal_name:string}
+
+  def prepend_posting_of_scxml_init_in_entry_condition(self, node):
+    '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
+    entry condition when the SCXML requires an immediate transition from one
+    state to another'''
+    entry_index = index_for_signal(state_dict[name]['cl'], "ENTRY_SIGNAL")
+    string = "self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n"
+    string += state_dict[name]['cl'][entry_index]["ENTRY_SIGNAL"]
+    state_dict[name]['cl'][entry_index] = {"ENTRY_SIGNAL":string}
 
   def make(self):
     '''Make the statechart
@@ -171,8 +322,8 @@ class XmlToMiros():
       ), globals()
     )
 
-    if not self.debugger:
-      risky_os.remove(file_name)
+    #if not self.debugger:
+    #  risky_os.remove(file_name)
 
     # If you run a linter it will say that this ScxmChart class is not
     # defined, but it is defined and imported in the above exec call.  Linters
@@ -482,6 +633,12 @@ class XmlToMiros():
       ie = include_element[0]
     return result, file_name, ie
 
+  # pull these methods into their own class?
+  # initialize the state dict
+  # draw a picture of what to expect in a comment
+  # break out the state to dict function
+  # break out and clean up the prepend functions
+
   def build_statechart_dict(self, node):
     '''Build a statechart dict from a given node
 
@@ -516,21 +673,70 @@ class XmlToMiros():
           break
       return index
 
-    # {
-    #   'cl': 
-    #     [
-    #       {'ENTRY_SIGNAL': 
-    #         'self.scribble(\'Hello from \\"start\\"\')\nstatus = return_status.HANDLED'},
-    #       {'INIT_SIGNAL': 'status = return_status.HANDLED'},
-    #       {'SCXML_INIT_SIGNAL': 'status = self.trans(Work)'},
-    #       {'EXIT_SIGNAL': 'status = return_state.HANDLED'}],
-    #   'p': None
-    # }
+    #{ 'states': {
+    #     'Start': 
+    #      {
+    #        'cl': 
+    #        [
+    #          {'ENTRY_SIGNAL':
+    #             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
+    #             'self.scribble(\'Hello from \\"start\\"\')\n'
+    #             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
+    #             'status = return_status.HANDLED'
+    #          },
+    #          {'INIT_SIGNAL':
+    #            'status = return_status.HANDLED'
+    #          },
+    #          {'SCXML_INIT_SIGNAL':
+    #            'status = self.trans(Work)'
+    #          },
+    #          {'EXIT_SIGNAL':
+    #            'status = return_status.HANDLED'}
+    #       ],
+    #       'p': None
+    #      },
+    #      'Work':
+    #      {
+    #        'cl':
+    #        [
+    #            {'ENTRY_SIGNAL':
+    #               "self.scribble('Hello from \\'work\\'')\n"
+    #               'status = return_status.HANDLED'
+    #            },
+    #            {'INIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            },
+    #            {'SCXML_INIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            },
+    #            {'EXIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            }
+    #         ],
+    #         'p': None
+    #      },
+    #  }
+    #  'start_at': 'Start'
+    #  'data_model' : 'python',
+    #  'data' :
+    #    [
+    #      "self.var_bool = true"
+    #      "self.var_int = 1"
+    #      "self.var_str = \"This is a string\""
+    #      "self.var_list = [1, 2, 3, 4, 5]"
+    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+    #    ]
+    #}
 
     def state_to_dict(node, parent):
       name = node.attrib['id']
       parent = None if parent == None else \
         self.get_tag_without_namespace(parent)
+      # state_dict is enclosed
       state_dict[name] = {}
       state_dict[name]['p'] = parent
       state_dict[name]['cl'] = []
@@ -545,10 +751,11 @@ class XmlToMiros():
         {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
       )
       state_dict[name]['cl'].append(
-        {'EXIT_SIGNAL': 'status = return_state.HANDLED'}
+        {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
       )
 
       def prepend_log(node, signal_name):
+        '''convert <log>{contents}</log> to self.scribble({contents})'''
         log_nodes = self.findall_fn['log'](node)
         for log_node in log_nodes:
           string = "self.scribble(\'{}\')\n".format(
@@ -559,6 +766,7 @@ class XmlToMiros():
           state_dict[name]['cl'][index] = {signal_name:string}
 
       def prepend_debugger(node, signal_name):
+        '''convert <debugger\> to import pdb; pdb.set_trace()'''
         log_nodes = self.findall_fn['debug'](node)
         for log_node in log_nodes:
           self.debugger = True
@@ -567,6 +775,15 @@ class XmlToMiros():
           string += state_dict[name]['cl'][index][signal_name]
           state_dict[name]['cl'][index] = {signal_name:string}
 
+      def prepend_posting_of_scxml_init_in_entry_condition(node):
+        '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
+        entry condition when the SCXML requires an immediate transition from one
+        state to another'''
+        entry_index = index_for_signal(state_dict[name]['cl'], "ENTRY_SIGNAL")
+        string = "self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n"
+        string += state_dict[name]['cl'][entry_index]["ENTRY_SIGNAL"]
+        state_dict[name]['cl'][entry_index] = {"ENTRY_SIGNAL":string}
+
       entry_nodes = self.findall_fn['onentry'](node)
       for entry_node in entry_nodes:
         prepend_debugger(entry_node, 'ENTRY_SIGNAL')
@@ -574,16 +791,20 @@ class XmlToMiros():
 
       init_nodes = self.findall_fn['initial'](node)
       for init_node in init_nodes:
-        prepend_debugger(entry_node, 'INIT_SIGNAL')
+        prepend_debugger(init_node, 'INIT_SIGNAL')
         prepend_log(init_node, 'INIT_SIGNAL')
 
       immediate_transition_nodes = self.findall_fn['transition'](node)
       for node in immediate_transition_nodes:
+        if not 'target' in node.attrib:
+          # TODO: feature not supported yet
+          break
         code_string = "status = self.trans({})".format(node.attrib['target'])
         index = index_for_signal(state_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
         state_dict[name]['cl'][index] = \
           {'SCXML_INIT_SIGNAL': code_string}
         prepend_log(node, 'SCXML_INIT_SIGNAL')
+        prepend_posting_of_scxml_init_in_entry_condition(node)
 
       exit_nodes = self.findall_fn['onexit'](node)
       for exit_node in exit_nodes:
@@ -674,7 +895,8 @@ if __name__ == '__main__':
 
   def post_instantiation_template(self):
     return """{instantiation_code}
-{i}ao.start()"""
+{i}ao.start()
+{i}time.sleep(0.01)"""
 
   def _create_miros_code(self, indent_amount=None, custom_imports=None):
     '''create the python code which can manifest the statechart
@@ -729,6 +951,7 @@ if __name__ == '__main__':
       starting_state=starting_state)
 
     return class_code
+
   @staticmethod
   def _write_state_code(state_name, state_dict, indent_amount=None):
     if indent_amount is None:
@@ -756,6 +979,7 @@ def {state_name}(self, e):
       event_code = "{i}{i}{code}\n".format(i=indent_amount, code=tokens[0])
       new_tokens = ["{i}{i}{code}\n".format(i=indent_amount, code=token) for token in tokens[1:]]
       event_code += "\n".join(new_tokens)
+
       if index == 0:
         cls = first_cl_template.format(
           i=indent_amount,
@@ -766,6 +990,10 @@ def {state_name}(self, e):
           i=indent_amount,
           signal_name=signal_name,
           event_code= event_code)
+
+    # remove distracting double new lines
+    cls = cls.replace("\n\n", "\n")
+
 
     parent_state = "self.top" if state_dict['p'] is None else state_dict['p']
     state_code = state_template.format(
