@@ -94,24 +94,24 @@
       * [X] Consider using Beazley's 'ply' as a parser for the datamodel to
             build a mini language
   * [X] Compare the spy output against the expected output
-  * [ ] Add an adjusted 
+  * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|early spec]]
         from the scxml tutorial 
-  * [ ] Compare the spy output against the expected output
-  * [ ] Add an adjusted 
+  * [X] Compare the spy output against the expected output
+  * [ ] Fix how you have used namespaces... clean it up: https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces
+  * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|late spec]]
         from the scxml tutorial 
-  * [ ] Compare the spy output against the expected output
-  * [ ] Add an adjusted 
+  * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|start at first state]]
         from the scxml tutorial 
-  * [ ] Compare the spy output against the expected output
-  * [ ] Add an adjusted 
+  * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|start at first state]]
         from the scxml tutorial 
-  * [ ] Compare the spy output against the expected output
+  * [X] Compare the spy output against the expected output
   * [ ] Create a document of features not supported in README.md
   * [ ] Add "initial" in parallel state not supported
+  * [ ] Jump to state plan and fix the parent state bug
 
   *Chosen Research-Goal/Hypothesis*
     

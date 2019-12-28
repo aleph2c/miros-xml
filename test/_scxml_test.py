@@ -28,6 +28,7 @@ sys.path.insert(0, dir_path)
 from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
 
+@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
@@ -36,8 +37,9 @@ def test_scxml_get_name():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   assert ao.name == "Scxml"
 
+@pytest.mark.skip()
 @pytest.mark.scxml
-def test_build_a_small_chart():
+def test_scxml_build_a_small_chart():
   path = data_path / 'scxml_test_1.scxml'
   xml_chart = XmlToMiros(path)
   ao = xml_chart.make()  # like calling ScxmlChart(...)
@@ -67,8 +69,9 @@ def test_build_a_small_chart():
 """
   assert(target == result)
 
+@pytest.mark.skip()
 @pytest.mark.scxml
-def test_build_a_small_chart():
+def test_scxml_build_a_small_chart():
   """
   Here we are demonstrating a barebones datamodel with data.  The data binding is
   "early", which means that the variables are initialized when the document is
@@ -203,6 +206,7 @@ def test_build_a_small_chart():
   """
   path = data_path / 'scxml_test_3.scxml'
   xml_chart = XmlToMiros(path)
+  assert xml_chart.binding_type() == 'early'
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
@@ -231,3 +235,71 @@ def test_build_a_small_chart():
 [Scxml] <- Queued:(0) Deferred:(0)
 """
   assert(target == result)
+
+@pytest.mark.skip()
+@pytest.mark.scxml
+def test_scxml_early_data_binding():
+  path = data_path / 'early_binding.scxml'
+  xml_chart = XmlToMiros(path)
+  assert xml_chart.binding_type() == 'early'
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  ao.live_spy = True
+  ao.start()
+  time.sleep(0.1)
+  result = get_log_as_stripped_string(data_path / 'early_binding.log')
+  target = """
+[Scxml] START
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step1
+[Scxml] ENTRY_SIGNAL:Step1
+[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
+[Scxml] 1
+[Scxml] INIT_SIGNAL:Step1
+[Scxml] <- Queued:(1) Deferred:(0)
+[Scxml] SCXML_INIT_SIGNAL:Step1
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step2
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step1
+[Scxml] EXIT_SIGNAL:Step1
+[Scxml] ENTRY_SIGNAL:Step2
+[Scxml] INIT_SIGNAL:Step2
+[Scxml] <- Queued:(0) Deferred:(0)
+"""
+  assert(target == result)
+
+@pytest.mark.skip()
+@pytest.mark.scxml
+def test_scxml_late_data_binding():
+  path = data_path / 'late_binding.scxml'
+  xml_chart = XmlToMiros(path)
+  assert xml_chart.binding_type() == 'late'
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  ao.live_spy = True
+  ao.start()
+  time.sleep(0.1)
+  result = get_log_as_stripped_string(data_path / 'late_binding.log')
+  target = """
+[Scxml] START
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step1
+[Scxml] ENTRY_SIGNAL:Step1
+[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
+[Scxml] None
+[Scxml] INIT_SIGNAL:Step1
+[Scxml] <- Queued:(1) Deferred:(0)
+[Scxml] SCXML_INIT_SIGNAL:Step1
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step2
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Step1
+[Scxml] EXIT_SIGNAL:Step1
+[Scxml] ENTRY_SIGNAL:Step2
+[Scxml] INIT_SIGNAL:Step2
+[Scxml] <- Queued:(0) Deferred:(0)
+"""
+  assert(target == result)
+
+@pytest.mark.scxml
+def test_scxml_default_init_state():
+  path = data_path / 'test355.scxml'
+  xml_chart = XmlToMiros(path)
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  ao.live_spy = True
+  ao.start()
+  time.sleep(0.1)
+  assert "pass" in ao.state_name

@@ -1,0 +1,18 @@
+<!--
+When 'binding' is assigned the value "early" (the default), the SCXML Processor
+must create all data elements and assign their initial values at document
+initialization time.
+-->
+<scxml datamodel="python" initial="Step1" name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+	<state id="Step1">
+		<onentry>
+			<log expr="VarA" label="VarA"/>
+		</onentry>
+		<transition target="Step2"/>
+	</state>
+	<state id="Step2">
+		<datamodel>
+			<data expr="1" id="VarA"/>
+		</datamodel>
+	</state>
+</scxml>

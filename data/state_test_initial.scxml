@@ -1,0 +1,22 @@
+<scxml name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+  <state id="Work" initial="State1">
+    <state id="State1">
+      <onentry>
+        <log expr="Hello!" label="State 1"/>
+      </onentry>
+      <transition event="Step" target="State2"/>
+    </state>
+    <state id="State2">
+      <onentry>
+        <log expr="Hello!" label="State 2"/>
+      </onentry>
+      <transition event="Step" target="State3"/>
+    </state>
+    <state id="State3">
+      <onentry>
+        <log expr="Hello!" label="State 3"/>
+      </onentry>
+      <transition event="Step" target="State1"/>
+    </state>
+  </state>
+</scxml>

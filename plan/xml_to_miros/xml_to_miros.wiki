@@ -13,14 +13,18 @@
 
   *Resources:*
     [[https://www.w3.org/TR/scxml/|scxml spec]] 
+    [[https://www.w3.org/Voice/2013/scxml-irp/#tests|scxml tests]]
+    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
+    
     [[https://docs.python.org/3.5/library/xml.etree.elementtree.html|ElementTree XML API]]
     [[https://docs.python.org/3.5/library/xml.etree.elementtree.html#xpath-support|xpath support]]
+    [[https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces|Xpath namespaces]]
     [[https://realpython.com/python-thinking-recursively/|python recursion article]]
     [[https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2|A good quick start]]
     [[https://www.youtube.com/watch?v=rFxXDO8-keg|Getting Started with Python XML]] 
     [[http://aiweb.cs.washington.edu/research/projects/xmltk/xmldata/|example xml datasets]]
     [[https://github.com/jroxendal/PySCXML/tree/master/examples/scxml_sandbox/example_docs|pyscxml example docs]]
-    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
+    
     [[https://www.researchgate.net/publication/272355963_From_Harel_To_Kripke_A_Provable_Datamodel_for_SCXML|Kripke]]
     
     [[https://www.youtube.com/watch?v=5ebxa-nIpiE&feature=youtu.be&list=PLUbY_L_9E-b_YuK-IWjUWYxcpcKccSX1N|video tutorial for SCXML]]

@@ -27,7 +27,7 @@ def stripped(log_items):
     yield(stripped_target)
 
   else:
-    target = log
+    target = log_items
     yield(item_without_timestamp(target))
 
 def get_log_as_stripped_string(path):

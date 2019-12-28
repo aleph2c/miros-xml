@@ -1,0 +1,14 @@
+<!--
+test that default initial state is first in document order.  If we enter s0 first we
+succeed, if s1, failure. 
+-->
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0">
+  <state id="s0">
+    <transition target="_pass"/>
+  </state>
+  <state id="s1">
+    <transition target="_fail"/>
+  </state>
+  <state id="_pass"/>
+  <state id="_fail"/>
+</scxml>

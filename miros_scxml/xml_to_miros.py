@@ -209,10 +209,12 @@ class XmlToMiros():
     #      "self.var_str = \"This is a string\""
     #      "self.var_list = [1, 2, 3, 4, 5]"
     #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
-    #    ]
+    #    ],
+    #   'early_binding' : True
     #}
     self._state_chart_dict = self._d_initialize_state_chart_dict()
     self._state_chart_dict['datamodel'] = self._d_build_datamodel(self.root)
+    self._state_chart_dict['early_binding'] = self._d_datamodel_binding_type(self.root)
     self._state_chart_dict['data'], self.datamodel_variables = self._d_build_data(self.root)
     self._state_chart_dict['states'] = self._d_build_statechart_dict(self.root)
     self._states_dict = {}
@@ -225,6 +227,18 @@ class XmlToMiros():
     else:
       datamodel = None
     return datamodel
+
+  def _d_datamodel_binding_type(self, node):
+    early_binding = True
+    if 'binding' in node.attrib:
+      binding_type = node.attrib['binding']
+      assert binding_type == "early" or binding_type == "late"
+      early_binding = True if binding_type == "early" else False
+    return early_binding
+
+  def binding_type(self):
+    early_binding = self._state_chart_dict['early_binding']
+    return 'early' if early_binding else 'late'
 
   def _d_build_data(self, node):
     # 'data' :
@@ -240,13 +254,17 @@ class XmlToMiros():
     xpath_search_string = ".//{" +XmlToMiros.namespaces['sc'] + \
       "}datamodel/{" +XmlToMiros.namespaces['sc'] + "}data"
     data_nodes = node.findall(xpath_search_string)
+
     for data in data_nodes:
       variable_list.append(data.attrib['id'])
       variable_name = "self." + data.attrib['id']
-      contents = data.attrib['expr'].replace("quot;", '\"')
-      data_list.append("{} = {}".format(variable_name, contents))
-    return data_list, variable_list
+      if self.binding_type() == "early":
+        contents = data.attrib['expr'].replace("quot;", '\"')
+        data_list.append("{} = {}".format(variable_name, contents))
+      else:
+        data_list.append("{} = None".format(variable_name))
 
+    return data_list, variable_list
     
 
   def _d_initialize_state_chart_dict(self):
@@ -306,7 +324,8 @@ class XmlToMiros():
     #      "self.var_str = \"This is a string\""
     #      "self.var_list = [1, 2, 3, 4, 5]"
     #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
-    #    ]
+    #    ],
+    #   'early_binding' : True,
     #}
     state_chart_dict = {}
     state_chart_dict['name'] = None
@@ -314,6 +333,7 @@ class XmlToMiros():
     state_chart_dict['start_at'] = None
     state_chart_dict['datamodel'] = None
     state_chart_dict['data'] = []
+    state_chart_dict['early_binding'] = True
     return state_chart_dict
 
   @staticmethod
@@ -718,7 +738,12 @@ class XmlToMiros():
 
   def get_name(self):
     '''get the name of the Statechart from the provided SCXML document.'''
-    return self.root.attrib['name']
+    name = None
+    if 'name' in self.root.attrib:
+      name = self.root.attrib['name']
+    else:
+      name = self.chart_suffix
+    return name
 
   @staticmethod
   def _x_include_xml(node):
