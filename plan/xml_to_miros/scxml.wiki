@@ -79,21 +79,21 @@
   * [X] Compare the spy output against the expected output
   * [X] Create debug tag for debugging resulting chart
   * [X] Add feature for initial posting between states.
-  * [ ] Fix the mess that is in the build_statechart_dict method
-  * [.] Add an adjusted 
+  * [X] Fix the mess that is in the build_statechart_dict method
+  * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|datamodel]]
         from the scxml tutorial 
       * [X] create python datamodel in xml, scxml_test_3.scxml
-      * [ ] adjust code assert if data model is not python
-      * [ ] for each data in data model, create initialization in ActiveObject
+      * [X] adjust code assert if data model is not python
+      * [X] for each data in data model, create initialization in ActiveObject
             class
-      * [ ] in statechart, log tags are the choosen datamodel
-      * [ ] evaluate log expression with self prepended to statements
-      * [ ] get minimal thing working, then push on, the datamodel will be
+      * [X] in statechart, log tags are the choosen datamodel
+      * [X] evaluate log expression with self prepended to statements
+      * [X] get minimal thing working, then push on, the datamodel will be
             re-visited later
-      * [ ] Consider using Beazley's 'ply' as a parser for the datamodel to
+      * [X] Consider using Beazley's 'ply' as a parser for the datamodel to
             build a mini language
-  * [ ] Compare the spy output against the expected output
+  * [X] Compare the spy output against the expected output
   * [ ] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|early spec]]
         from the scxml tutorial 

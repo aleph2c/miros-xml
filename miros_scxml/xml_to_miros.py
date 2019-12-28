@@ -1,84 +1,18 @@
 # import re
 import sys
-# import time
 import uuid
-# import logging
+import time
 import os as risky_os
 from pathlib import Path
 from functools import partial
-# from collections import deque
 from xml.etree import ElementTree
-# from collections import namedtuple
 from collections import OrderedDict
 
-
 from miros import pp
-# from miros import Event
-# from miros import spy_on
-# from miros import signals
-# from miros import ActiveObject
-# from miros import return_status
 
-#{ 'states': {
-#     'Start': 
-#      {
-#        'cl': 
-#        [
-#          {'ENTRY_SIGNAL':
-#             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
-#             'self.scribble(\'Hello from \\"start\\"\')\n'
-#             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
-#             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
-#             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
-#             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
-#             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
-#             'status = return_status.HANDLED'
-#          },
-#          {'INIT_SIGNAL':
-#            'status = return_status.HANDLED'
-#          },
-#          {'SCXML_INIT_SIGNAL':
-#            'status = self.trans(Work)'
-#          },
-#          {'EXIT_SIGNAL':
-#            'status = return_status.HANDLED'}
-#       ],
-#       'p': None
-#      },
-#     'Work':
-#     {
-#       'cl':
-#         [
-#           {'ENTRY_SIGNAL':
-#              "self.scribble('Hello from \\'work\\'')\n"
-#              'status = return_status.HANDLED'
-#           },
-#           {'INIT_SIGNAL':
-#             'status = return_status.HANDLED'
-#           },
-#           {'SCXML_INIT_SIGNAL':
-#             'status = return_status.HANDLED'
-#           },
-#           {'EXIT_SIGNAL':
-#             'status = return_status.HANDLED'
-#           }
-#        ],
-#      'p': None
-#     },
-#  }
-#  'start_at': 'Start'
-#  'datamodel' : 'python',
-#  'data' :
-#    [
-#      "self.var_bool = True"
-#      "self.var_int = 1"
-#      "self.var_str = \"This is a string\""
-#      "self.var_list = [1, 2, 3, 4, 5]"
-#      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
-#    ]
-#}
 
 class XmlToMiros():
+
   namespaces = {
     'sc': 'http://www.w3.org/2005/07/scxml',
     'xi': 'http://www.w3.org/2001/XInclude'
@@ -113,8 +47,33 @@ class XmlToMiros():
     'invoke',
     'finalize'
   ]
-  def __init__(self, path_to_xml, log_file=None, unique=None):
 
+  def __init__(self, path_to_xml, log_file=None, unique=None):
+    '''Convert scxml into a miro python statechart
+
+    **Args**:
+       | ``path_to_xml`` (path|str): location of the scxml file
+       | ``log_file=None`` (str): name of the log file generated from your
+       |                          statechart
+       | ``unique=None`` (bool):  to create a unique namespace for the generated
+       |                          statechart objects
+
+
+    **Returns**:
+       (XmlToMiros): an object of this class
+
+    **Example(s)**:
+      
+    .. code-block:: python
+       
+       path = data_path / 'scxml_test_3.scxml'
+       xml_chart = XmlToMiros(path)
+       ao = xml_chart.make()  # like calling ScxmlChart(...)
+       ao.live_spy = True
+       ao.start()
+       time.sleep(0.1)
+
+    '''
     self.debugger = False
     self.file_path = Path(path_to_xml).resolve()
     if isinstance(self.file_path, Path):
@@ -192,6 +151,66 @@ class XmlToMiros():
       # xi feature isn't fixed until 3.9 see https://bugs.python.org/issue20928 
       self.recurse_scxml(fn=fn)
 
+    # Build up the data dictionary structure which will be uses as a flat
+    # reference from which to write the miros code
+    #{ 'states': {
+    #     'Start': 
+    #      {
+    #        'cl': 
+    #        [
+    #          {'ENTRY_SIGNAL':
+    #             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
+    #             'self.scribble(\'Hello from \\"start\\"\')\n'
+    #             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
+    #             'status = return_status.HANDLED'
+    #          },
+    #          {'INIT_SIGNAL':
+    #            'status = return_status.HANDLED'
+    #          },
+    #          {'SCXML_INIT_SIGNAL':
+    #            'status = self.trans(Work)'
+    #          },
+    #          {'EXIT_SIGNAL':
+    #            'status = return_status.HANDLED'}
+    #       ],
+    #       'p': None
+    #      },
+    #     'Work':
+    #     {
+    #       'cl':
+    #         [
+    #           {'ENTRY_SIGNAL':
+    #              "self.scribble('Hello from \\'work\\'')\n"
+    #              'status = return_status.HANDLED'
+    #           },
+    #           {'INIT_SIGNAL':
+    #             'status = return_status.HANDLED'
+    #           },
+    #           {'SCXML_INIT_SIGNAL':
+    #             'status = return_status.HANDLED'
+    #           },
+    #           {'EXIT_SIGNAL':
+    #             'status = return_status.HANDLED'
+    #           }
+    #        ],
+    #      'p': None
+    #     },
+    #  }
+    #  'start_at': 'Start'
+    #  'datamodel' : 'python',
+    #  'data' :
+    #    [
+    #      "self.var_bool = True"
+    #      "self.var_int = 1"
+    #      "self.var_str = \"This is a string\""
+    #      "self.var_list = [1, 2, 3, 4, 5]"
+    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+    #    ]
+    #}
     self._state_chart_dict = self._d_initialize_state_chart_dict()
     self._state_chart_dict['datamodel'] = self._d_build_datamodel(self.root)
     self._state_chart_dict['data'], self.datamodel_variables = self._d_build_data(self.root)
@@ -208,14 +227,14 @@ class XmlToMiros():
     return datamodel
 
   def _d_build_data(self, node):
-    #  'data' :
-    #    [
-    #      "self.var_bool = True"
-    #      "self.var_int = 1"
-    #      "self.var_str = \"This is a string\""
-    #      "self.var_list = [1, 2, 3, 4, 5]"
-    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
-    #    ]
+    # 'data' :
+    #   [
+    #     "self.var_bool = True"
+    #     "self.var_int = 1"
+    #     "self.var_str = \"This is a string\""
+    #     "self.var_list = [1, 2, 3, 4, 5]"
+    #     "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+    #   ]
     variable_list = [] 
     data_list = []
     xpath_search_string = ".//{" +XmlToMiros.namespaces['sc'] + \
@@ -796,8 +815,6 @@ class {scxml_chart_superclass}(ActiveObject):
 {i}{i}super().__init__(name)
 
 {i}{i}self.log_file = log_file
-
-#{i}{i}self.clear_log()
 
 {i}{i}logging.basicConfig(
 {i}{i}{i}format='%(asctime)s %(levelname)s:%(message)s',

@@ -1,175 +1,40 @@
-# Read the pytest.ini file if you want to port these tests to other projects:
+# WARNING: Read the pytest.ini file if you want to port these tests to other
+# projects (otherwise you will make the same mistakes again and lose hours
+# trying to debug your projects):
 
-# The pytest.ini is full of warnings about pytest.  As a software project it has
-# been fetishized with a lot of on-by-default "features".  The "features" add
-# warning noise and highjack python's logging.
+# The pytest.ini (polluting the top level directory of this project) is full of
+# "warnings" about pytest.  As a software project it has been fetishized with a
+# lot of on-by-default "features".  The "features" add warning noise and
+# highjack python's logging system.
 
 import os
-import re
+import sys
 import time
 import pytest
 from pathlib import Path
-from contextlib import contextmanager
 from miros_scxml.xml_to_miros import XmlToMiros    
 
-from miros import pp
-from miros import Event
-from miros import spy_on
-from miros import signals
-from miros import ActiveObject
-from miros import return_status
+# RULE OF THUMB with pytest:  Don't rely on its auto-configuration magic.
+# Example: Pytest can't find its conftest.py file in this directory, so I have
+# to force its import into this testing package to get access to the common
+# testing functions.  As a rule, avoid any of these "batteries included" options
+# of pytest because they will just waste your time.  
+
+# Just force it to work and focus on the thing you care about instead of pytest.
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, dir_path)
+
+from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
 
-@contextmanager
-def stripped(log_items):
-  def item_without_timestamp(item):
-    m = re.match(r"[0-9-:., ]+ DEBUG:S: (.+)$", item)
-    if(m is not None):
-      without_time_stamp = m.group(1)
-    else:
-      without_time_stamp = item
-    return without_time_stamp
-
-  targets = log_items
-  if len(targets) > 1:
-    stripped_target = []
-    for target_item in targets:
-      target_item = target_item.strip()
-      if len(target_item) != 0:
-        stripped_target_item = item_without_timestamp(target_item)
-        stripped_target.append(stripped_target_item)
-    yield(stripped_target)
-
-  else:
-    target = log
-    yield(item_without_timestamp(target))
-
-def get_log_as_stripped_string(path):
-  result = "\n"
-  with open(str((path).resolve())) as fp:
-    with stripped(fp.readlines()) as spy_lines:
-      for s in spy_lines:
-        result += s + '\n'
-  return result
-
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
-  main = XmlToMiros(path)
-  assert main.get_name() == "Scxml"  
-
-# state_dict = {}
-# state_dict['Start'] = {}
-# state_dict['Start']['p'] = None
-# state_dict['Start']['cl'] = []
-# state_dict['Start']['cl'].append(
-#   {'ENTRY_SIGNAL':"self.scribble('Hello from \'start\')"}
-# )
-# state_dict['Start']['cl'].append(
-#   {'INIT_SIGNAL':'status = return_state.HANDLED'}
-# )
-# state_dict['Start']['cl'].append(
-#   {'SCXML_INIT_SIGNAL': "self.trans(Work)"}
-# )
-
-# state_dict['Work'] = {}
-# state_dict['Work']['p'] = None
-# state_dict['Work']['cl'] = []
-# state_dict['Work']['cl'].append(
-#   {'ENTRY_SIGNAL': "self.scribble('Hello from \'work\')"}
-# )
-# state_dict['Work']['cl'].append(
-#   {'INIT_SIGNAL':'status = return_state.HANDLED'}
-# )
-# state_dict['Work']['cl'].append(
-#   {'SCXML_INIT_SIGNAL':"status = return_state.HANDLED"}
-# )
-# state_dict['start_at'] = 'Start'
-@pytest.mark.skip()
-@pytest.mark.scxml
-def test_scxml_xml_dict_structured_well():
-  '''
-  If there is no "initial" in the attrib of the scxml tag, then start in the
-  first state/parellel region of the chart.  The XML used in this test is
-  missing the "initial" attrib, so we are confirming that it will start in the
-  'Start' state.
-  '''
-
-  path = data_path / 'scxml_test_1.scxml'
   xml_chart = XmlToMiros(path)
-  assert 'Start' in xml_chart._state_dict
-  assert 'Work' in xml_chart._state_dict
-
-  def is_signal_in_state_dict(signal_name, state_name):
-    result = False
-    for _dict in xml_chart._state_dict[state_name]['cl']:
-      if signal_name in _dict:
-        result = True
-        break;
-    return result
-
-  assert is_signal_in_state_dict('ENTRY_SIGNAL', 'Start')
-  assert is_signal_in_state_dict('ENTRY_SIGNAL', 'Work')
-  assert is_signal_in_state_dict('INIT_SIGNAL', 'Start')
-  assert is_signal_in_state_dict('INIT_SIGNAL', 'Work')
-  assert is_signal_in_state_dict('SCXML_INIT_SIGNAL', 'Start')
-  assert is_signal_in_state_dict('SCXML_INIT_SIGNAL', 'Work')
-
-  assert None == xml_chart._state_dict['Start']['p']
-  assert None == xml_chart._state_dict['Work']['p']
-
-@pytest.mark.skip()
-@pytest.mark.scxml
-def test_scxml_xml_dict_contents():
-
-  path = data_path / 'scxml_test_1.scxml'
-  xml_chart = XmlToMiros(path)
-
-  def string_for_signal(signal_name, state_name):
-    code_string = None
-    for _dict in xml_chart._state_dict[state_name]['cl']:
-      if signal_name in _dict:
-        code_string = _dict[signal_name]
-        break;
-    return code_string
-
-  entry_state_code = \
-    string_for_signal(
-      state_name='Start',
-      signal_name='ENTRY_SIGNAL'
-    )
-
-  assert('self.scribble(\'Hello from \\"start\\"\')\nstatus = return_status.HANDLED' == entry_state_code)
-
-  scxml_init_signal_code = \
-    string_for_signal(
-      state_name='Start',
-      signal_name='SCXML_INIT_SIGNAL'
-    )
-
-  assert('status = self.trans(Work)' == scxml_init_signal_code)
-
-  entry_state_code = \
-    string_for_signal(
-      state_name='Work',
-      signal_name='ENTRY_SIGNAL'
-    )
-
-  assert("self.scribble('Hello from \\'work\\'')\nstatus = return_status.HANDLED" == entry_state_code)
-
-@pytest.mark.skip()
-@pytest.mark.scxml
-def test_start_at_with_single_initial():
-  path = data_path / 'scxml_test_1.scxml'
-  xml_chart = XmlToMiros(path)
-  assert xml_chart._state_dict['start_at'] == 'Start'
-
-  path = data_path / 'scxml_test_2.scxml'
-  xml_chart = XmlToMiros(path)
-  assert xml_chart._state_dict['start_at'] == 'Work'
+  assert xml_chart.get_name() == "Scxml"  
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  assert ao.name == "Scxml"
 
 @pytest.mark.scxml
 def test_build_a_small_chart():
@@ -202,9 +67,140 @@ def test_build_a_small_chart():
 """
   assert(target == result)
 
-
 @pytest.mark.scxml
 def test_build_a_small_chart():
+  """
+  Here we are demonstrating a barebones datamodel with data.  The data binding is
+  "early", which means that the variables are initialized when the document is
+  read, or there initialization information is put within the __init__ function of
+  the ActiveObject.
+  
+  <scxml datamodel="python" name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+    <datamodel>
+      <data expr="True" id="var_bool"/>
+      <data expr="1" id="var_int"/> 
+      <data expr="&quot;This is a string!&quot;" id="var_str"/>
+      <data expr="[1, 2, 3, 4, 5]" id="var_list"/>
+    </datamodel>
+    <state id="Start">
+      <onentry>
+        <log expr='&quot;Hello from \&quot;start\&quot;&quot;'/>
+        <log expr='"{} {}".format(var_bool, type(var_bool))'/>
+        <log expr='"{} {}".format(var_int, type(var_int))'/>
+        <log expr='"{} {}".format(var_str, type(var_str))'/>
+        <log expr='"{} {}".format(var_list, type(var_list))'/>
+      </onentry>
+      <transition target="Work"/>
+    </state>
+    <state id="Work">
+      <onentry>
+        <log expr="&quot;Hello from \&quot;work\&quot;&quot;"/>
+      </onentry>
+    </state>
+  </scxml>
+  
+  Becomes:
+  --------
+  import re
+  import time
+  import logging
+  from pathlib import Path
+  from functools import partial
+  from collections import namedtuple
+  from collections import OrderedDict
+  
+  from miros import pp
+  from miros import Event
+  from miros import spy_on
+  from miros import signals
+  from miros import ActiveObject
+  from miros import return_status
+  
+  @spy_on
+  def Start(self, e):
+    status = return_status.UNHANDLED
+    if(e.signal == signals.ENTRY_SIGNAL):
+      self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))
+      self.scribble("{} {}".format(self.var_list, type(self.var_list)))
+      self.scribble("{} {}".format(self.var_str, type(self.var_str)))
+      self.scribble("{} {}".format(self.var_int, type(self.var_int)))
+      self.scribble("{} {}".format(self.var_bool, type(self.var_bool)))
+      self.scribble("Hello from \"start\"")
+      status = return_status.HANDLED
+    elif(e.signal == signals.INIT_SIGNAL):
+      status = return_status.HANDLED
+    elif(e.signal == signals.SCXML_INIT_SIGNAL):
+      status = self.trans(Work)
+    elif(e.signal == signals.EXIT_SIGNAL):
+      status = return_status.HANDLED
+    else:
+      self.temp.fun = self.top
+      status = return_status.SUPER
+    return status
+  
+  @spy_on
+  def Work(self, e):
+    status = return_status.UNHANDLED
+    if(e.signal == signals.ENTRY_SIGNAL):
+      self.scribble("Hello from \"work\"")
+      status = return_status.HANDLED
+    elif(e.signal == signals.INIT_SIGNAL):
+      status = return_status.HANDLED
+    elif(e.signal == signals.SCXML_INIT_SIGNAL):
+      status = return_status.HANDLED
+    elif(e.signal == signals.EXIT_SIGNAL):
+      status = return_status.HANDLED
+    else:
+      self.temp.fun = self.top
+      status = return_status.SUPER
+    return status
+  
+  class InstrumentedActiveObject(ActiveObject):
+    def __init__(self, name, log_file):
+      super().__init__(name)
+  
+      self.log_file = log_file
+  
+      logging.basicConfig(
+        format='%(asctime)s %(levelname)s:%(message)s',
+        filemode='w',
+        filename=self.log_file,
+        level=logging.DEBUG)
+      self.register_live_spy_callback(partial(self.spy_callback))
+      self.register_live_trace_callback(partial(self.trace_callback))
+  
+    def trace_callback(self, trace):
+      '''trace without datetimestamp'''
+      trace_without_datetime = re.search(r'(\[.+\]) (\[.+\].+)', trace).group(2)
+      logging.debug("T: " + trace_without_datetime)
+  
+    def spy_callback(self, spy):
+      '''spy with machine name pre-pending'''
+      print(spy)
+      logging.debug("S: [%s] %s" % (self.name, spy))
+  
+    def clear_log(self):
+      with open(self.log_file, "w") as fp:
+        fp.write("I'm writing")
+  
+  class ScxmlChart(InstrumentedActiveObject):
+    def __init__(self, name, log_file):
+      super().__init__(name, log_file)
+      self.var_bool = True
+      self.var_int = 1
+      self.var_str = "This is a string!"
+      self.var_list = [1, 2, 3, 4, 5]
+  
+    def start(self):
+      self.start_at(Start)
+  
+  if __name__ == '__main__':
+    ao = ScxmlChart("Scxml", "/mnt/c/github/xml/data/scxml_test_3.log")
+    ao.live_spy = True
+    ao.start()
+    time.sleep(0.01)
+  
+  """
   path = data_path / 'scxml_test_3.scxml'
   xml_chart = XmlToMiros(path)
   ao = xml_chart.make()  # like calling ScxmlChart(...)
