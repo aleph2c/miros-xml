@@ -9,6 +9,7 @@ from functools import partial
 # from collections import deque
 from xml.etree import ElementTree
 # from collections import namedtuple
+from collections import OrderedDict
 
 
 from miros import pp
@@ -66,20 +67,16 @@ from miros import pp
 #     },
 #  }
 #  'start_at': 'Start'
-#  'data_model' : 'python',
+#  'datamodel' : 'python',
 #  'data' :
 #    [
-#      "self.var_bool = true"
+#      "self.var_bool = True"
 #      "self.var_int = 1"
 #      "self.var_str = \"This is a string\""
 #      "self.var_list = [1, 2, 3, 4, 5]"
 #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
 #    ]
 #}
-
-
-    
-
 
 class XmlToMiros():
   namespaces = {
@@ -149,14 +146,14 @@ class XmlToMiros():
       name = tag.split('}')[-1]
       self.tag_lookup[name] = tag
 
-    self.find_states = partial(self.findall_multiple_tags, 
+    self.find_states = partial(self._x_findall_multiple_tags, 
       ["{"+XmlToMiros.namespaces['sc']+"}state",
       "{"+XmlToMiros.namespaces['sc']+"}parallel",
       "{"+XmlToMiros.namespaces['sc']+"}final"])
 
-    self.is_state = partial(self.is_tag, 'state')
-    self.is_parallel = partial(self.is_tag, 'parallel')
-    self.is_final = partial(self.is_tag, 'final')
+    self.is_state = partial(self._x_is_tag, 'state')
+    self.is_parallel = partial(self._x_is_tag, 'parallel')
+    self.is_final = partial(self._x_is_tag, 'final')
 
     # Create functions which can find through the namespace garbage
     # self.findall_fn['onentry']
@@ -165,7 +162,7 @@ class XmlToMiros():
     # see XmlToMiros.supported_tags
     self.findall_fn = \
     { 
-      name : partial(self._findall, "{"+XmlToMiros.namespaces['sc']+"}"+name) \
+      name : partial(self._x_findall, "{"+XmlToMiros.namespaces['sc']+"}"+name) \
         for name \
         in XmlToMiros.supported_tags
     }
@@ -177,7 +174,7 @@ class XmlToMiros():
     # included XML
     if sys.version_info < (3,9,0):
       def fn(node, parent):
-        include_found, file_name, include_element = self._including_xml(node)
+        include_found, file_name, include_element = self._x_include_xml(node)
         if include_found:
           print("-------------------------------------------- {}".format(file_name))
           sub_element = ElementTree.parse(file_name).getroot()
@@ -195,19 +192,121 @@ class XmlToMiros():
       # xi feature isn't fixed until 3.9 see https://bugs.python.org/issue20928 
       self.recurse_scxml(fn=fn)
 
-    self._state_dict = self.build_statechart_dict(self.root)
-    pp(self._state_dict)
+    self._state_chart_dict = self._d_initialize_state_chart_dict()
+    self._state_chart_dict['datamodel'] = self._d_build_datamodel(self.root)
+    self._state_chart_dict['data'], self.datamodel_variables = self._d_build_data(self.root)
+    self._state_chart_dict['states'] = self._d_build_statechart_dict(self.root)
+    self._states_dict = {}
     self._code = self._create_miros_code()
 
-  def initialize_state_chart_dict(self):
-    self.state_chart_dict = {}
-    self.state_chart_dict['name'] = None
-    self.state_chart_dict['start_at'] = None
-    self.state_chart_dict['states'] = {}
-    self.state_chart_dict['datamodel'] = None
-    self.state_chart_dict['data'] = []
+  def _d_build_datamodel(self, node):
+    if 'datamodel' in node.attrib:
+      datamodel = node.attrib['datamodel']
+      assert datamodel == "python"
+    else:
+      datamodel = None
+    return datamodel
 
-  def escape_quotes(self, string):
+  def _d_build_data(self, node):
+    #  'data' :
+    #    [
+    #      "self.var_bool = True"
+    #      "self.var_int = 1"
+    #      "self.var_str = \"This is a string\""
+    #      "self.var_list = [1, 2, 3, 4, 5]"
+    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+    #    ]
+    variable_list = [] 
+    data_list = []
+    xpath_search_string = ".//{" +XmlToMiros.namespaces['sc'] + \
+      "}datamodel/{" +XmlToMiros.namespaces['sc'] + "}data"
+    data_nodes = node.findall(xpath_search_string)
+    for data in data_nodes:
+      variable_list.append(data.attrib['id'])
+      variable_name = "self." + data.attrib['id']
+      contents = data.attrib['expr'].replace("quot;", '\"')
+      data_list.append("{} = {}".format(variable_name, contents))
+    return data_list, variable_list
+
+    
+
+  def _d_initialize_state_chart_dict(self):
+    #{ 'states': {
+    #     'Start': 
+    #      {
+    #        'cl': 
+    #        [
+    #          {'ENTRY_SIGNAL':
+    #             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
+    #             'self.scribble(\'Hello from \\"start\\"\')\n'
+    #             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
+    #             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
+    #             'status = return_status.HANDLED'
+    #          },
+    #          {'INIT_SIGNAL':
+    #            'status = return_status.HANDLED'
+    #          },
+    #          {'SCXML_INIT_SIGNAL':
+    #            'status = self.trans(Work)'
+    #          },
+    #          {'EXIT_SIGNAL':
+    #            'status = return_status.HANDLED'}
+    #       ],
+    #       'p': None
+    #      },
+    #      'Work':
+    #      {
+    #        'cl':
+    #        [
+    #            {'ENTRY_SIGNAL':
+    #               "self.scribble('Hello from \\'work\\'')\n"
+    #               'status = return_status.HANDLED'
+    #            },
+    #            {'INIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            },
+    #            {'SCXML_INIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            },
+    #            {'EXIT_SIGNAL':
+    #              'status = return_status.HANDLED'
+    #            }
+    #         ],
+    #         'p': None
+    #      },
+    #  }
+    #  'start_at': 'Start'
+    #  'datamodel' : 'python',
+    #  'data' :
+    #    [
+    #      "self.var_bool = True"
+    #      "self.var_int = 1"
+    #      "self.var_str = \"This is a string\""
+    #      "self.var_list = [1, 2, 3, 4, 5]"
+    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
+    #    ]
+    #}
+    state_chart_dict = {}
+    state_chart_dict['name'] = None
+    state_chart_dict['states'] = {}
+    state_chart_dict['start_at'] = None
+    state_chart_dict['datamodel'] = None
+    state_chart_dict['data'] = []
+    return state_chart_dict
+
+  @staticmethod
+  def index_for_signal(_list, signal_name):
+    index = -1
+    for i, item in enumerate(_list):
+      if signal_name in item:
+        index = i
+        break
+    return index
+
+  def _d_escape_quotes(self, string):
     _trans_dict = {
       "'": "\\'", 
       '"': '\\"'
@@ -215,77 +314,108 @@ class XmlToMiros():
     result = string.translate(str.maketrans(_trans_dict)) 
     return result
 
-  def state_to_dict_ctor(self, state_dict, node, parent):
-    # 'Work':
-    # {
-    #   'cl':
-    #   [
-    #       {'ENTRY_SIGNAL':
-    #          "self.scribble('Hello from \\'work\\'')\n"
-    #          'status = return_status.HANDLED'
-    #       },
-    #       {'INIT_SIGNAL':
-    #         'status = return_status.HANDLED'
-    #       },
-    #       {'SCXML_INIT_SIGNAL':
-    #         'status = return_status.HANDLED'
-    #       },
-    #       {'EXIT_SIGNAL':
-    #         'status = return_status.HANDLED'
-    #       }
-    #    ],
-    #    'p': None
-    # }
-    name = node.attrib['id']
-    parent = None if parent == None else \
-      self.get_tag_without_namespace(parent)
-    # state_dict is enclosed
-    state_dict[name] = {}
-    state_dict[name]['p'] = parent
-    state_dict[name]['cl'] = []
-    state_dict[name]['cl'].append(
-      {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
-    )
-    state_dict[name]['cl'].append(
-      {'INIT_SIGNAL': 'status = return_status.HANDLED'}
-    )
-     
-    state_dict[name]['cl'].append(
-      {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
-    )
-    state_dict[name]['cl'].append(
-      {'EXIT_SIGNAL': 'status = return_statu.HANDLED'}
-    )
-
-  def prepend_log(self, node, signal_name):
+  def _d_prepend_log(self, node, name, signal_name):
     '''convert <log>{contents}</log> to self.scribble({contents})'''
     log_nodes = self.findall_fn['log'](node)
     for log_node in log_nodes:
-      string = "self.scribble(\'{}\')\n".format(
-        self.escape_quotes(log_node.attrib['expr'])
-        )
-      index = index_for_signal(state_dict[name]['cl'], signal_name)
-      string += state_dict[name]['cl'][index][signal_name]
-      state_dict[name]['cl'][index] = {signal_name:string}
+      if self._state_chart_dict['datamodel'] == 'python':
+        expression = log_node.attrib['expr']
+        for datamodel_variable in self.datamodel_variables:
+          expression = expression.replace(datamodel_variable, "self." + datamodel_variable)
+        # self.datamodel_variables
+        string = "self.scribble({})\n".format(expression)
+      else:
+        string = "self.scribble(\'{}\')\n".format(
+          self._d_escape_quotes(log_node.attrib['expr'])
+          )
+      index = self.index_for_signal(self._states_dict[name]['cl'], signal_name)
+      string += self._states_dict[name]['cl'][index][signal_name]
+      self._states_dict[name]['cl'][index] = {signal_name:string}
 
-  def prepend_debugger(self, node, signal_name):
+  def _d_prepend_debugger(self, node, name, signal_name):
     '''convert <debugger\> to import pdb; pdb.set_trace()'''
     log_nodes = self.findall_fn['debug'](node)
     for log_node in log_nodes:
       self.debugger = True
       string = "import pdb; pdb.set_trace()\n"
-      index = index_for_signal(state_dict[name]['cl'], signal_name)
-      string += state_dict[name]['cl'][index][signal_name]
-      state_dict[name]['cl'][index] = {signal_name:string}
+      index = self.index_for_signal(self._states_dict[name]['cl'], signal_name)
+      string += self._states_dict[name]['cl'][index][signal_name]
+      self._states_dict[name]['cl'][index] = {signal_name:string}
 
-  def prepend_posting_of_scxml_init_in_entry_condition(self, node):
+  def _d_prepend_posting_of_scxml_init_in_entry_condition(self, node, name):
     '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
     entry condition when the SCXML requires an immediate transition from one
     state to another'''
-    entry_index = index_for_signal(state_dict[name]['cl'], "ENTRY_SIGNAL")
+    entry_index = self.index_for_signal(self._states_dict[name]['cl'], "ENTRY_SIGNAL")
     string = "self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n"
-    string += state_dict[name]['cl'][entry_index]["ENTRY_SIGNAL"]
-    state_dict[name]['cl'][entry_index] = {"ENTRY_SIGNAL":string}
+    string += self._states_dict[name]['cl'][entry_index]["ENTRY_SIGNAL"]
+    self._states_dict[name]['cl'][entry_index] = {"ENTRY_SIGNAL":string}
+
+  # pull these methods into their own class?
+  # initialize the state dict
+  # draw a picture of what to expect in a comment
+  # break out the state to dict function
+  # break out and clean up the prepend functions
+
+  def _d_build_statechart_dict(self, node):
+    if 'initial' in node.attrib:
+      self._state_chart_dict['start_at'] = node.attrib['initial']
+    else:
+      self._state_chart_dict['start_at'] = \
+        self.find_states(node)[0].attrib['id']
+
+    # recursively build the state_dict
+    self._states_dict = OrderedDict()
+    self.recurse_scxml(fn=partial(self._d_state_to_dict))
+    return self._states_dict
+
+  def _d_state_to_dict(self, node, parent):
+    name = node.attrib['id']
+    parent = None if parent == None else \
+      self._x_get_tag_without_namespace(parent)
+    # self._states_dict is enclosed
+    self._states_dict[name] = {}
+    self._states_dict[name]['p'] = parent
+    self._states_dict[name]['cl'] = []
+    self._states_dict[name]['cl'].append(
+      {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    self._states_dict[name]['cl'].append(
+      {'INIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+     
+    self._states_dict[name]['cl'].append(
+      {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    self._states_dict[name]['cl'].append(
+      {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    entry_nodes = self.findall_fn['onentry'](node)
+    for entry_node in entry_nodes:
+      self._d_prepend_debugger(entry_node, name, 'ENTRY_SIGNAL')
+      self._d_prepend_log(entry_node, name, 'ENTRY_SIGNAL')
+
+    init_nodes = self.findall_fn['initial'](node)
+    for init_node in init_nodes:
+      self._d_prepend_debugger(init_node, name, 'INIT_SIGNAL')
+      self._d_prepend_log(init_node, name, 'INIT_SIGNAL')
+
+    immediate_transition_nodes = self.findall_fn['transition'](node)
+    for node in immediate_transition_nodes:
+      if not 'target' in node.attrib:
+        # TODO: feature not supported yet
+        break
+      code_string = "status = self.trans({})".format(node.attrib['target'])
+      index = self.index_for_signal(self._states_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
+      self._states_dict[name]['cl'][index] = \
+        {'SCXML_INIT_SIGNAL': code_string}
+      self._d_prepend_log(node, name, 'SCXML_INIT_SIGNAL')
+      self._d_prepend_posting_of_scxml_init_in_entry_condition(node, name)
+
+    exit_nodes = self.findall_fn['onexit'](node)
+    for exit_node in exit_nodes:
+      self._d_prepend_log(exit_node, name, 'EXIT_SIGNAL')
+    return self._states_dict
 
   def make(self):
     '''Make the statechart
@@ -314,7 +444,7 @@ class XmlToMiros():
        ao.start()  # to start the statechart (starts a thread)
 
     '''
-    file_name, module_name, directory, statename = self._write_to_file()
+    file_name, module_name, directory, statename = self._sc_write_to_file()
     sys.path.append(directory)
 
     exec("from {module_name} import {statename} as ScxmlChart".format(
@@ -330,7 +460,7 @@ class XmlToMiros():
     # aren't smart enough to 'see into' this kind of exec code.
     return ScxmlChart(name=self.get_name(), log_file=self.log_file)
 
-  def _write_to_file(self, file_name=None, indent_amount=None):
+  def _sc_write_to_file(self, file_name=None, indent_amount=None):
     '''Write the SCXML chart written as miros python code to a file.
 
     **Note**:
@@ -352,7 +482,7 @@ class XmlToMiros():
       
     .. code-block:: python
        
-      file_name, module_name, directory, statename = self._write_to_file()
+      file_name, module_name, directory, statename = self._sc_write_to_file()
       sys.path.append(directory)
 
       exec("from {module_name} import {statename} as ScxmlChart".format(
@@ -381,14 +511,14 @@ class XmlToMiros():
     directory = str(directory)
 
     class_code = self._code
-    instantiation_code = self.instantiation_template().format(
+    instantiation_code = self._s_instantiation_template().format(
       class_code=class_code,
       scxml_chart_class=self.scxml_chart_class,
       log_file=self.log_file,
       i=indent_amount,
       name=self.get_name())
 
-    code = self.post_instantiation_template().format(
+    code = self._s_post_instantiation_template().format(
       i=indent_amount,
       instantiation_code=instantiation_code)
 
@@ -397,7 +527,7 @@ class XmlToMiros():
 
     return file_name, module_name, directory, self.scxml_chart_class
 
-  def findall(self, xpath, ns=None, node=None):
+  def _x_findall(self, xpath, ns=None, node=None):
     '''find all subnodes of node given the xpath search parameter
 
     **Args**:
@@ -435,7 +565,7 @@ class XmlToMiros():
 
     return search_root.findall(_xpath)
 
-  def findall_multiple_tags(self, ns, node=None):
+  def _x_findall_multiple_tags(self, ns, node=None):
     '''A base function to search for multiple tag types in XML, from which to
        build useful partial functions.
 
@@ -454,7 +584,7 @@ class XmlToMiros():
       
     .. code-block:: python
        
-      self.find_states = partial(self.findall_multiple_tags, 
+      self.find_states = partial(self._x_findall_multiple_tags, 
         ["{"+XmlToMiros.namespaces['sc']+"}state",
         "{"+XmlToMiros.namespaces['sc']+"}parallel",
         "{"+XmlToMiros.namespaces['sc']+"}final"])
@@ -468,7 +598,7 @@ class XmlToMiros():
       nodes += node.findall(arg)
     return nodes
 
-  def _findall(self, arg, node=None):
+  def _x_findall(self, arg, node=None):
     '''A partial template function to build other find functions from
 
     **Args**:
@@ -485,7 +615,7 @@ class XmlToMiros():
        
       self.findall_fn = \
       { 
-        name : partial(self._findall, 
+        name : partial(self._x_findall, 
           "{"+XmlToMiros.namespaces['sc']+"}"+name) \
           for name \
           in XmlToMiros.supported_tags
@@ -495,7 +625,7 @@ class XmlToMiros():
     '''
     return node.findall(arg)
 
-  def get_tag_without_namespace(self, node):
+  def _x_get_tag_without_namespace(self, node):
     '''Get the tag name without the namespace information prepended to it
 
     **Args**:
@@ -508,12 +638,8 @@ class XmlToMiros():
     '''
     return node.tag.split('}')[-1]
 
-  def is_tag(self, arg, node):
-    return True if self.get_tag_without_namespace(node) == arg else False
-
-  def finder_in_depth(self, ns, node=None):
-    elements = node.find('//'+ns)
-    return elements
+  def _x_is_tag(self, arg, node):
+    return True if self._x_get_tag_without_namespace(node) == arg else False
 
   def recurse(self, child_function=None, fn=None, node=None, parent=None):
     '''Recurse the XML structure with a custom search function and one or more
@@ -576,7 +702,7 @@ class XmlToMiros():
     return self.root.attrib['name']
 
   @staticmethod
-  def _including_xml(node):
+  def _x_include_xml(node):
     '''Include one level of xml into the document if the xi:include tag is seen.
 
     **Note**:
@@ -608,7 +734,7 @@ class XmlToMiros():
 
     .. code-block:: python
        
-      include_found, file_name, include_element = self._including_xml(node)
+      include_found, file_name, include_element = self._x_include_xml(node)
 
       if include_found:
         print("-------------------------------------------- {}".format(file_name))
@@ -633,189 +759,8 @@ class XmlToMiros():
       ie = include_element[0]
     return result, file_name, ie
 
-  # pull these methods into their own class?
-  # initialize the state dict
-  # draw a picture of what to expect in a comment
-  # break out the state to dict function
-  # break out and clean up the prepend functions
-
-  def build_statechart_dict(self, node):
-    '''Build a statechart dict from a given node
-
-    **Args**:
-       | ``node`` (Element): The element from which to begin building the
-                             statechart dictionary
-
-
-    **Returns**:
-       (dict): The statechart dictionary
-
-    **Example(s)**:
-      
-    .. code-block:: python
-       
-      self._state_dict = self.build_statechart_dict(self.root)
-
-    '''
-    state_dict = {}
-
-    if 'initial' in node.attrib:
-      state_dict['start_at'] = node.attrib['initial']
-    else:
-      state_dict['start_at'] = \
-        self.find_states(node)[0].attrib['id']
-
-    def index_for_signal(_list, signal_name):
-      index = -1
-      for i, item in enumerate(_list):
-        if signal_name in item:
-          index = i
-          break
-      return index
-
-    #{ 'states': {
-    #     'Start': 
-    #      {
-    #        'cl': 
-    #        [
-    #          {'ENTRY_SIGNAL':
-    #             'self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n'
-    #             'self.scribble(\'Hello from \\"start\\"\')\n'
-    #             'self.scribble(\"{} {}\".format(self.var_bool, type(self.var_bool)))\n'
-    #             'self.scribble(\"{} {}\".format(self.var_int, type(self.var_int)))\n'
-    #             'self.scribble(\"{} {}\".format(self.var_str, type(self.var_str)))\n'
-    #             'self.scribble(\"{} {}\".format(self.var_list, type(self.var_list)))\n'
-    #             'self.scribble(\"{} {}\".format(self.var_dict, type(self.var_dict)))\n'
-    #             'status = return_status.HANDLED'
-    #          },
-    #          {'INIT_SIGNAL':
-    #            'status = return_status.HANDLED'
-    #          },
-    #          {'SCXML_INIT_SIGNAL':
-    #            'status = self.trans(Work)'
-    #          },
-    #          {'EXIT_SIGNAL':
-    #            'status = return_status.HANDLED'}
-    #       ],
-    #       'p': None
-    #      },
-    #      'Work':
-    #      {
-    #        'cl':
-    #        [
-    #            {'ENTRY_SIGNAL':
-    #               "self.scribble('Hello from \\'work\\'')\n"
-    #               'status = return_status.HANDLED'
-    #            },
-    #            {'INIT_SIGNAL':
-    #              'status = return_status.HANDLED'
-    #            },
-    #            {'SCXML_INIT_SIGNAL':
-    #              'status = return_status.HANDLED'
-    #            },
-    #            {'EXIT_SIGNAL':
-    #              'status = return_status.HANDLED'
-    #            }
-    #         ],
-    #         'p': None
-    #      },
-    #  }
-    #  'start_at': 'Start'
-    #  'data_model' : 'python',
-    #  'data' :
-    #    [
-    #      "self.var_bool = true"
-    #      "self.var_int = 1"
-    #      "self.var_str = \"This is a string\""
-    #      "self.var_list = [1, 2, 3, 4, 5]"
-    #      "self.var_dict = {\"key_1\":\"value_1\", \"key_2\":\"value_2\"}"
-    #    ]
-    #}
-
-    def state_to_dict(node, parent):
-      name = node.attrib['id']
-      parent = None if parent == None else \
-        self.get_tag_without_namespace(parent)
-      # state_dict is enclosed
-      state_dict[name] = {}
-      state_dict[name]['p'] = parent
-      state_dict[name]['cl'] = []
-      state_dict[name]['cl'].append(
-        {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
-      )
-      state_dict[name]['cl'].append(
-        {'INIT_SIGNAL': 'status = return_status.HANDLED'}
-      )
-       
-      state_dict[name]['cl'].append(
-        {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
-      )
-      state_dict[name]['cl'].append(
-        {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
-      )
-
-      def prepend_log(node, signal_name):
-        '''convert <log>{contents}</log> to self.scribble({contents})'''
-        log_nodes = self.findall_fn['log'](node)
-        for log_node in log_nodes:
-          string = "self.scribble(\'{}\')\n".format(
-            self.escape_quotes(log_node.attrib['expr'])
-            )
-          index = index_for_signal(state_dict[name]['cl'], signal_name)
-          string += state_dict[name]['cl'][index][signal_name]
-          state_dict[name]['cl'][index] = {signal_name:string}
-
-      def prepend_debugger(node, signal_name):
-        '''convert <debugger\> to import pdb; pdb.set_trace()'''
-        log_nodes = self.findall_fn['debug'](node)
-        for log_node in log_nodes:
-          self.debugger = True
-          string = "import pdb; pdb.set_trace()\n"
-          index = index_for_signal(state_dict[name]['cl'], signal_name)
-          string += state_dict[name]['cl'][index][signal_name]
-          state_dict[name]['cl'][index] = {signal_name:string}
-
-      def prepend_posting_of_scxml_init_in_entry_condition(node):
-        '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
-        entry condition when the SCXML requires an immediate transition from one
-        state to another'''
-        entry_index = index_for_signal(state_dict[name]['cl'], "ENTRY_SIGNAL")
-        string = "self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL))\n"
-        string += state_dict[name]['cl'][entry_index]["ENTRY_SIGNAL"]
-        state_dict[name]['cl'][entry_index] = {"ENTRY_SIGNAL":string}
-
-      entry_nodes = self.findall_fn['onentry'](node)
-      for entry_node in entry_nodes:
-        prepend_debugger(entry_node, 'ENTRY_SIGNAL')
-        prepend_log(entry_node, 'ENTRY_SIGNAL')
-
-      init_nodes = self.findall_fn['initial'](node)
-      for init_node in init_nodes:
-        prepend_debugger(init_node, 'INIT_SIGNAL')
-        prepend_log(init_node, 'INIT_SIGNAL')
-
-      immediate_transition_nodes = self.findall_fn['transition'](node)
-      for node in immediate_transition_nodes:
-        if not 'target' in node.attrib:
-          # TODO: feature not supported yet
-          break
-        code_string = "status = self.trans({})".format(node.attrib['target'])
-        index = index_for_signal(state_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
-        state_dict[name]['cl'][index] = \
-          {'SCXML_INIT_SIGNAL': code_string}
-        prepend_log(node, 'SCXML_INIT_SIGNAL')
-        prepend_posting_of_scxml_init_in_entry_condition(node)
-
-      exit_nodes = self.findall_fn['onexit'](node)
-      for exit_node in exit_nodes:
-        prepend_log(exit_node, 'EXIT_SIGNAL')
-
-    # recursively build the state_dict
-    self.recurse_scxml(fn=state_to_dict)
-    return state_dict
-
   @staticmethod
-  def escape_quotes(string):
+  def _d_escape_quotes(string):
     _trans_dict = {
       "'": "\\'", 
       '"': '\\"'
@@ -823,7 +768,7 @@ class XmlToMiros():
     result = string.translate(str.maketrans(_trans_dict)) 
     return result
 
-  def pre_instantiation_template(self):
+  def _s_pre_instantiation_template(self):
     return """# autogenerated from {filepath}
 import re
 import time
@@ -831,6 +776,7 @@ import logging
 from pathlib import Path
 from functools import partial
 from collections import namedtuple
+from collections import OrderedDict
 
 from miros import pp
 from miros import Event
@@ -841,7 +787,7 @@ from miros import return_status
 {custom_imports}
 {state_code}"""
 
-  def logging_class_definition_template(self):
+  def _s_logging_class_definition_template(self):
     return """
 {pre_instantiation_code}
 
@@ -875,30 +821,30 @@ class {scxml_chart_superclass}(ActiveObject):
 {i}{i}with open(self.log_file, "w") as fp:
 {i}{i}{i}fp.write("I'm writing")"""
 
-  def class_definition_template(self):
+  def _s_class_definition_template(self):
     return """{logging_class_code}
 
 class {scxml_chart_class}({scxml_chart_superclass}):
 {i}def __init__(self, name, log_file):
 {i}{i}super().__init__(name, log_file)
-
+{i}{i}{data}
 {i}def start(self):
 {i}{i}self.start_at({starting_state})"""
 
 
-  def instantiation_template(self):
+  def _s_instantiation_template(self):
     return """{class_code}
 
 if __name__ == '__main__':
 {i}ao = {scxml_chart_class}(\"{name}\", \"{log_file}\")
 {i}ao.live_spy = True"""
 
-  def post_instantiation_template(self):
+  def _s_post_instantiation_template(self):
     return """{instantiation_code}
 {i}ao.start()
 {i}time.sleep(0.01)"""
 
-  def _create_miros_code(self, indent_amount=None, custom_imports=None):
+  def _create_miros_code(self, state_chart_dict=None, indent_amount=None, custom_imports=None):
     '''create the python code which can manifest the statechart
 
     **Args**:
@@ -910,6 +856,9 @@ if __name__ == '__main__':
        (str): Python code which can run a statechart.
 
     '''
+    if state_chart_dict is None:
+      state_chart_dict = self._state_chart_dict
+
     if indent_amount is None:
       indent_amount = "  "
 
@@ -920,40 +869,51 @@ if __name__ == '__main__':
 
     state_code = ""
 
-    for (state_name, v) in self._state_dict.items():
-      if state_name != 'start_at':
-        state_code += self._write_state_code(state_name, v, indent_amount) + "\n"
-      else:
-        starting_state = v
+    # if there is not 'start_at' in our dictionary, start at the first state
+    if state_chart_dict['start_at'] is None:
+      starting_state = state_chart_dict['state'].keys()[0]
+    else:
+      starting_state = state_chart_dict['start_at']
+
+    for (state_name, v) in state_chart_dict['states'].items():
+      state_code += self._sc__write_state_code(state_name, v, indent_amount) + "\n"
 
     pre_instantiation_code = \
-      self.pre_instantiation_template().format(
+      self._s_pre_instantiation_template().format(
           log_file=self.log_file,
           filepath=str(self.file_path),
           uuid=self.chart_suffix,
         custom_imports=imports,
         state_code=state_code)
 
-    logging_class_code = self.logging_class_definition_template().format(
+    logging_class_code = self._s_logging_class_definition_template().format(
       file_path=str(self.file_path),
       scxml_chart_superclass=self.scxml_chart_superclass,
       scxml_chart_class=self.scxml_chart_class,
       pre_instantiation_code=pre_instantiation_code,
       i=indent_amount)
 
-    class_code = self.class_definition_template().format(
+    data = ""
+    for index, data_item in enumerate(self._state_chart_dict['data']):
+      if index == 0:
+        data += data_item + '\n'
+      else:
+        data += "{i}{i}{data_item}\n".format(i=indent_amount, data_item=data_item)
+
+    class_code = self._s_class_definition_template().format(
       logging_class_code=logging_class_code,
       file_path=str(self.file_path),
       scxml_chart_superclass=self.scxml_chart_superclass,
       scxml_chart_class=self.scxml_chart_class,
       pre_instantiation_code=pre_instantiation_code,
+      data=data,
       i=indent_amount,
       starting_state=starting_state)
 
     return class_code
 
   @staticmethod
-  def _write_state_code(state_name, state_dict, indent_amount=None):
+  def _sc__write_state_code(state_name, state_dict, indent_amount=None):
     if indent_amount is None:
       indent_amount = "  "
 

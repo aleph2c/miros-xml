@@ -203,3 +203,35 @@ def test_build_a_small_chart():
   assert(target == result)
 
 
+@pytest.mark.scxml
+def test_build_a_small_chart():
+  path = data_path / 'scxml_test_3.scxml'
+  xml_chart = XmlToMiros(path)
+  ao = xml_chart.make()  # like calling ScxmlChart(...)
+  ao.live_spy = True
+  ao.start()
+  time.sleep(0.1)
+
+  result = get_log_as_stripped_string(data_path / 'scxml_test_3.log')
+  target = """
+[Scxml] START
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
+[Scxml] ENTRY_SIGNAL:Start
+[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
+[Scxml] [1, 2, 3, 4, 5] <class 'list'>
+[Scxml] This is a string! <class 'str'>
+[Scxml] 1 <class 'int'>
+[Scxml] True <class 'bool'>
+[Scxml] Hello from "start"
+[Scxml] INIT_SIGNAL:Start
+[Scxml] <- Queued:(1) Deferred:(0)
+[Scxml] SCXML_INIT_SIGNAL:Start
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Work
+[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
+[Scxml] EXIT_SIGNAL:Start
+[Scxml] ENTRY_SIGNAL:Work
+[Scxml] Hello from "work"
+[Scxml] INIT_SIGNAL:Work
+[Scxml] <- Queued:(0) Deferred:(0)
+"""
+  assert(target == result)
