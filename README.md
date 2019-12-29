@@ -12,18 +12,17 @@
   
 ## List of exceptions to the SCXML Standard
 
-* The initial element is supported in an atomic state if it is is carrying code and not causing a state transition.  It can be useful to have code run in a state's initialization.
+* The initial element is supported in an atomic state if it is carrying code and not causing a state transition.  It can be useful to have code run in a state's initialization.
 
 ## List of extensions to the SCXML standard
 
-* A ``<debug>`` element has been added which will create a file and add an ``import pdb; pdb.set_trace()`` expression in the location where the tag was placed in the statechart.  This was added to make it easy for users to debug their statecharts.
-* The ``python`` datamodel was added, so that python code can be placed in the statechart.
-
+* A new ``<debug/>`` element has been added which will create a file and add an ``import pdb; pdb.set_trace()`` expression in the location miros code corresponding to where the tag was placed in the statechart.  This was added to make it easy for users to debug their statecharts.
+* A ``python`` datamodel was added, so that python code can be placed in the statechart.
 
 ## Means through which the Standard was met
 
-* The ``SCXML_INIT_SIGNAL`` internal signal is added in this library.  It was added so that eventless transitions between states can occur (see ``./data/scxml\_test\_1.scxml`` for an example)
-* The contents of a log element are transformed into scribble calls to the miros spy instrumentation stream.
+* The ``SCXML_INIT_SIGNAL`` internal signal was added in this library.  It was added so that eventless transitions between states can occur (see ``./data/scxml_test_1.scxml`` for an example)
+* The contents of a ``<log/>`` element are transformed into ``scribble`` calls to the miros spy instrumentation stream.
 
 ## Recognition
 
