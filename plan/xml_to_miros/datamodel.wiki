@@ -1,4 +1,4 @@
-[[subgoals.xml_to_miros|back]]
+[[subgoals.xml_to_miros|back]], [[xml_to_miros]]
 *Datamodel*
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.datamodel|evidence]]) ==

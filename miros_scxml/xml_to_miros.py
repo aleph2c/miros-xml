@@ -142,6 +142,8 @@ class XmlToMiros():
             if elem.tag == 'xi':
               pass
             else:
+              # TODO: fix this weird way of using namespaces when you have a
+              # test for this feature
               elem.tag = "{"+XmlToMiros.namespaces['sc']+"}" + elem.tag
 
           # add the subelement to the node
@@ -217,8 +219,9 @@ class XmlToMiros():
     self._state_chart_dict['early_binding'] = self._d_datamodel_binding_type(self.root)
     self._state_chart_dict['data'], self.datamodel_variables = self._d_build_data(self.root)
     self._state_chart_dict['states'] = self._d_build_statechart_dict(self.root)
+    pp(self._state_chart_dict['states'])
     self._states_dict = {}
-    self._code = self._create_miros_code()
+    self._code = self._sc_create_miros_code()
 
   def _d_build_datamodel(self, node):
     if 'datamodel' in node.attrib:
@@ -251,9 +254,7 @@ class XmlToMiros():
     #   ]
     variable_list = [] 
     data_list = []
-    xpath_search_string = ".//{" +XmlToMiros.namespaces['sc'] + \
-      "}datamodel/{" +XmlToMiros.namespaces['sc'] + "}data"
-    data_nodes = node.findall(xpath_search_string)
+    data_nodes = node.findall(".//sc:datamodel/sc:data", XmlToMiros.namespaces)
 
     for data in data_nodes:
       variable_list.append(data.attrib['id'])
@@ -410,11 +411,12 @@ class XmlToMiros():
 
   def _d_state_to_dict(self, node, parent):
     name = node.attrib['id']
-    parent = None if parent == None else \
-      self._x_get_tag_without_namespace(parent)
+
+    _parent = None if parent == None else \
+      parent.attrib['id']
     # self._states_dict is enclosed
     self._states_dict[name] = {}
-    self._states_dict[name]['p'] = parent
+    self._states_dict[name]['p'] = _parent
     self._states_dict[name]['cl'] = []
     self._states_dict[name]['cl'].append(
       {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
@@ -422,7 +424,6 @@ class XmlToMiros():
     self._states_dict[name]['cl'].append(
       {'INIT_SIGNAL': 'status = return_status.HANDLED'}
     )
-     
     self._states_dict[name]['cl'].append(
       {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
     )
@@ -430,12 +431,35 @@ class XmlToMiros():
       {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
     )
     entry_nodes = self.findall_fn['onentry'](node)
+    transition_nodes = self.findall_fn['transition'](node)
+
     for entry_node in entry_nodes:
       self._d_prepend_debugger(entry_node, name, 'ENTRY_SIGNAL')
       self._d_prepend_log(entry_node, name, 'ENTRY_SIGNAL')
 
+    for transition in transition_nodes:
+      if 'event' in transition.attrib:
+        self._states_dict[name]['cl'].append(
+          {transition.attrib['event']: 
+            "status = self.trans({})".format(transition.attrib['target'])}
+        )
+    
+    if 'initial' in node.attrib:
+      expression  = "status = self.trans({})".format(node.attrib['initial'])
+      index = self.index_for_signal(self._states_dict[name]['cl'], 'INIT_SIGNAL')
+      self._states_dict[name]['cl'][index] = {'INIT_SIGNAL':expression}
+
     init_nodes = self.findall_fn['initial'](node)
     for init_node in init_nodes:
+      index = self.index_for_signal(self._states_dict[name]['cl'], 'INIT_SIGNAL')
+      # this smells funny
+      if self._states_dict[name]['cl'][index]['INIT_SIGNAL'] != 'status = return_status.HANDLED':
+        raise SyntaxError('"initial" keyword can be used as a tag or attribute, but not both')
+      transition = init_node.findall('./sc:transition', XmlToMiros.namespaces)
+      if len(transition) > 0:
+        target = transition[0].attrib['target']
+        expression = "status = self.trans({})".format(target)
+        self._states_dict[name]['cl'][index]['INIT_SIGNAL'] = expression
       self._d_prepend_debugger(init_node, name, 'INIT_SIGNAL')
       self._d_prepend_log(init_node, name, 'INIT_SIGNAL')
 
@@ -444,7 +468,10 @@ class XmlToMiros():
       if not 'target' in node.attrib:
         # TODO: feature not supported yet
         break
-      code_string = "status = self.trans({})".format(node.attrib['target'])
+      if "event" in node.attrib:
+        code_string = "status = return_status.HANDLED" 
+      else:
+        code_string = "status = self.trans({})".format(node.attrib['target'])
       index = self.index_for_signal(self._states_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
       self._states_dict[name]['cl'][index] = \
         {'SCXML_INIT_SIGNAL': code_string}
@@ -713,6 +740,7 @@ class XmlToMiros():
     if node is None:
       node = self.root
 
+    # if your parent is no
     _parent = None
     if parent != None:
       for sibling in child_function(parent):
@@ -734,7 +762,7 @@ class XmlToMiros():
         child_function=child_function,
         fn=fn,
         node=child,
-        parent=_parent)
+        parent=node)
 
   def get_name(self):
     '''get the name of the Statechart from the provided SCXML document.'''
@@ -796,6 +824,8 @@ class XmlToMiros():
 
     '''
     result, file_name, ie = False, None, None
+    # TODO: remove this stupid way of using a namespace when you build
+    # a test for this feature
     include_element = node.findall('{'+XmlToMiros.namespaces['xi']+'}include')
     if len(include_element) != 0:
       result = True
@@ -852,6 +882,7 @@ class {scxml_chart_superclass}(ActiveObject):
 {i}def trace_callback(self, trace):
 {i}{i}'''trace without datetimestamp'''
 {i}{i}trace_without_datetime = re.search(r'(\[.+\]) (\[.+\].+)', trace).group(2)
+{i}{i}print(trace_without_datetime)
 {i}{i}logging.debug("T: " + trace_without_datetime)
 
 {i}def spy_callback(self, spy):
@@ -886,7 +917,7 @@ if __name__ == '__main__':
 {i}ao.start()
 {i}time.sleep(0.01)"""
 
-  def _create_miros_code(self, state_chart_dict=None, indent_amount=None, custom_imports=None):
+  def _sc_create_miros_code(self, state_chart_dict=None, indent_amount=None, custom_imports=None):
     '''create the python code which can manifest the statechart
 
     **Args**:
@@ -918,7 +949,7 @@ if __name__ == '__main__':
       starting_state = state_chart_dict['start_at']
 
     for (state_name, v) in state_chart_dict['states'].items():
-      state_code += self._sc__write_state_code(state_name, v, indent_amount) + "\n"
+      state_code += self._sc_write_state_code(state_name, v, indent_amount) + "\n"
 
     pre_instantiation_code = \
       self._s_pre_instantiation_template().format(
@@ -955,7 +986,7 @@ if __name__ == '__main__':
     return class_code
 
   @staticmethod
-  def _sc__write_state_code(state_name, state_dict, indent_amount=None):
+  def _sc_write_state_code(state_name, state_dict, indent_amount=None):
     if indent_amount is None:
       indent_amount = "  "
 

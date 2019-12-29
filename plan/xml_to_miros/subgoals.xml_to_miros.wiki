@@ -3,7 +3,7 @@
   * [ ] scxml [[scxml|link]]
   * [ ] datamodel [[datamodel|link]]
   * [ ] script [[script|link]]
-  * [ ] state
+  * [ ] state [[state|link]]
   * [ ] parallel
   * [ ] transition
   * [ ] initial

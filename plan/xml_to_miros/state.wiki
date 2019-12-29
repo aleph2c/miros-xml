@@ -1,0 +1,74 @@
+[[subgoals.xml_to_miros|back]], [[xml_to_miros]]
+*State*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.state|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.state|subgoals]])
+    Implimentation of all non-parallel state features of the state tag
+
+  *What is the problem?*
+    The problem is that I don't understand what they want yet and why they want
+    it to be so complicated.  Also, there may be an issue with the python data
+    model, there is no mention of it in the standard.
+
+  *Discoveries:* ([[notes.state|notes]])
+  
+  [[https://www.w3.org/TR/scxml/#state|link state in standard]]
+  [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/state.md|link to state doc]]
+  [[https://www.youtube.com/watch?v=VUTCY4E0ta8&feature=youtu.be|link to state tutorial video]]
+= Orient =
+  *Symptoms:* [[symptoms.state|symptoms]]
+
+== Questions ==
+  *Questions for State: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for State: >=5*
+  * [X] Fix parent recursion problem
+  * [X] Add support for non-internal-signal transitions
+  * [X] Fix issue where any transition causes the SCXML_INIT_SIGNAL to change
+        state to the next state
+  * [X] get state_test_initial_as_attribute.scxml working
+  * [X] get state_test_initial_as_tag.scxml working
+  * [X] allow for code in init signal with no transition (tag only)
+  * [ ] add note in readme about how you do this and are (possibly) breaking the standard
+  * [ ] disallow initial in tag if atom state
+  * [ ] add meaningful exceptions, using existing python expections to the
+        xml_to_miros package.
+  * [ ] add default init test, even though this has been covered by the scxml
+        test
+  * [ ] add a note in the readme about how you will skip test364 because you
+        don't support orthogonal regions yet
+  * [ ] README.md adjustments:
+    * [ ] Explain what SCXML_INIT_SIGNAL is and why it was invented
+    * [ ] Explain that <log></log> converts to spy.scribble
+    * [ ] Explain how the <debug/> tags works (extension)
+    * [ ] Explain what unique does 
+    * [ ] Explain why you allow code in the init tag
+    * [ ] Explain why you raise SyntaxError when initial attribute in atomic
+          state
+  * [ ] Add feature to keep compiled code
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.state|plan]]) ==
+
+= Act =
+  
+

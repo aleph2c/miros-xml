@@ -1,4 +1,4 @@
-[[subgoals.xml_to_miros|back]]
+[[subgoals.xml_to_miros|back]], [[xml_to_miros]]
 *Scxml*
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.scxml|evidence]]) ==
@@ -98,7 +98,7 @@
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|early spec]]
         from the scxml tutorial 
   * [X] Compare the spy output against the expected output
-  * [ ] Fix how you have used namespaces... clean it up: https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces
+  * [X] Fix how you have used namespaces... clean it up: https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces
   * [X] Add an adjusted 
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|late spec]]
         from the scxml tutorial 
@@ -109,9 +109,8 @@
         [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/scxml.md|start at first state]]
         from the scxml tutorial 
   * [X] Compare the spy output against the expected output
-  * [ ] Create a document of features not supported in README.md
-  * [ ] Add "initial" in parallel state not supported
-  * [ ] Jump to state plan and fix the parent state bug
+  * [X] Create a document of features not supported in README.md
+  * [X] Add "initial" in parallel state not supported
 
   *Chosen Research-Goal/Hypothesis*
     

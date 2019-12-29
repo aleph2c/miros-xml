@@ -1,0 +1,26 @@
+<scxml name="Scxml" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+  <state id="Work" initial="State1">
+    <state id="State1">
+      <onentry>
+        <log expr="Hello!"/>
+      </onentry>
+      <initial>
+        <transition target="State2"/>
+      </initial>
+      <!-- BEGIN: this should cause a SyntaxError exception -->
+      <state id="State2" initial="State3">
+      <!-- END: this should cause a SyntaxError exception -->
+        <onentry>
+          <log expr="Hello!" label="State 2"/>
+        </onentry>
+        <transition event="Step" target="State3"/>
+      </state>
+    </state>
+    <state id="State3">
+      <onentry>
+        <log expr="Hello!" label="State 3"/>
+      </onentry>
+      <transition event="Step" target="State1"/>
+    </state>
+  </state>
+</scxml>

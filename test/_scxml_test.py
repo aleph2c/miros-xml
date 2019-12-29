@@ -28,7 +28,6 @@ sys.path.insert(0, dir_path)
 from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
 
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
@@ -37,7 +36,6 @@ def test_scxml_get_name():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   assert ao.name == "Scxml"
 
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_build_a_small_chart():
   path = data_path / 'scxml_test_1.scxml'
@@ -48,7 +46,7 @@ def test_scxml_build_a_small_chart():
   time.sleep(0.1)
 
   result = get_log_as_stripped_string(data_path / 'scxml_test_1.log')
-  print(result)
+  #print(result)
 
   target = """
 [Scxml] START
@@ -69,7 +67,7 @@ def test_scxml_build_a_small_chart():
 """
   assert(target == result)
 
-@pytest.mark.skip()
+@pytest.mark.snipe
 @pytest.mark.scxml
 def test_scxml_build_a_small_chart():
   """
@@ -236,7 +234,6 @@ def test_scxml_build_a_small_chart():
 """
   assert(target == result)
 
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_early_data_binding():
   path = data_path / 'early_binding.scxml'
@@ -265,7 +262,6 @@ def test_scxml_early_data_binding():
 """
   assert(target == result)
 
-@pytest.mark.skip()
 @pytest.mark.scxml
 def test_scxml_late_data_binding():
   path = data_path / 'late_binding.scxml'
