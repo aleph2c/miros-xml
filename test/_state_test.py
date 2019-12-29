@@ -91,7 +91,7 @@ def test_initialize_transition_as_tag():
 def test_initialize_error_if_in_attribute_of_atomic_state():
   path = data_path / \
     "state_test_error_if_initial_as_attribute_in_atomic_state.scxml"
-  xml_chart = XmlToMiros(path)
+  xml_chart = XmlToMiros(path, keep_file=True)
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   with pytest.raises(miros.hsm.HsmTopologyException):

@@ -54,14 +54,13 @@
         test
   * [ ] add a note in the readme about how you will skip test364 because you
         don't support orthogonal regions yet
-  * [ ] README.md adjustments:
-    * [ ] Explain what SCXML_INIT_SIGNAL is and why it was invented
-    * [ ] Explain that <log></log> converts to spy.scribble
-    * [ ] Explain how the <debug/> tags works (extension)
-    * [ ] Explain what unique does 
-    * [ ] Explain why you allow code in the init tag
-    * [ ] Explain why you raise SyntaxError when initial attribute in atomic
-          state
+  * [O] README.md adjustments:
+    * [X] Explain what SCXML_INIT_SIGNAL is and why it was invented
+    * [X] Explain that <log></log> converts to spy.scribble
+    * [X] Explain how the <debug/> tags works (extension)
+    * [X] Explain what unique does 
+    * [X] Explain why you allow code in the init tag
+    * [ ] Usage
   * [ ] Add feature to keep compiled code
 
   *Chosen Research-Goal/Hypothesis*

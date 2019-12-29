@@ -2,6 +2,21 @@
 
   > This library is a port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
 
+*Usage*:
+
+        from pathlib import Path
+        from miros_scxml.xml_to_miros import XmlToMiros
+    
+        # path to scxml file
+        data_path = Path(".") / ".." / "data"
+    
+        # 
+        path = data_path / 'scxml_test_1.scxml'
+        xml_chart = XmlToMiros(path)
+        ao = xml_chart.make()
+        ao.live_spy = True
+        ao.start()  # will generate spy log: data_path / scxml_test_1.log
+
 ----
 
 ## List of Unsupported Tests
