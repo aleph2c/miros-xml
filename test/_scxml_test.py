@@ -31,10 +31,12 @@ data_path = Path(dir_path) / '..' / 'data'
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
-  xml_chart = XmlToMiros(path)
+  miros_code_path = data_path / 'scxml_test_1.py'
+  xml_chart = XmlToMiros(path, miros_code_path=miros_code_path)
   assert xml_chart.get_name() == "Scxml"  
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   assert ao.name == "Scxml"
+  assert miros_code_path.exists()
 
 @pytest.mark.scxml
 def test_scxml_build_a_small_chart():
@@ -67,7 +69,6 @@ def test_scxml_build_a_small_chart():
 """
   assert(target == result)
 
-@pytest.mark.snipe
 @pytest.mark.scxml
 def test_scxml_build_a_small_chart():
   """

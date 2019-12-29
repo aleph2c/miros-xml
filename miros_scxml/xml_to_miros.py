@@ -48,13 +48,16 @@ class XmlToMiros():
     'finalize'
   ]
 
-  def __init__(self, path_to_xml, log_file=None, unique=None):
+  def __init__(self, path_to_xml, log_file=None, miros_code_path=None, unique=None):
     '''Convert scxml into a miro python statechart
 
     **Args**:
        | ``path_to_xml`` (path|str): location of the scxml file
        | ``log_file=None`` (str): name of the log file generated from your
        |                          statechart
+       | ``miros_code_path=None`` (path|str|bool):  Keep the resulting miros python file.  
+       |                          If a path/string is specified, keep the file there.
+       |                          If miros_code_path is None, do not keep the file.
        | ``unique=None`` (bool):  to create a unique namespace for the generated
        |                          statechart objects
 
@@ -81,6 +84,13 @@ class XmlToMiros():
     else:
       file_path = self.file_path
       self.file_path = Path(self.file_path)
+
+    self.keep_code = False if miros_code_path is None else True
+
+    if isinstance(miros_code_path, Path) or isinstance(miros_code_path, str):
+      self.python_file_name = miros_code_path
+    else:
+      self.python_file_name = None
 
     if log_file is None:
       full_path = Path(path_to_xml)
@@ -510,7 +520,8 @@ class XmlToMiros():
        ao.start()  # to start the statechart (starts a thread)
 
     '''
-    file_name, module_name, directory, statename = self._sc_write_to_file()
+    file_name, module_name, directory, statename = \
+      self._sc_write_to_file(file_name=self.python_file_name)
     sys.path.append(directory)
 
     exec("from {module_name} import {statename} as ScxmlChart".format(
@@ -566,15 +577,11 @@ class XmlToMiros():
       indent_amount = "  "
 
     if file_name is None:
-      path_to_xml = Path(self.file_path)
-      module_base = path_to_xml.stem
-      directory = path_to_xml.resolve().parent
-      module_name = str("{}_{}".format(module_base, self.chart_suffix))
-      file_name = str(
-        directory / "{}.py".format(module_name)
-      )
+      file_name = self._sc_default_python_file_name()
 
-    directory = str(directory)
+    Path.touch(Path(file_name))
+    directory = str(Path(file_name).resolve().parent)
+    module_name = Path(file_name).stem
 
     class_code = self._code
     instantiation_code = self._s_instantiation_template().format(
@@ -592,6 +599,16 @@ class XmlToMiros():
       fp.write(code)
 
     return file_name, module_name, directory, self.scxml_chart_class
+  
+  def _sc_default_python_file_name(self):
+    path_to_xml = Path(self.file_path)
+    module_base = path_to_xml.stem
+    directory = path_to_xml.resolve().parent
+    module_name = str("{}_{}".format(module_base, self.chart_suffix))
+    file_name = str(
+      directory / "{}.py".format(module_name)
+    )
+    return file_name
 
   def _x_findall(self, xpath, ns=None, node=None):
     '''find all subnodes of node given the xpath search parameter

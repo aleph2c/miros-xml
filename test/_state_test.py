@@ -29,7 +29,6 @@ sys.path.insert(0, dir_path)
 from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
 
-@pytest.mark.skip()
 @pytest.mark.state
 def test_initialize_transition_as_attribute():
   path = data_path / 'state_test_initial_as_attribute.scxml'
@@ -91,9 +90,10 @@ def test_initialize_transition_as_tag():
 def test_initialize_error_if_in_attribute_of_atomic_state():
   path = data_path / \
     "state_test_error_if_initial_as_attribute_in_atomic_state.scxml"
-  xml_chart = XmlToMiros(path, keep_file=True)
+  xml_chart = XmlToMiros(path, miros_code_path=True)
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   with pytest.raises(miros.hsm.HsmTopologyException):
     ao.start()
-
+  assert (data_path /
+  "state_test_error_if_initial_as_attribute_in_atomic_state_.py").exists()
