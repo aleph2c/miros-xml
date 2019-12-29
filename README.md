@@ -2,7 +2,7 @@
 
   > This library is a port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
 
-**Usage**:
+**Usage (Python >= 3.5)**:
 
         from pathlib import Path
         from miros_scxml.xml_to_miros import XmlToMiros
