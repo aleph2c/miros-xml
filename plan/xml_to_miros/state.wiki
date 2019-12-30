@@ -16,6 +16,7 @@
   [[https://www.w3.org/TR/scxml/#state|link state in standard]]
   [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/state.md|link to state doc]]
   [[https://www.youtube.com/watch?v=VUTCY4E0ta8&feature=youtu.be|link to state tutorial video]]
+
 = Orient =
   *Symptoms:* [[symptoms.state|symptoms]]
 
@@ -46,13 +47,13 @@
   * [X] get state_test_initial_as_attribute.scxml working
   * [X] get state_test_initial_as_tag.scxml working
   * [X] allow for code in init signal with no transition (tag only)
-  * [ ] add note in readme about how you do this and are (possibly) breaking the standard
-  * [ ] disallow initial in tag if atom state
-  * [ ] add meaningful exceptions, using existing python expections to the
+  * [X] add note in readme about how you do this and are (possibly) breaking the standard
+  * [X] disallow initial in tag if atom state
+  * [X] add meaningful exceptions, using existing python expections to the
         xml_to_miros package.
-  * [ ] add default init test, even though this has been covered by the scxml
+  * [X] add default init test, even though this has been covered by the scxml
         test
-  * [ ] add a note in the readme about how you will skip test364 because you
+  * [X] add a note in the readme about how you will skip test364 because you
         don't support orthogonal regions yet
   * [X] README.md adjustments:
     * [X] Explain what SCXML_INIT_SIGNAL is and why it was invented

@@ -23,7 +23,12 @@
 
 * [576](https://www.w3.org/Voice/2013/scxml-irp/576/test576.txml) (parallel region init test)
 * [364](https://www.w3.org/Voice/2013/scxml-irp/364/test364.txml) (default init test with parallel region)
-
+* [403b](https://www.w3.org/Voice/2013/scxml-irp/403/test403b.txml) (we test that 'optimally enabled set' really is a set, specifically that if a transition is optimally enabled in
+  two different states, it is taken only once - parallel regions)
+* [403c](https://www.w3.org/Voice/2013/scxml-irp/403/test403c.txml) (we test 'optimally enabled set', specifically that preemption works correctly - parallel regions)
+* [404](https://www.w3.org/Voice/2013/scxml-irp/404/test404.txml) (test that states are exited in exit order (children before parents with reverse doc order used to break ties before the executable content in the transitions.  event1, event2, event3, event4 should be raised in that order when s01p is exited - parallel region)
+* [405](https://www.w3.org/Voice/2013/scxml-irp/405/test405.txml) (test that the executable content in the transitions is executed in document order after the states are exited. event1, event2, event3, event4 should be raised in that order when the state machine is entered - parallel regions)
+* [406](https://www.w3.org/Voice/2013/scxml-irp/406/test406.txml) (Test that states are entered in entry order (parents before children with document order used to break ties) after the executable content in the transition is executed. event1, event2, event3, event4 should be raised in that order when the transition in s01 is taken - parallel regions)
   
 ## List of exceptions to the SCXML Standard
 

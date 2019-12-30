@@ -5,7 +5,7 @@
   * [ ] script [[script|link]]
   * [ ] state [[state|link]]
   * [ ] parallel
-  * [ ] transition
+  * [ ] transition [[transition|link]]
   * [ ] initial
   * [ ] final
   * [ ] onentry

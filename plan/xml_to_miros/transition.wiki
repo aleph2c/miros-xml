@@ -1,0 +1,59 @@
+[[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
+*Transition*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.transition|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.transition|subgoals]])
+    what is your primary goal
+
+  *What is the problem?*
+    what seems to be the problem?
+
+  *Discoveries:* ([[notes.transition|notes]])
+  
+  [[https://www.w3.org/TR/scxml/#transition|link state in standard]]
+  [[https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/transition.md|link to transition doc]]
+  [[https://www.youtube.com/watch?v=-AtkiRAzRRE&feature=youtu.be|link to transition tutorial video]]
+  
+= Orient =
+  *Symptoms:* [[symptoms.transition|symptoms]]
+
+== Questions ==
+  *Questions for Transition: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for Transition: >=5*
+  * [ ] Read the tutorial
+  * [ ] Read the spec
+  * [ ] Find a way to give a signal name a "." in it
+  * [ ] In README.md
+    * [ ] Add comment about these skipped tests:
+      * [ ] 403b https://www.w3.org/Voice/2013/scxml-irp/403/test403b.txml
+      * [ ] 403c https://www.w3.org/Voice/2013/scxml-irp/403/test403c.txml
+      * [ ] 404 https://www.w3.org/Voice/2013/scxml-irp/404/test404.txml
+      * [ ] 405 https://www.w3.org/Voice/2013/scxml-irp/405/test405.txml
+      * [ ] 406 https://www.w3.org/Voice/2013/scxml-irp/406/test406.txml
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.transition|plan]]) ==
+
+= Act =
+  
+
