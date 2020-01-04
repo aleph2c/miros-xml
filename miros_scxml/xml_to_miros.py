@@ -406,20 +406,48 @@ class XmlToMiros():
   def _d_prepend_one_shot(self, name, node, signal_name):
     send_nodes = self.findall_fn['send'](node)
     for send_node in send_nodes:
-      if 'delay' in send_node.attrib:
-        time_in_seconds = self._sc_get_time(send_node.attrib['delay'])
-        send_signal_name = send_node.attrib['event']
-        string = """self.post_fifo(Event(signal=\"{signal_name}\"),
+      if 'delay' in send_node.attrib or 'delayexpr' in send_node.attrib:
+
+        if 'event' in send_node.attrib and \
+          'eventexpr' in send_node.attrib:
+          raise ValueError("you can not specify both a 'event' and 'eventexpr' as attributes of the <send> tag")
+
+        if 'delay' in send_node.attrib and \
+          'delayexpr' in send_node.attrib:
+          raise ValueError("you can not specify both a 'delay' and 'delayexpr' as attributes of the <send> tag")
+
+        if 'delay' in send_node.attrib:
+          time_in_seconds = self._sc_get_time(send_node.attrib['delay'])
+        if 'event' in send_node.attrib:
+          send_signal_name = send_node.attrib['event']
+          string = """self.post_fifo(Event(signal=\"{signal_name}\"),
 {i}times=1,
 {i}period={time_in_seconds},
 {i}deferred=True)\n""".format(
-          i=self.indent_amount,
-          signal_name=send_signal_name,
-          time_in_seconds=time_in_seconds)
+            i=self.indent_amount,
+            signal_name=send_signal_name,
+            time_in_seconds=time_in_seconds)
+        elif 'eventexpr' in send_node.attrib and 'delay' in send_node.attrib:
+          string = """self.{eventexpr},
+{i}times=1,
+{i}period={time_in_seconds},
+{i}deferred=True)\n""".format(
+            i=self.indent_amount,
+            eventexpr=send_node.attrib['eventexpr'][0:-1],
+            time_in_seconds=time_in_seconds)
+        elif 'eventexpr' in send_node.attrib and 'delayexpr' in send_node.attrib:
+          delayexpr = send_node.attrib['delayexpr']
+          delayexpr = delayexpr.replace('delay', 'period')
+          string = """self.{eventexpr}, {delayexpr})\n""".format(
+            i=self.indent_amount,
+            eventexpr=send_node.attrib['eventexpr'][0:-1],
+            delayexpr=delayexpr)
         index = self.index_for_signal(self._states_dict[name]['cl'],
             signal_name)
         string += self._states_dict[name]['cl'][index][signal_name]
         self._states_dict[name]['cl'][index] = {signal_name:string}
+
+
 
   def _sc_get_time(self, string):
     time_in_seconds = 0

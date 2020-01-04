@@ -6,7 +6,7 @@ Adjusted from:
   <state id="s0" initial="s01">
     <onentry>
       <!--  catch the failure case  -->
-      <send eventexpr="post_fifo(Event(timeout.token1.token2))" delayexpr="times=1; delay=1.0, deferred=True"/>
+      <send eventexpr="post_fifo(Event('timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"/>
     </onentry>
     <transition event="timeout" target="_fail"/>
     <transition event="event1" target="_fail"/>

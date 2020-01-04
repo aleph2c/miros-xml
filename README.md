@@ -40,9 +40,7 @@ Much to my disappointment I found that the SCXML standard serves two different o
 
 I will implement the statechart related parts, and ignore the rest of the standard.  All generalized programming will be done with Python (using the datamodel and data tags).
 
-If I can, I will raise the required errors so that this port can remain
-standards compliant.  If this turns out to be too much effort for too little
-value, I will break away from the standard entirely.
+If I can, I will raise the required errors so that this port can remain standards compliant.  If this turns out to be too much effort for too little value, I will break away from the standard entirely.
 
 List of exceptions to the standard so far:
 
@@ -56,27 +54,32 @@ List of exceptions to the standard so far:
 
       <!-- FIFO -->
       <send>event="timeout.token1.token2 delay="1s"</send>
+
       <!-- or as -->
-      <send>eventexpr="post_fifo(timeout.token1.token2)" delay="1s"</send>
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delay="1s"</send>
+
       <!-- or as -->
-      <send>eventexpr="post_fifo(timeout.token1.token2)" delayexpr="times=1, delay=1.0, deferred=True"</send>
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
 
       <!-- LIFO -->
-      <send>eventexpr="post_lifo(timeout.token1.token2)" delay="1s"</send>
+      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"</send>
+
       <!-- or as -->
-      <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=1, delay=1.0, deferred=True"</send>
+      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
 
 * Multi-shots can be implemented in multiple ways:
 
       <!-- FIFO -->
-      <send>eventexpr="post_fifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True"</send>
 
       <!-- LIFO -->
-      <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
+      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True"</send>
 
 ---
 
-  > The use of the **eventexpr** and **delayexpr** may or may not be extending or breaking the standard.  I can not tell from reading the documents.
+  > The use of the **eventexpr** and **delayexpr** in this way may or may not be extending or breaking the standard.  I can not tell from reading the documents.
+
+---
 
 ## Means through which the Standard was met
 
@@ -89,4 +92,4 @@ Thank you to the following people:
 
 * [Miro Samek](https://www.linkedin.com/in/samek) for publishing his event processing algorithm
 * [Alex Zhornyak](https://github.com/alexzhornyak) for writing the [SCXML tutorial](https://github.com/alexzhornyak/SCXML-tutorial)
-* [Jim Barnett](jim.barnett@genesys.com) for writing the [SCXML compliance tests](https://www.w3.org/Voice/2013/scxml-irp/#tests)
+* [Jim Barnett](https://www.speechtechmag.com/Articles/Editorial/Feature/The-2014-Speech-Luminaries-98322.aspx) for writing the [SCXML compliance tests](https://www.w3.org/Voice/2013/scxml-irp/#tests)

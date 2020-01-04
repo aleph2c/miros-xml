@@ -28,7 +28,6 @@ sys.path.insert(0, dir_path)
 from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
 
-@pytest.mark.snipe
 @pytest.mark.scxml
 def test_scxml_get_name():
   path = data_path / 'scxml_test_1.scxml'
