@@ -1,6 +1,6 @@
 # miros-scxml WIP
 
-  > This library is a port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
+  > This library is a partial-port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
 
 **Usage (Python >= 3.5)**:
 
@@ -32,6 +32,20 @@
   
 ## List of exceptions to the SCXML Standard
 
+Much to my disappointment I found that the SCXML standard serves two different objectives:  
+
+1. To describe statecharts (Harel topological diagrams) with XML. (it should just be this)
+
+2. To solve specific industrial problems related to VoiceXML and CCXML.
+
+I will implement the statechart related parts, and ignore the rest of the standard.  All generalized programming will be done with Python (using the datamodel and data tags).
+
+If I can, I will raise the required errors so that this port can remain
+standards compliant.  If this turns out to be too much effort for too little
+value, I will break away from the standard entirely.
+
+List of exceptions to the standard so far:
+
 * The initial element is supported in an atomic state if it is carrying code and not causing a state transition.  It can be useful to have code run in a state's initialization.
 
 ## List of extensions to the SCXML standard
@@ -60,6 +74,9 @@
       <!-- LIFO -->
       <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
 
+  > The use of the **eventexpr** and **delayexpr** may or may not be extending
+  > or breaking the standard.  I can not tell from reading the documents.
+
 ## Means through which the Standard was met
 
 * The ``SCXML_INIT_SIGNAL`` internal signal was added in this library.  It was added so that eventless transitions between states can occur (see ``./data/scxml_test_1.scxml`` for an example)
@@ -71,3 +88,4 @@ Thank you to the following people:
 
 * [Miro Samek](https://www.linkedin.com/in/samek) for publishing his event processing algorithm
 * [Alex Zhornyak](https://github.com/alexzhornyak) for writing the [SCXML tutorial](https://github.com/alexzhornyak/SCXML-tutorial)
+* [Jim Barnett](jim.barnett@genesys.com) for writing the [SCXML compliance tests](https://www.w3.org/Voice/2013/scxml-irp/#tests)
