@@ -33,6 +33,27 @@
 ## List of exceptions to the SCXML Standard
 
 * The initial element is supported in an atomic state if it is carrying code and not causing a state transition.  It can be useful to have code run in a state's initialization.
+* One-shots can be implemented in multiple ways:
+
+    <!-- FIFO -->
+    <send>event="timeout.token1.token2 delay="1s"</send>
+    <!-- or as -->
+    <send>eventexpr="post_fifo(timeout.token1.token2)" delay="1s"</send>
+    <!-- or as -->
+    <send>eventexpr="post_fifo(timeout.token1.token2)" delayexpr="times=1, delay=1.0, deferred=True"</send>
+
+    <!-- LIFO -->
+    <send>eventexpr="post_lifo(timeout.token1.token2)" delay="1s"</send>
+    <!-- or as -->
+    <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=1, delay=1.0, deferred=True"</send>
+
+* Multi-shots can be implemented in multiple ways:
+
+    <!-- FIFO -->
+    <send>eventexpr="post_fifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
+
+    <!-- LIFO -->
+    <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
 
 ## List of extensions to the SCXML standard
 
