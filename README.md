@@ -32,7 +32,7 @@
   
 ## List of exceptions to the SCXML Standard
 
-Much to my disappointment I found that the SCXML standard serves two different objectives:  
+The SCXML standard serves two different objectives:  
 
 1. To describe statecharts (Harel topological diagrams) with XML. (it should just be this)
 
@@ -60,6 +60,8 @@ List of exceptions to the standard so far:
 
       <!-- or as -->
       <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <!-- or as -->
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, delay=1.0, deferred=True"</send>
 
       <!-- LIFO -->
       <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"</send>
@@ -74,6 +76,17 @@ List of exceptions to the standard so far:
 
       <!-- LIFO -->
       <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True"</send>
+
+* To create a one/multi-shot then cancel it at a later time:
+
+      <!-- FIFO -->
+      <send>event="timeout.token1.token2 delay="1s" id="ef120" </send>
+      <!-- later, to cancel -->
+      <cancel>sendid="ef120" </cancel>
+
+      <!-- or to cancel all one/multi-shots with a specific token -->
+      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <cancel>sendexpr="cancel(Event(signal='token1'))"" </cancel>
 
 ---
 

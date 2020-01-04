@@ -11,7 +11,6 @@ from collections import OrderedDict
 from miros import pp
 from miros.event import signals as miros_signals
 
-
 class XmlToMiros():
 
   namespaces = {
@@ -88,6 +87,9 @@ class XmlToMiros():
       self.file_path = Path(self.file_path)
 
     self.keep_code = False if miros_code_path is None else True
+
+    # keys are xml ids and values are miros ids
+    self.send_id_dict = {}
 
     if indent_amount is None:
       self.indent_amount = "  "

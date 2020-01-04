@@ -55,15 +55,15 @@
   * [X] Add a recipe in miros for capturing "." string events
   * [X] Add a recipe in miros for capturing tokens from events
   * [X] Find "*" in dict, create new state template, and use it when "*" is seen
-  * [ ] Find a way to map one shots into chart (look for delay attrib in send tag)
-  * [ ] Turn <send event="timeout.token1.token2" delay="1s"/> into
+  * [X] Find a way to map one shots into chart (look for delay attrib in send tag)
+  * [X] Turn <send event="timeout.token1.token2" delay="1s"/> into
         self.post_fifo(Event(signal="timeout.token1.token2"),
           times=1,
           period=1.0,
           deferred=True)
-  * [ ] Find a way to pump a post_fifo into the xml chart (fifo/lifo) extension,
+  * [X] Find a way to pump a post_fifo into the xml chart (fifo/lifo) extension,
         write about this in the readme.
-  * [ ] Find a way to map multi shots into chart. add this to the readme
+  * [X] Find a way to map multi shots into chart. add this to the readme
   * [ ] Find a way to cancel a specific one shot
   * [ ] Find a way to [[https://www.w3.org/TR/scxml/#cancel|cancel all signals]] of a specific event
 
