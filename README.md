@@ -33,6 +33,11 @@
 ## List of exceptions to the SCXML Standard
 
 * The initial element is supported in an atomic state if it is carrying code and not causing a state transition.  It can be useful to have code run in a state's initialization.
+
+## List of extensions to the SCXML standard
+
+* A new ``<debug/>`` element has been added which will create a file and add an ``import pdb; pdb.set_trace()`` expression in the location miros code corresponding to where the tag was placed in the statechart.  This was added to make it easy for users to debug their statecharts.
+* A ``python`` datamodel was added, so that python code can be placed in the statechart.
 * One-shots can be implemented in multiple ways:
 
       <!-- FIFO -->
@@ -54,11 +59,6 @@
 
       <!-- LIFO -->
       <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
-
-## List of extensions to the SCXML standard
-
-* A new ``<debug/>`` element has been added which will create a file and add an ``import pdb; pdb.set_trace()`` expression in the location miros code corresponding to where the tag was placed in the statechart.  This was added to make it easy for users to debug their statecharts.
-* A ``python`` datamodel was added, so that python code can be placed in the statechart.
 
 ## Means through which the Standard was met
 
