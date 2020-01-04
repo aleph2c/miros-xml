@@ -74,8 +74,9 @@ List of exceptions to the standard so far:
       <!-- LIFO -->
       <send>eventexpr="post_lifo(timeout.token1.token2)" delayexpr="times=3, delay=1.0, deferred=True"</send>
 
-  > The use of the **eventexpr** and **delayexpr** may or may not be extending
-  > or breaking the standard.  I can not tell from reading the documents.
+---
+
+  > The use of the **eventexpr** and **delayexpr** may or may not be extending or breaking the standard.  I can not tell from reading the documents.
 
 ## Means through which the Standard was met
 
