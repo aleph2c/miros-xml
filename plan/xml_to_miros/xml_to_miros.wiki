@@ -3,14 +3,84 @@
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.xml_to_miros|subgoals]])
+    
     Working miros statecharts from XML
     
-    I would understand SCXML -- currently don't understand what they are
-                                getting at and how to tie it to Python
+    To have a decision process which will assist in determining what to support
+    and what not to support in the standard.  There are good ideas mixed in with
+    some very bad ideas (possible accidental sabotage by vendor agents in the steering
+    committee).  For instance, the 'target' attribute of the send tag seems like
+    a bad idea because it serves a very specific kind of problem.  The p tag
+    seems like a very good idea.
+    
+    Rules of thumb so far:
+   
+      * Say no to specific technologies, like javascript, http, whatever. If you
+        need to manifest a specific technology it will be python.
+      * Anytime there is a mention of anything voice related, skip it
+      * If there is a request that is a kind of specific set of error messages,
+        skip it.  If they want these messages they can add it to their XML as
+        part of the design (using python)
+      * Don't support executable content, support python in the datamodel and
+        data tags
+      * Really try hard to implement David Harel's notions of shallow and deep
+        history, since these extremely powerful.
+      * Focus on the topological challenges provided by their test cases, there
+        is a lot of value here.
+      * Build orthogonal regions into the chart
+      * Find a way to specify an orthogonal component
+      * Find a way to defer
+      * Find a way to recall
+      * Find a way to publish and subscribe 
+      * If a tag is redundant, pick the best name, the drop the rest (send and
+        raise, pick send)
+    
+    The lead author works at Genesys which has 12 employees. Another author
+    works at Voxeo, which is focused on CCXML and VoiceXML.  Nuance has real
+    technical roots, and they may be interested in seeing a useful SCXML.
+    Another member is Torbjörn Lager who is a visiting professor who teaches a
+    class on SCXML.  Another member is an academic Johan Roxendal,  who wrote a
+    paper on SCXML in 2013 (focused on bots).  There are folks there from IBM,
+    Nokia and Microsoft.  But the standard seems to be strongly governed by
+    people interested in bots, VoiceXML and the CCXML, which will significantly
+    distort the standard away from a general description of a Harel statechart.
+    
+    So it seems that SCXML is a stolen name space.  Its standard should be a general form for
+    describing state charts in XML, but it is not. It is something which has been
+    aimed at a specific set of industrial problems.  As such, it will probably
+    fail in its mission, especially since a lot of people on its steering
+    committee are from tiny tech companies or from the technology rust belt.
+    
+    I feel no loyalty to their mission since they are serving their own specific
+    industrial needs and not describing a general topological language as
+    envisioned by David Harel.
+
+    The QT team which ported SCXML probably faced the same problem:
+    what in the SCXML is good and what is bad?  I could research what they
+    support and use this to guide what I should focus on.
+ 
+    I need to find a way to drop arbitrary python code into the XML as soon as
+    possible.  This will reduce a lot of the port's risk, in that it can be used
+    instead of supporting strange ideas like a ``foreach`` loop and a
+    SCXML-domain-specific-language which will be 1 trillionth as powerful as
+    Python itself.
+   
+    But I still don't have a good handle on a lot of the standard.  Once I
+    understand more about how it is implemented I might see some of the
+    reasoning in why things are being asked for.  In time if I still think
+    things are stupid I will just show how to implement them using the Python
+    datamodel in the SCXML.  Or write a note about what is not supported and
+    why.
+    
+    In the end I might not say I support SCXML at all, unless I intend on
+    attacking that business space.  It's not that interesting to me, I would
+    rather have a way to use XML to change parts of programs in botnets or
+    controllers that aren't focused on telephony.
 
   *What is the problem?*
+  
     SCXML is large, and it ties into the XML morass
-
+    
   *Resources:*
     [[https://www.w3.org/TR/scxml/|scxml spec]] 
     [[https://www.w3.org/Voice/2013/scxml-irp/#tests|scxml tests]]

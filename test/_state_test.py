@@ -36,6 +36,7 @@ def test_initialize_transition_as_attribute():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
+  time.sleep(0.1)
   result = get_log_as_stripped_string(data_path / 'state_test_initial_as_attribute.log')
   target = """
 [Scxml] START
@@ -54,7 +55,6 @@ def test_initialize_transition_as_attribute():
 """
   assert target == result
 
-
 @pytest.mark.state
 def test_initialize_transition_as_tag():
   path = data_path / 'state_test_initial_as_tag.scxml'
@@ -62,6 +62,7 @@ def test_initialize_transition_as_tag():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
+  time.sleep(0.01)
   result = get_log_as_stripped_string(data_path / 'state_test_initial_as_tag.log')
   target = """
 [Scxml] START
@@ -97,3 +98,4 @@ def test_initialize_error_if_in_attribute_of_atomic_state():
     ao.start()
   assert (data_path /
   "state_test_error_if_initial_as_attribute_in_atomic_state_.py").exists()
+

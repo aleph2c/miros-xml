@@ -9,6 +9,7 @@ from xml.etree import ElementTree
 from collections import OrderedDict
 
 from miros import pp
+from miros.event import signals as miros_signals
 
 
 class XmlToMiros():
@@ -48,7 +49,8 @@ class XmlToMiros():
     'finalize'
   ]
 
-  def __init__(self, path_to_xml, log_file=None, miros_code_path=None, unique=None):
+  def __init__(self, path_to_xml, log_file=None, miros_code_path=None,
+      unique=None, indent_amount=None):
     '''Convert scxml into a miro python statechart
 
     **Args**:
@@ -86,6 +88,11 @@ class XmlToMiros():
       self.file_path = Path(self.file_path)
 
     self.keep_code = False if miros_code_path is None else True
+
+    if indent_amount is None:
+      self.indent_amount = "  "
+    else:
+      self.indent_amount = indent_amount
 
     if isinstance(miros_code_path, Path) or isinstance(miros_code_path, str):
       self.python_file_name = miros_code_path
@@ -190,6 +197,7 @@ class XmlToMiros():
     #            'status = return_status.HANDLED'}
     #       ],
     #       'p': None
+    #       '*': False
     #      },
     #     'Work':
     #     {
@@ -210,6 +218,7 @@ class XmlToMiros():
     #           }
     #        ],
     #      'p': None
+    #       '*': False
     #     },
     #  }
     #  'start_at': 'Start'
@@ -304,6 +313,7 @@ class XmlToMiros():
     #            'status = return_status.HANDLED'}
     #       ],
     #       'p': None
+    #       '*': False
     #      },
     #      'Work':
     #      {
@@ -324,6 +334,7 @@ class XmlToMiros():
     #            }
     #         ],
     #         'p': None
+    #         '*': False
     #      },
     #  }
     #  'start_at': 'Start'
@@ -364,7 +375,7 @@ class XmlToMiros():
     result = string.translate(str.maketrans(_trans_dict)) 
     return result
 
-  def _d_prepend_log(self, node, name, signal_name):
+  def _d_prepend_log(self, name, node, signal_name):
     '''convert <log>{contents}</log> to self.scribble({contents})'''
     log_nodes = self.findall_fn['log'](node)
     for log_node in log_nodes:
@@ -382,7 +393,7 @@ class XmlToMiros():
       string += self._states_dict[name]['cl'][index][signal_name]
       self._states_dict[name]['cl'][index] = {signal_name:string}
 
-  def _d_prepend_debugger(self, node, name, signal_name):
+  def _d_prepend_debugger(self, name, node, signal_name):
     '''convert <debugger\> to import pdb; pdb.set_trace()'''
     log_nodes = self.findall_fn['debug'](node)
     for log_node in log_nodes:
@@ -392,7 +403,40 @@ class XmlToMiros():
       string += self._states_dict[name]['cl'][index][signal_name]
       self._states_dict[name]['cl'][index] = {signal_name:string}
 
-  def _d_prepend_posting_of_scxml_init_in_entry_condition(self, node, name):
+  def _d_prepend_one_shot(self, name, node, signal_name):
+    send_nodes = self.findall_fn['send'](node)
+    for send_node in send_nodes:
+      if 'delay' in send_node.attrib:
+        time_in_seconds = self._sc_get_time(send_node.attrib['delay'])
+        send_signal_name = send_node.attrib['event']
+        string = """self.post_fifo(Event(signal=\"{signal_name}\"),
+{i}times=1,
+{i}period={time_in_seconds},
+{i}deferred=True)\n""".format(
+          i=self.indent_amount,
+          signal_name=send_signal_name,
+          time_in_seconds=time_in_seconds)
+        index = self.index_for_signal(self._states_dict[name]['cl'],
+            signal_name)
+        string += self._states_dict[name]['cl'][index][signal_name]
+        self._states_dict[name]['cl'][index] = {signal_name:string}
+
+  def _sc_get_time(self, string):
+    time_in_seconds = 0
+    if string[-1] == 's':
+      time_in_seconds = float(string[0:-1])
+    elif string[-1] == 'm':
+      time_in_seconds = 60.0 * float(string[0:-1])
+    elif string[-1] == 'h':
+      time_in_seconds = 60.0 * 60.0 * float(string[0:-1])
+    elif string[-1] == 'd':
+      time_in_seconds = 60.0 * 60.0 * 24 * float(string[0:-1])
+    else:
+      raise NotImplementedError("time format not implemented")
+    return time_in_seconds
+
+
+  def _d_prepend_posting_of_scxml_init_in_entry_condition(self, name, node):
     '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
     entry condition when the SCXML requires an immediate transition from one
     state to another'''
@@ -421,39 +465,38 @@ class XmlToMiros():
 
   def _d_state_to_dict(self, node, parent):
     name = node.attrib['id']
-
     _parent = None if parent == None else \
       parent.attrib['id']
-    # self._states_dict is enclosed
+
     self._states_dict[name] = {}
     self._states_dict[name]['p'] = _parent
     self._states_dict[name]['cl'] = []
+
+    # globs are searched for in _d_transition
+    self._states_dict[name]['*'] = False
+
+    self._d_entry(name, node, parent)
+    self._d_init(name, node, parent)
+    self._d_scxml_init(name, node, parent)
+    self._d_exit(name, node, parent)
+    self._d_transition(name, node, parent)
+
+    return self._states_dict
+
+  def _d_entry(self, name, node, parent):
     self._states_dict[name]['cl'].append(
       {'ENTRY_SIGNAL': 'status = return_status.HANDLED'}
     )
+    entry_nodes = self.findall_fn['onentry'](node)
+    for entry_node in entry_nodes:
+      self._d_prepend_debugger(name, entry_node, 'ENTRY_SIGNAL')
+      self._d_prepend_log(name, entry_node, 'ENTRY_SIGNAL')
+      self._d_prepend_one_shot(name, entry_node, 'ENTRY_SIGNAL')
+
+  def _d_init(self, name, node, parent):
     self._states_dict[name]['cl'].append(
       {'INIT_SIGNAL': 'status = return_status.HANDLED'}
     )
-    self._states_dict[name]['cl'].append(
-      {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
-    )
-    self._states_dict[name]['cl'].append(
-      {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
-    )
-    entry_nodes = self.findall_fn['onentry'](node)
-    transition_nodes = self.findall_fn['transition'](node)
-
-    for entry_node in entry_nodes:
-      self._d_prepend_debugger(entry_node, name, 'ENTRY_SIGNAL')
-      self._d_prepend_log(entry_node, name, 'ENTRY_SIGNAL')
-
-    for transition in transition_nodes:
-      if 'event' in transition.attrib:
-        self._states_dict[name]['cl'].append(
-          {transition.attrib['event']: 
-            "status = self.trans({})".format(transition.attrib['target'])}
-        )
-    
     if 'initial' in node.attrib:
       expression  = "status = self.trans({})".format(node.attrib['initial'])
       index = self.index_for_signal(self._states_dict[name]['cl'], 'INIT_SIGNAL')
@@ -462,7 +505,6 @@ class XmlToMiros():
     init_nodes = self.findall_fn['initial'](node)
     for init_node in init_nodes:
       index = self.index_for_signal(self._states_dict[name]['cl'], 'INIT_SIGNAL')
-      # this smells funny
       if self._states_dict[name]['cl'][index]['INIT_SIGNAL'] != 'status = return_status.HANDLED':
         raise SyntaxError('"initial" keyword can be used as a tag or attribute, but not both')
       transition = init_node.findall('./sc:transition', XmlToMiros.namespaces)
@@ -470,28 +512,53 @@ class XmlToMiros():
         target = transition[0].attrib['target']
         expression = "status = self.trans({})".format(target)
         self._states_dict[name]['cl'][index]['INIT_SIGNAL'] = expression
-      self._d_prepend_debugger(init_node, name, 'INIT_SIGNAL')
-      self._d_prepend_log(init_node, name, 'INIT_SIGNAL')
+      self._d_prepend_debugger(name, init_node, 'INIT_SIGNAL')
+      self._d_prepend_log(name, init_node, 'INIT_SIGNAL')
+      self._d_prepend_one_shot(name, init_node, 'INIT_SIGNAL')
 
-    immediate_transition_nodes = self.findall_fn['transition'](node)
-    for node in immediate_transition_nodes:
+  def _d_scxml_init(self, name, node, parent):
+    # this can be over-written by a transition, see _d_transition
+    self._states_dict[name]['cl'].append(
+      {'SCXML_INIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+  def _d_exit(self, name, node, parent):
+    self._states_dict[name]['cl'].append(
+      {'EXIT_SIGNAL': 'status = return_status.HANDLED'}
+    )
+    exit_nodes = self.findall_fn['onexit'](node)
+    for exit_node in exit_nodes:
+      self._d_prepend_log(name, exit_node, 'EXIT_SIGNAL')
+      self._d_prepend_one_shot(name, exit_node, 'EXIT_SIGNAL')
+
+  def _d_transition(self, name, node, parent):
+    transition_nodes = self.findall_fn['transition'](node)
+
+    self._states_dict[name]['*'] = False
+    for transition in transition_nodes:
+      if 'event' in transition.attrib:
+        event_type = transition.attrib['event']
+        self._states_dict[name]['cl'].append(
+          {event_type: 
+            "status = self.trans({})".format(transition.attrib['target'])}
+        )
+        self._states_dict[name]['*'] |= False if event_type != '*' else True
+
+    transition_nodes = self.findall_fn['transition'](node)
+    for node in transition_nodes:
       if not 'target' in node.attrib:
         # TODO: feature not supported yet
-        break
+        raise("feature not supported yet")
+
       if "event" in node.attrib:
         code_string = "status = return_status.HANDLED" 
       else:
         code_string = "status = self.trans({})".format(node.attrib['target'])
+        self._d_prepend_log(name, node, 'SCXML_INIT_SIGNAL')
+        self._d_prepend_posting_of_scxml_init_in_entry_condition(name, node)
+
       index = self.index_for_signal(self._states_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
       self._states_dict[name]['cl'][index] = \
         {'SCXML_INIT_SIGNAL': code_string}
-      self._d_prepend_log(node, name, 'SCXML_INIT_SIGNAL')
-      self._d_prepend_posting_of_scxml_init_in_entry_condition(node, name)
-
-    exit_nodes = self.findall_fn['onexit'](node)
-    for exit_node in exit_nodes:
-      self._d_prepend_log(exit_node, name, 'EXIT_SIGNAL')
-    return self._states_dict
 
   def make(self):
     '''Make the statechart
@@ -866,6 +933,7 @@ import time
 import logging
 from pathlib import Path
 from functools import partial
+from functools import lru_cache
 from collections import namedtuple
 from collections import OrderedDict
 
@@ -919,7 +987,19 @@ class {scxml_chart_class}({scxml_chart_superclass}):
 {i}{i}super().__init__(name, log_file)
 {i}{i}{data}
 {i}def start(self):
-{i}{i}self.start_at({starting_state})"""
+{i}{i}self.start_at({starting_state})
+
+{i}@lru_cache(maxsize=32)
+{i}def tockenize(self, signal_name):
+{i}{i}return set(signal_name.split("."))
+
+{i}@lru_cache(maxsize=32)
+{i}def token_match(self, resident, other):
+{i}{i}alien_set = self.tockenize(other)
+{i}{i}resident_set = self.tockenize(resident)
+{i}{i}result = True if len(resident_set.intersection(alien_set)) >= 1 else False
+{i}{i}return result
+"""
 
 
   def _s_instantiation_template(self):
@@ -934,11 +1014,10 @@ if __name__ == '__main__':
 {i}ao.start()
 {i}time.sleep(0.01)"""
 
-  def _sc_create_miros_code(self, state_chart_dict=None, indent_amount=None, custom_imports=None):
+  def _sc_create_miros_code(self, state_chart_dict=None, custom_imports=None):
     '''create the python code which can manifest the statechart
 
     **Args**:
-       | ``indent_amount=None`` (str): A string of spaces
        | ``custom_imports=None`` (type1): A string of custome imports
 
 
@@ -949,8 +1028,7 @@ if __name__ == '__main__':
     if state_chart_dict is None:
       state_chart_dict = self._state_chart_dict
 
-    if indent_amount is None:
-      indent_amount = "  "
+    indent_amount = self.indent_amount
 
     if custom_imports is None:
       imports = ""
@@ -966,7 +1044,11 @@ if __name__ == '__main__':
       starting_state = state_chart_dict['start_at']
 
     for (state_name, v) in state_chart_dict['states'].items():
-      state_code += self._sc_write_state_code(state_name, v, indent_amount) + "\n"
+      if v['*']:
+        state_code += self._sc_write_state_code_with_globs(state_name, v,
+          indent_amount) + "\n"
+      else:
+        state_code += self._sc_write_state_code(state_name, v, indent_amount) + "\n"
 
     pre_instantiation_code = \
       self._s_pre_instantiation_template().format(
@@ -1003,9 +1085,7 @@ if __name__ == '__main__':
     return class_code
 
   @staticmethod
-  def _sc_write_state_code(state_name, state_dict, indent_amount=None):
-    if indent_amount is None:
-      indent_amount = "  "
+  def _sc_write_state_code(state_name, state_dict, indent_amount):
 
     state_template = '''
 @spy_on
@@ -1015,11 +1095,16 @@ def {state_name}(self, e):
 {i}{i}self.temp.fun = {parent_state}
 {i}{i}status = return_status.SUPER
 {i}return status'''
+
     first_cl_template = '''{i}if(e.signal == signals.{signal_name}):
 {event_code}'''
 
-    following_cl_template = '''{i}elif(e.signal == signals.{signal_name}):
+    internal_cl_template = '''{i}elif(e.signal == signals.{signal_name}):
 {event_code}'''
+
+    external_cl_template = '''{i}elif(self.token_match(e.signal_name, \"{signal_name}\")):
+{event_code}'''
+
     cls = ""
     signal_name, event_code = next(iter(state_dict.items()))
     for index, catch_dict in enumerate(state_dict['cl']):
@@ -1036,14 +1121,19 @@ def {state_name}(self, e):
           signal_name=signal_name,
           event_code= event_code)
       else:
-        cls += following_cl_template.format(
-          i=indent_amount,
-          signal_name=signal_name,
-          event_code= event_code)
+        if miros_signals.is_inner_signal(signal_name):
+          cls += internal_cl_template.format(
+            i=indent_amount,
+            signal_name=signal_name,
+            event_code= event_code)
+        else:
+          cls += external_cl_template.format(
+            i=indent_amount,
+            signal_name=signal_name,
+            event_code= event_code)
 
     # remove distracting double new lines
     cls = cls.replace("\n\n", "\n")
-
 
     parent_state = "self.top" if state_dict['p'] is None else state_dict['p']
     state_code = state_template.format(
@@ -1053,3 +1143,69 @@ def {state_name}(self, e):
         parent_state=parent_state)
     return state_code
 
+  @staticmethod
+  def _sc_write_state_code_with_globs(state_name, state_dict, indent_amount):
+
+    state_template = '''
+@spy_on
+def {state_name}(self, e):
+{i}status = return_status.UNHANDLED
+{cls}{i}elif(signals.is_inner_signal(e.signal)):
+{i}{i}self.temp.fun = {parent_state}
+{i}{i}status = return_status.SUPER
+{i}else:  # "*"
+{catch_all}
+{i}return status'''
+
+    first_cl_template = '''{i}if(e.signal == signals.{signal_name}):
+{event_code}'''
+
+    internal_cl_template = '''{i}elif(e.signal == signals.{signal_name}):
+{event_code}'''
+
+    external_cl_template = '''{i}elif(self.token_match(e.signal_name, \"{signal_name}\")):
+{event_code}'''
+
+    glob_template = '''{i}{i}{event_code}'''
+    
+    cls = ""
+    signal_name, event_code = next(iter(state_dict.items()))
+    for index, catch_dict in enumerate(state_dict['cl']):
+      signal_name, event_code = next(iter(catch_dict.items()))
+
+      if signal_name != "*":
+        tokens = event_code.split("\n")
+        event_code = "{i}{i}{code}\n".format(i=indent_amount, code=tokens[0])
+        new_tokens = ["{i}{i}{code}\n".format(i=indent_amount, code=token) for token in tokens[1:]]
+        event_code += "\n".join(new_tokens)
+
+        if index == 0:
+          cls = first_cl_template.format(
+            i=indent_amount,
+            signal_name=signal_name,
+            event_code= event_code)
+        else:
+          if miros_signals.is_inner_signal(signal_name):
+            cls += internal_cl_template.format(
+              i=indent_amount,
+              signal_name=signal_name,
+              event_code= event_code)
+          else:
+            cls += external_cl_template.format(
+              i=indent_amount,
+              signal_name=signal_name,
+              event_code= event_code)
+      else:
+          catch_all = glob_template.format(i=indent_amount, event_code=event_code)
+
+    # remove distracting double new lines
+    cls = cls.replace("\n\n", "\n")
+
+    parent_state = "self.top" if state_dict['p'] is None else state_dict['p']
+    state_code = state_template.format(
+      i=indent_amount,
+      state_name=state_name,
+      cls=cls,
+      catch_all=catch_all,
+      parent_state=parent_state)
+    return state_code
