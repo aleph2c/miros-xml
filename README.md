@@ -3,20 +3,20 @@
   > This library is a partial-port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
 
 **Usage (Python >= 3.5)**:
+```python
+from pathlib import Path
+from miros_scxml.xml_to_miros import XmlToMiros
 
-        from pathlib import Path
-        from miros_scxml.xml_to_miros import XmlToMiros
-    
-        # path to scxml file
-        data_dir = Path(".") / ".." / "data" /
-        scxml_path = data_dir / "scxml_test_1.scxml"
-   
-        # Make an active object and start it
-        xml_to_chart = XmlToMiros(scxml_path)
-        ao = xml_to_chart.make()
-        ao.live_spy = True
-        ao.start()  # will generate spy log: data_dir / scxml_test_1.log
+# path to scxml file
+data_dir = Path(".") / ".." / "data" /
+scxml_path = data_dir / "scxml_test_1.scxml"
 
+# Make an active object and start it
+xml_to_chart = XmlToMiros(scxml_path)
+ao = xml_to_chart.make()
+ao.live_spy = True
+ao.start()  # will generate spy log: data_dir / scxml_test_1.log
+```
 ----
 
 ## List of Unsupported Tests
@@ -52,55 +52,59 @@ List of exceptions to the standard so far:
 * A ``python`` datamodel was added, so that python code can be placed in the statechart.
 * One-shots can be implemented in multiple ways:
 
-      <!-- FIFO -->
-      <send event="timeout.token1.token2 delay="1s"/>
+```xml
+<!-- FIFO -->
+<send event="timeout.token1.token2 delay="1s"/>
 
-      <!-- or as -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
+<!-- or as -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
 
-      <!-- or as -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True" />
-      <!-- or as -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, delay=1.0, deferred=True" />
+<!-- or as -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True" />
+<!-- or as -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, delay=1.0, deferred=True" />
 
-      <!-- LIFO -->
-      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
+<!-- LIFO -->
+<send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
 
-      <!-- or as -->
-      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"/>
+<!-- or as -->
+<send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"/>
+```
 
 * Multi-shots can be implemented in multiple ways:
 
-      <!-- FIFO -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
+```xml
+<!-- FIFO -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
 
-      <!-- LIFO -->
-      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
+<!-- LIFO -->
+<send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
+```
 
 * To create a one/multi-shot then cancel it at a later time:
+```xml
+<!-- FIFO -->
+<send  event="timeout.token1.token2" delay="1s" id="ef120"  />
+<!-- later, to cancel -->
+<cancel sendid="ef120"/>
 
-      <!-- FIFO -->
-      <send  event="timeout.token1.token2" delay="1s" id="ef120"  />
-      <!-- later, to cancel -->
-      <cancel sendid="ef120"/>
+<!-- or as -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delay="1s" />
+<!-- later, to cancel -->
+<cancel sendid="ef120"  />
 
-      <!-- or as -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delay="1s" />
-      <!-- later, to cancel -->
-      <cancellsendid="ef120"  />
+<!-- or as -->
+<send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delayexpr="times=1, period=1.0, deferred=True" />
+<cancel sendid="ef120" />
 
-      <!-- or as -->
-      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delayexpr="times=1, period=1.0, deferred=True" />
-      <cancel sendid="ef120" />
-
-      <!-- or to cancel all one/multi-shots with a specific token -->
-      <send eventexpr="post_lifo(Event(signal='timeout.banana.apple'))" delayexpr="times=1, period=1.0, deferred=True" />
-      <cancel sendexpr="cancel_all(Event(signal='timeout'))""  />
-      <!-- or cancel with -->
-      <cancel sendexpr="cancel_all(Event(signal='apple'))"" />
-      <!-- or cancel with -->
-      <cancel sendexpr="cancel_all(Event(signal='banana'))"" />
-
+<!-- or to cancel all one/multi-shots with a specific token -->
+<send eventexpr="post_lifo(Event(signal='timeout.banana.apple'))" delayexpr="times=1, period=1.0, deferred=True" />
+<cancel sendexpr="cancel_all(Event(signal='timeout'))""  />
+<!-- or cancel with -->
+<cancel sendexpr="cancel_all(Event(signal='apple'))"" />
+<!-- or cancel with -->
+<cancel sendexpr="cancel_all(Event(signal='banana'))"" />
+```
 ---
 
   > The use of the **eventexpr** and **delayexpr** in this way may or may not be extending or breaking the standard.  I can not tell from reading the documents.
