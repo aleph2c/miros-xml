@@ -1,0 +1,17 @@
+<!--
+ we test that cancel works.  We cancel delayed event1.  If cancel works, we get event2 first and pass.  If
+we get event1 or an error first, cancel didn't work and we fail.  
+-->
+<scxml name="Test208" xmlns="http://www.w3.org/2005/07/scxml" initial="s0" version="1.0">
+  <state id="s0">
+    <onentry>
+      <send id="foo" event="event1" delay="1"/>
+      <send event="event2" delay="1.5"/>
+      <cancel sendexpr="cancel_all(Event(signal='event1'))"/>
+    </onentry>
+    <transition event="event2" target="_pass"/>
+    <transition event="*" target="_fail"/>
+  </state>
+  <state id="_pass"/>
+  <state id="_fail"/>
+</scxml>

@@ -37,22 +37,19 @@ def test_initialize_transition_as_attribute():
   ao.live_spy = True
   ao.start()
   time.sleep(0.1)
-  result = get_log_as_stripped_string(data_path / 'state_test_initial_as_attribute.log')
-  target = """
-[Scxml] START
-[Scxml] SEARCH_FOR_SUPER_SIGNAL:Work
-[Scxml] ENTRY_SIGNAL:Work
-[Scxml] INIT_SIGNAL:Work
-[Scxml] SEARCH_FOR_SUPER_SIGNAL:State1
-[Scxml] ENTRY_SIGNAL:State1
-[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
-[Scxml] Hello!
-[Scxml] INIT_SIGNAL:State1
-[Scxml] <- Queued:(1) Deferred:(0)
-[Scxml] SCXML_INIT_SIGNAL:State1
-[Scxml] SCXML_INIT_SIGNAL:State1:HOOK
-[Scxml] <- Queued:(0) Deferred:(0)
-"""
+  ao.stop()
+  result = ao.spy()
+  target = \
+      ['START',
+          'SEARCH_FOR_SUPER_SIGNAL:Work',
+          'ENTRY_SIGNAL:Work',
+          'INIT_SIGNAL:Work',
+          'SEARCH_FOR_SUPER_SIGNAL:State1',
+          'ENTRY_SIGNAL:State1',
+          'Hello!',
+          'INIT_SIGNAL:State1',
+          '<- Queued:(0) Deferred:(0)']
+
   assert target == result
 
 @pytest.mark.state
@@ -63,6 +60,7 @@ def test_initialize_transition_as_tag():
   ao.live_spy = True
   ao.start()
   time.sleep(0.01)
+  ao.stop()
   result = get_log_as_stripped_string(data_path / 'state_test_initial_as_tag.log')
   target = """
 [Scxml] START
@@ -75,17 +73,12 @@ def test_initialize_transition_as_tag():
 [Scxml] INIT_SIGNAL:State1
 [Scxml] SEARCH_FOR_SUPER_SIGNAL:State2
 [Scxml] ENTRY_SIGNAL:State2
-[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
 [Scxml] Hello!
 [Scxml] INIT_SIGNAL:State2
 [Scxml] Illegal in standard but I'm going to allow it
-[Scxml] <- Queued:(1) Deferred:(0)
-[Scxml] SCXML_INIT_SIGNAL:State2
-[Scxml] SCXML_INIT_SIGNAL:State2:HOOK
 [Scxml] <- Queued:(0) Deferred:(0)
 """
   assert target == result
-
 
 @pytest.mark.state
 def test_initialize_error_if_in_attribute_of_atomic_state():

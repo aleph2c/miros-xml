@@ -64,6 +64,7 @@
   * [X] Find a way to pump a post_fifo into the xml chart (fifo/lifo) extension,
         write about this in the readme.
   * [X] Find a way to map multi shots into chart. add this to the readme
+      * [X] 208 https://www.w3.org/Voice/2013/scxml-irp/208/test208.txml
   * [ ] Find a way to cancel a specific one shot
   * [ ] Find a way to [[https://www.w3.org/TR/scxml/#cancel|cancel all signals]] of a specific event
 

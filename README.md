@@ -80,13 +80,26 @@ List of exceptions to the standard so far:
 * To create a one/multi-shot then cancel it at a later time:
 
       <!-- FIFO -->
-      <send>event="timeout.token1.token2 delay="1s" id="ef120" </send>
+      <send>event="timeout.token1.token2" delay="1s" id="ef120" </send>
       <!-- later, to cancel -->
       <cancel>sendid="ef120" </cancel>
 
+      <!-- or as -->
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delay="1s" </send>
+      <!-- later, to cancel -->
+      <cancel>sendid="ef120" </cancel>
+
+      <!-- or as -->
+      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <cancel>sendid="ef120" </cancel>
+
       <!-- or to cancel all one/multi-shots with a specific token -->
-      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
-      <cancel>sendexpr="cancel(Event(signal='token1'))"" </cancel>
+      <send>eventexpr="post_lifo(Event(signal='timeout.banana.apple'))" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <cancel>sendexpr="cancel_all(Event(signal='timeout'))"" </cancel>
+      <!-- or cancel with -->
+      <cancel>sendexpr="cancel_all(Event(signal='apple'))"" </cancel>
+      <!-- or cancel with -->
+      <cancel>sendexpr="cancel_all(Event(signal='banana'))"" </cancel>
 
 ---
 

@@ -13,51 +13,20 @@ from miros import ActiveObject
 from miros import return_status
 """
 <!--
-Adjusted from:
-https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/transition.md
+Adjusted from: test208 of the SCXML spec
 -->
-<scxml xmlns="http://www.w3.org/2005/07/scxml" initial="s0" version="1.0">
-  <state id="s0" initial="s01">
+<scxml initial="s0" version="1.0">
+  <state id="s0">
     <onentry>
-      <!--  catch the failure case  -->
-      <send event="timeout.token1.token2" delay="1s"/>
+      <send id="foo" event="event1" delay="1"/>
+      <send event="event2" delay="1.5"/>
+      <cancel sendid="foo"/>
     </onentry>
-    <transition event="timeout" target="_fail"/>
-    <transition event="event1" target="_fail"/>
-    <transition event="event2" target="_pass"/>
-    <state id="s01">
-      <onentry>
-        <!--
-          this should be caught by the first transition in this state, taking us to S02 
-        -->
-        <raise event="token3.event1.token4"/>
-      </onentry>
-      <transition event="event1" target="s02"/>
-      <transition event="*" target="_fail"/>
-    </state>
-    <state id="s02">
-      <onentry>
-        <!--
-          since the local transition has a cond that evaluates to false this
-          should be caught by a transition in the parent state, taking us to
-          pass 
-        -->
-        <raise event="event2.token5"/>
-      </onentry>
-      <transition event="event1" target="_pass"/>
-      <transition event="event2" cond="false" target="_fail"/>
-    </state>
-    <state id="_pass">
-      <onentry>
-        <log expr="\n|--> PASS!!! <--|\n"/>
-      </onentry>
-    </state>
-    <state id="_fail">
-      <onentry>
-        <log expr="\n|--> FAIL!!! <--|\n"/>
-      </onentry>
-    </state>
+    <transition event="event2" target"_pass"/>
+    <transition event="*" target="_fail"/>
   </state>
+  <state id="_pass">
+  <state id="_fail">
 </scxml>
 """
 
@@ -65,9 +34,10 @@ https://github.com/alexzhornyak/SCXML-tutorial/blob/master/Doc/transition.md
 def s0(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    self.post_fifo(Event(signal="timeout.token1.token2"),
+    self.post_fifo_with_sendid(Event(signal="timeout.banana"),
+      sendid='foo',
       times=1,
-      period=1.0,
+      period=3.0,
       deferred=True)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
@@ -78,6 +48,10 @@ def s0(self, e):
     status = self.trans(_fail)
   elif(self.token_match(e.signal_name, 'event2')):
     status = self.trans(_pass)
+  elif(e.signal==signals.EXIT_SIGNAL):
+    #self.cancel_all(Event(signal='bob'))
+    self.cancel_with_sendid(sendid="foo")
+    status = return_status.HANDLED
   else: 
     self.temp.fun = self.top
     status = return_status.SUPER
@@ -87,7 +61,10 @@ def s0(self, e):
 def s01(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    self.post_fifo(Event(signal="token3.event1.token4"))
+    self.post_fifo(Event(signal="event1"),
+      period=2.0,
+      times=1,
+      deferred=True)
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, 'event1')):
     status = self.trans(s02)
@@ -102,17 +79,19 @@ def s01(self, e):
 def s02(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    self.post_fifo(Event(signal="event2.token5"))
+    self.post_fifo(Event(signal="event2.token5"),
+      times=1,
+      period=5.0,
+      deferred=True)
     status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, 'event1')):
-    status = self.trans(_pass)
   elif(self.token_match(e.signal_name, 'event2')):
-    if False:
-      status = self.trans(_fail)
+    status = self.trans(_pass)
   elif(e.signal == signals.INIT_SIGNAL):
     status = return_status.HANDLED
+  elif(self.token_match(e.signal_name, 'timeout')):
+    status = self.trans(_fail)
   else:
-    self.temp.fun = s0
+    self.temp.fun = self.top
     status = return_status.SUPER
   return status
 
@@ -167,9 +146,12 @@ class InstrumentedActiveObject(ActiveObject):
     print(spy)
     logging.debug("S: [%s] %s" % (self.name, spy))
 
+STXRef = namedtuple('SendPostCrossReference', ['send_id', 'thread_id'])
+
 class ScxmlChart(InstrumentedActiveObject):
   def __init__(self, name, log_file):
     super().__init__(name, log_file)
+    self.shot_lookup = {}
 
   def start(self):
     self.start_at(s0)
@@ -185,11 +167,39 @@ class ScxmlChart(InstrumentedActiveObject):
     result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
-#if __name__ == '__main__':
-#  ao = ScxmlChart('test403', "/mnt/c/github/xml/experiment/test_403.log")
-#  ao.live_spy = True
-#  ao.start()
-#  ao.post_fifo(Event(signal=signals.event4))
-#  time.sleep(1.01)
-#  assert ao.token_match("bob.mary.john", "john.murphy.muff")
+  def post_fifo_with_sendid(self, e, sendid, period=None, times=None, deferred=None):
+    thread_id = self.post_fifo(e, period, times, deferred)
+    if thread_id is not None:
+      self.shot_lookup[e.signal_name] = \
+        STXRef(thread_id=thread_id,send_id=sendid)
+
+  def post_lifo_with_sendid(self, e, sendid, period=None, times=None, deferred=None):
+    thread_id = super().post_lifo(e, period, times, deferred)
+    if thread_id is not None:
+      self.shot_lookup[e.signal_name] = \
+        STXRef(thread_id=thread_id,send_id=sendid)
+
+  def cancel_with_sendid(self, sendid):
+    thread_id = None
+    for k, v in self.shot_lookup.items():
+      if v.send_id == sendid:
+        thread_id = v.thread_id
+        break
+    if thread_id is not None:
+      self.cancel_event(thread_id)
+
+  def cancel_all(self, e):
+    token = e.signal_name
+    for k, v in self.shot_lookup.items():
+      if self.token_match(token, k):
+        self.cancel_events(Event(signal=k))
+        break
+
+if __name__ == '__main__':
+  ao = ScxmlChart('test403', "/mnt/c/github/xml/experiment/test_403.log")
+  ao.live_spy = True
+  ao.start()
+  #ao.post_fifo(Event(signal=signals.event4))
+  time.sleep(100.01)
+  assert ao.token_match("bob.mary.john", "john.murphy.muff")
 

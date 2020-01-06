@@ -405,9 +405,13 @@ class XmlToMiros():
       string += self._states_dict[name]['cl'][index][signal_name]
       self._states_dict[name]['cl'][index] = {signal_name:string}
 
-  def _d_prepend_one_shot(self, name, node, signal_name):
+  def _d_prepend_shooter(self, name, node, signal_name):
     send_nodes = self.findall_fn['send'](node)
     for send_node in send_nodes:
+      sendid = None
+      if 'id' in send_node.attrib:
+        sendid = send_node.attrib['id']
+
       if 'delay' in send_node.attrib or 'delayexpr' in send_node.attrib:
 
         if 'event' in send_node.attrib and \
@@ -421,35 +425,56 @@ class XmlToMiros():
         if 'delay' in send_node.attrib:
           time_in_seconds = self._sc_get_time(send_node.attrib['delay'])
         if 'event' in send_node.attrib:
+          if sendid:
+            eventexpr = "self.post_fifo_with_sendid(\"{sendid}\",".format(sendid=sendid)
+          else:
+            eventexpr = "self.post_fifo("
           send_signal_name = send_node.attrib['event']
-          string = """self.post_fifo(Event(signal=\"{signal_name}\"),
+          string = """{eventexpr}Event(signal=\"{signal_name}\"),
 {i}times=1,
 {i}period={time_in_seconds},
 {i}deferred=True)\n""".format(
+            eventexpr=eventexpr,
             i=self.indent_amount,
             signal_name=send_signal_name,
             time_in_seconds=time_in_seconds)
         elif 'eventexpr' in send_node.attrib and 'delay' in send_node.attrib:
-          string = """self.{eventexpr},
+          eventexpr = send_node.attrib['eventexpr'][0:-1]
+          if sendid:
+            eventexpr = eventexpr.replace("post_fifo(",
+              "self.post_fifo_with_sendid(\"{sendid}\", ".format(sendid=sendid))
+            eventexpr = eventexpr.replace("post_lifo(",
+              "self.post_lifo_with_sendid(\"{sendid}\", ".format(sendid=sendid))
+          else:
+            eventexpr = eventexpr.replace("post_fifo(", "self.post_fifo(")
+            eventexpr = eventexpr.replace("post_lifo(", "self.post_lifo(")
+          string = """{eventexpr},
 {i}times=1,
 {i}period={time_in_seconds},
 {i}deferred=True)\n""".format(
             i=self.indent_amount,
-            eventexpr=send_node.attrib['eventexpr'][0:-1],
+            eventexpr=eventexpr,
             time_in_seconds=time_in_seconds)
         elif 'eventexpr' in send_node.attrib and 'delayexpr' in send_node.attrib:
+          eventexpr = send_node.attrib['eventexpr'][0:-1]
+          if sendid:
+            eventexpr = eventexpr.replace("post_fifo(",
+              "self.post_fifo_with_sendid(\"{sendid}\", ".format(sendid=sendid))
+            eventexpr = eventexpr.replace("post_lifo(",
+              "self.post_lifo_with_sendid(\"{sendid}\", ".format(sendid=sendid))
+          else:
+            eventexpr = eventexpr.replace("post_fifo(", "self.post_fifo(")
+            eventexpr = eventexpr.replace("post_lifo(", "self.post_lifo(")
           delayexpr = send_node.attrib['delayexpr']
           delayexpr = delayexpr.replace('delay', 'period')
-          string = """self.{eventexpr}, {delayexpr})\n""".format(
+          string = """{eventexpr}, {delayexpr})\n""".format(
             i=self.indent_amount,
-            eventexpr=send_node.attrib['eventexpr'][0:-1],
+            eventexpr=eventexpr,
             delayexpr=delayexpr)
         index = self.index_for_signal(self._states_dict[name]['cl'],
             signal_name)
         string += self._states_dict[name]['cl'][index][signal_name]
         self._states_dict[name]['cl'][index] = {signal_name:string}
-
-
 
   def _sc_get_time(self, string):
     time_in_seconds = 0
@@ -462,9 +487,36 @@ class XmlToMiros():
     elif string[-1] == 'd':
       time_in_seconds = 60.0 * 60.0 * 24 * float(string[0:-1])
     else:
-      raise NotImplementedError("time format not implemented")
+      try:
+        time_in_seconds = float(string)
+      except:
+        raise NotImplementedError("time format not implemented")
     return time_in_seconds
 
+  def _d_prepend_canceller(self, name, node, signal_name):
+    cancel_nodes = self.findall_fn['cancel'](node)
+
+    for cancel_node in cancel_nodes:
+      if 'sendid' in cancel_node.attrib and \
+         'sendexpr' in cancel_node.attrib:
+        exception_message = "you can not specify both a 'sendid' and 'sendexpr' "
+        exception_message += "as attributes of the <cancel> tag"
+        raise ValueError(exception_message)
+
+      if 'sendid' in cancel_node.attrib:
+        sendid = cancel_node.attrib['sendid']
+        string ="self.cancel_with_sendid(sendid=\"{sendid}\")\n".format(sendid=sendid)
+      elif 'sendexpr' in cancel_node.attrib:
+        sendexpr = cancel_node.attrib['sendexpr']
+        string = "self.{sendexpr}\n".format(sendexpr=sendexpr)
+      else:
+        exception_message = "either 'sendid' of 'sendexpr' required in <cancel> tag"
+        raise ValueError(exception_message)
+
+
+      index = self.index_for_signal(self._states_dict[name]['cl'], signal_name)
+      string += self._states_dict[name]['cl'][index][signal_name]
+      self._states_dict[name]['cl'][index] = {signal_name:string}
 
   def _d_prepend_posting_of_scxml_init_in_entry_condition(self, name, node):
     '''add self.post_fifo(Event(signal=signals.SCXML_INIT_SIGNAL)) to the
@@ -519,9 +571,10 @@ class XmlToMiros():
     )
     entry_nodes = self.findall_fn['onentry'](node)
     for entry_node in entry_nodes:
+      self._d_prepend_canceller(name, entry_node, 'ENTRY_SIGNAL')
       self._d_prepend_debugger(name, entry_node, 'ENTRY_SIGNAL')
       self._d_prepend_log(name, entry_node, 'ENTRY_SIGNAL')
-      self._d_prepend_one_shot(name, entry_node, 'ENTRY_SIGNAL')
+      self._d_prepend_shooter(name, entry_node, 'ENTRY_SIGNAL')
 
   def _d_init(self, name, node, parent):
     self._states_dict[name]['cl'].append(
@@ -542,9 +595,10 @@ class XmlToMiros():
         target = transition[0].attrib['target']
         expression = "status = self.trans({})".format(target)
         self._states_dict[name]['cl'][index]['INIT_SIGNAL'] = expression
+      self._d_prepend_canceller(name, init_node, 'INIT_SIGNAL')
       self._d_prepend_debugger(name, init_node, 'INIT_SIGNAL')
       self._d_prepend_log(name, init_node, 'INIT_SIGNAL')
-      self._d_prepend_one_shot(name, init_node, 'INIT_SIGNAL')
+      self._d_prepend_shooter(name, init_node, 'INIT_SIGNAL')
 
   def _d_scxml_init(self, name, node, parent):
     # this can be over-written by a transition, see _d_transition
@@ -557,8 +611,9 @@ class XmlToMiros():
     )
     exit_nodes = self.findall_fn['onexit'](node)
     for exit_node in exit_nodes:
+      self._d_prepend_canceller(name, exit_node, 'EXIT_SIGNAL')
       self._d_prepend_log(name, exit_node, 'EXIT_SIGNAL')
-      self._d_prepend_one_shot(name, exit_node, 'EXIT_SIGNAL')
+      self._d_prepend_shooter(name, exit_node, 'EXIT_SIGNAL')
 
   def _d_transition(self, name, node, parent):
     transition_nodes = self.findall_fn['transition'](node)
@@ -985,6 +1040,7 @@ class {scxml_chart_superclass}(ActiveObject):
 {i}{i}super().__init__(name)
 
 {i}{i}self.log_file = log_file
+#{i}{i}self.clear_log()
 
 {i}{i}logging.basicConfig(
 {i}{i}{i}format='%(asctime)s %(levelname)s:%(message)s',
@@ -1007,14 +1063,19 @@ class {scxml_chart_superclass}(ActiveObject):
 
 {i}def clear_log(self):
 {i}{i}with open(self.log_file, "w") as fp:
-{i}{i}{i}fp.write("I'm writing")"""
+{i}{i}{i}fp.write("")
+
+"""
 
   def _s_class_definition_template(self):
     return """{logging_class_code}
 
+STXRef = namedtuple('STXRef', ['send_id', 'thread_id'])
+
 class {scxml_chart_class}({scxml_chart_superclass}):
 {i}def __init__(self, name, log_file):
 {i}{i}super().__init__(name, log_file)
+{i}{i}self.shot_lookup = {_dict_}
 {i}{i}{data}
 {i}def start(self):
 {i}{i}self.start_at({starting_state})
@@ -1029,8 +1090,36 @@ class {scxml_chart_class}({scxml_chart_superclass}):
 {i}{i}resident_set = self.tockenize(resident)
 {i}{i}result = True if len(resident_set.intersection(alien_set)) >= 1 else False
 {i}{i}return result
-"""
 
+{i}def post_fifo_with_sendid(self, sendid, e, period=None, times=None, deferred=None):
+{i}{i}thread_id = self.post_fifo(e, period, times, deferred)
+{i}{i}if thread_id is not None:
+{i}{i}{i}self.shot_lookup[e.signal_name] = \\
+{i}{i}{i}{i}STXRef(thread_id=thread_id,send_id=sendid)
+
+{i}def post_lifo_with_sendid(self, sendid, e, period=None, times=None, deferred=None):
+{i}{i}thread_id = super().post_lifo(e, period, times, deferred)
+{i}{i}if thread_id is not None:
+{i}{i}{i}self.shot_lookup[e.signal_name] = \\
+{i}{i}{i}{i}STXRef(thread_id=thread_id,send_id=sendid)
+
+{i}def cancel_with_sendid(self, sendid):
+{i}{i}thread_id = None
+{i}{i}for k, v in self.shot_lookup.items():
+{i}{i}{i}if v.send_id == sendid:
+{i}{i}{i}{i}thread_id = v.thread_id
+{i}{i}{i}{i}break
+{i}{i}if thread_id is not None:
+{i}{i}{i}self.cancel_event(thread_id)
+
+{i}def cancel_all(self, e):
+{i}{i}token = e.signal_name
+{i}{i}for k, v in self.shot_lookup.items():
+{i}{i}{i}if self.token_match(token, k):
+{i}{i}{i}{i}self.cancel_events(Event(signal=k))
+{i}{i}{i}{i}break
+
+"""
 
   def _s_instantiation_template(self):
     return """{class_code}
@@ -1110,7 +1199,8 @@ if __name__ == '__main__':
       pre_instantiation_code=pre_instantiation_code,
       data=data,
       i=indent_amount,
-      starting_state=starting_state)
+      starting_state=starting_state,
+      _dict_="{}")
 
     return class_code
 

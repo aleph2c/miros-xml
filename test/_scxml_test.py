@@ -42,7 +42,8 @@ def test_scxml_build_a_small_chart():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
-  time.sleep(0.1)
+  time.sleep(0.2)
+  ao.stop()
 
   result = get_log_as_stripped_string(data_path / 'scxml_test_1.log')
   #print(result)
@@ -206,7 +207,8 @@ def test_scxml_build_a_small_chart():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
-  time.sleep(0.1)
+  time.sleep(0.2)
+  ao.stop()
 
   result = get_log_as_stripped_string(data_path / 'scxml_test_3.log')
   target = """
@@ -240,7 +242,8 @@ def test_scxml_early_data_binding():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
-  time.sleep(0.1)
+  time.sleep(0.2)
+  ao.stop()
   result = get_log_as_stripped_string(data_path / 'early_binding.log')
   target = """
 [Scxml] START
@@ -268,7 +271,8 @@ def test_scxml_late_data_binding():
   ao = xml_chart.make()  # like calling ScxmlChart(...)
   ao.live_spy = True
   ao.start()
-  time.sleep(0.1)
+  time.sleep(0.2)
+  ao.stop()
   result = get_log_as_stripped_string(data_path / 'late_binding.log')
   target = """
 [Scxml] START
@@ -296,4 +300,5 @@ def test_scxml_default_init_state():
   ao.live_spy = True
   ao.start()
   time.sleep(0.1)
+  ao.stop()
   assert "pass" in ao.state_name

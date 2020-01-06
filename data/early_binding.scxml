@@ -1,4 +1,6 @@
 <!--
+early_binding
+
 When 'binding' is assigned the value "early" (the default), the SCXML Processor
 must create all data elements and assign their initial values at document
 initialization time.
