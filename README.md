@@ -53,53 +53,53 @@ List of exceptions to the standard so far:
 * One-shots can be implemented in multiple ways:
 
       <!-- FIFO -->
-      <send>event="timeout.token1.token2 delay="1s"</send>
+      <send event="timeout.token1.token2 delay="1s"/>
 
       <!-- or as -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delay="1s"</send>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
 
       <!-- or as -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True" />
       <!-- or as -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, delay=1.0, deferred=True"</send>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, delay=1.0, deferred=True" />
 
       <!-- LIFO -->
-      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"</send>
+      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delay="1s"/>
 
       <!-- or as -->
-      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"</send>
+      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"/>
 
 * Multi-shots can be implemented in multiple ways:
 
       <!-- FIFO -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True"</send>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
 
       <!-- LIFO -->
-      <send>eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True"</send>
+      <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=3, period=1.0, deferred=True" />
 
 * To create a one/multi-shot then cancel it at a later time:
 
       <!-- FIFO -->
-      <send>event="timeout.token1.token2" delay="1s" id="ef120" </send>
+      <send  event="timeout.token1.token2" delay="1s" id="ef120"  />
       <!-- later, to cancel -->
-      <cancel>sendid="ef120" </cancel>
+      <cancel sendid="ef120"/>
 
       <!-- or as -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delay="1s" </send>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delay="1s" />
       <!-- later, to cancel -->
-      <cancel>sendid="ef120" </cancel>
+      <cancellsendid="ef120"  />
 
       <!-- or as -->
-      <send>eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delayexpr="times=1, period=1.0, deferred=True"</send>
-      <cancel>sendid="ef120" </cancel>
+      <send eventexpr="post_fifo(Event(signal='timeout.token1.token2'))" id="ef120" delayexpr="times=1, period=1.0, deferred=True" />
+      <cancel sendid="ef120" />
 
       <!-- or to cancel all one/multi-shots with a specific token -->
-      <send>eventexpr="post_lifo(Event(signal='timeout.banana.apple'))" delayexpr="times=1, period=1.0, deferred=True"</send>
-      <cancel>sendexpr="cancel_all(Event(signal='timeout'))"" </cancel>
+      <send eventexpr="post_lifo(Event(signal='timeout.banana.apple'))" delayexpr="times=1, period=1.0, deferred=True" />
+      <cancel sendexpr="cancel_all(Event(signal='timeout'))""  />
       <!-- or cancel with -->
-      <cancel>sendexpr="cancel_all(Event(signal='apple'))"" </cancel>
+      <cancel sendexpr="cancel_all(Event(signal='apple'))"" />
       <!-- or cancel with -->
-      <cancel>sendexpr="cancel_all(Event(signal='banana'))"" </cancel>
+      <cancel sendexpr="cancel_all(Event(signal='banana'))"" />
 
 ---
 
