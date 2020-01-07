@@ -3,18 +3,117 @@
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.xml_to_miros|subgoals]])
+  
+    *Standards are wonderful, everyone should have one!*
     
-    Working miros statecharts from XML
+    * To be compliant enough with SCXML such that you can make miros statecharts
+      with open source SCXML GUI tools.
     
-    To have a decision process which will assist in determining what to support
-    and what not to support in the standard.  There are good ideas mixed in with
-    some very bad ideas (possible accidental sabotage by vendor agents in the steering
-    committee).  For instance, the 'target' attribute of the send tag seems like
-    a bad idea because it serves a very specific kind of problem.  The p tag
-    seems like a very good idea.
+    * To have a clear making decision process which will describe what to
+      support and what not to support in the standard.    
+
+  *What is the problem?*
+  
+    I don't know enough about SCXML yet to draw conclusions and make definitive
+    judgments.  Here is my thinking so far:
+  
+    SCXML is large, solves specific vendor issues, describes a general
+    programming language and ties into the XML morass.  It also describes state
+    charts as XML.
+
+    It has some good ideas and some bad ideas.
     
-    Rules of thumb so far:
+    The 'target' attribute of the 'send' tag seems like a bad idea to me
+    because it serves a very specific vendor's problem. They also have defined
+    vendor specific errors into all SCXML compliant statecharts; I think this is
+    another bad idea.  However, the 'p' tag seems like a very good idea, because
+    it describes a general topological principal invented by David Harel.
+    
+    It also contains ideas that may be good but are really hard to implement and
+    use: like describing a high level programming language so that a SCXML
+    document can be manifested in any language.  To support this, I would have
+    to write an SCXML language to python compiler and a python to SCXML
+    compiler.  Then I would have to figure out how to map my python code into
+    this limited language's name-space anytime I'm trying to convert python to
+    XML.  This seems like adding complexity for generalization's sake.  They are
+    trying to define a language-to-language translation method; the SCXML
+    language defines Rosetta stone.  At this time I don't care about porting miros
+    into any other language.  (It would be nice to have access to the C++
+    language and it's compiler.  There is another XML standard, called
+    [[https://www.srcml.org/about.html|srcml]] which converts source code into
+    XML and back.  They should have used this instead of defining their own.
+
+    Some background:
+    
+    The lead author works at Genesys which has 12 employees. Another author
+    works at Voxeo, which is focused on CCXML and VoiceXML.  Nuance has real
+    technical roots, and they may be interested in seeing a useful SCXML.
+    Another member is Torbjörn Lager who is a visiting professor who teaches a
+    class on SCXML (hard to understand his motives).  Another member is an
+    academic Johan Roxendal,  who wrote a paper on SCXML in 2013 (focused on
+    bots).  There are folks there from IBM, Nokia and Microsoft, but it seems
+    that they weren't around at the end.  The standard seems to be strongly
+    governed by people interested in bots, VoiceXML and the CCXML, which will
+    significantly steer the standard away from a general description of a
+    Harel statechart.
+    
+    So it seems that SCXML is a stolen name space with an accidental moon
+    mission.  Any rational person would assume from the name that the SCXML
+    standard is a general description of how to describe (s)tate (c)harts in
+    XML; but it is not. It is something which has been aimed at a specific set
+    of industrial problems.  As such, it will probably fail in its mission, it
+    won't be a broadly supported standard -- a lot of people on
+    its steering committee are from tiny tech companies or from the technology
+    rust belt.
+    
+    Since the standard has shifted so much towards serving their own specific
+    industrial needs, I feel much less loyalty to their mission than I would
+    have otherwise.
+
+    The QT team which ported SCXML probably faced the same problem: what in the
+    SCXML is good and what is bad?  I could research what they support and use
+    this to guide what I should focus on.
+ 
+    I need to find a way to drop arbitrary python code into the XML as soon as
+    possible.  This will reduce a lot of the port's risk, in that it can be used
+    instead of supporting strange ideas like a ``foreach`` loop and a
+    SCXML-domain-specific-language which will be 1 trillionth as powerful as
+    Python (or any other programming language).  I do not want to write a
+    compiler; though it would be fun, it would be a waste of time.
    
+    But I still don't have a good handle on a lot of the standard.  Once I
+    understand more about how it is implemented I might see some of the
+    reasoning in why things are being asked for.  In time if I still think
+    things are stupid I will just show how to implement them using the Python
+    datamodel in the SCXML.  Or write a note about what is not supported and
+    why.
+    
+    In the end I might not say I support SCXML at all, unless I intend on
+    attacking that business space.  It's not that interesting to me, I would
+    rather have a way to use XML to change parts of programs in botnets or
+    controllers that aren't focused on telephony.  SCXML is large, and it ties
+    into the XML morass
+    
+  *Resources:*
+    [[https://www.w3.org/TR/scxml/|scxml spec]] 
+    [[https://www.w3.org/Voice/2013/scxml-irp/#tests|scxml tests]]
+    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
+    
+    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html|ElementTree XML API]]
+    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html#xpath-support|xpath support]]
+    [[https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces|Xpath namespaces]]
+    [[https://realpython.com/python-thinking-recursively/|python recursion article]]
+    [[https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2|A good quick start]]
+    [[https://www.youtube.com/watch?v=rFxXDO8-keg|Getting Started with Python XML]] 
+    [[http://aiweb.cs.washington.edu/research/projects/xmltk/xmldata/|example xml datasets]]
+    [[https://github.com/jroxendal/PySCXML/tree/master/examples/scxml_sandbox/example_docs|pyscxml example docs]]
+    
+    [[https://www.researchgate.net/publication/272355963_From_Harel_To_Kripke_A_Provable_Datamodel_for_SCXML|Kripke]]
+    
+    [[https://www.youtube.com/watch?v=5ebxa-nIpiE&feature=youtu.be&list=PLUbY_L_9E-b_YuK-IWjUWYxcpcKccSX1N|video tutorial for SCXML]]
+  
+    Rules of thumb so far:
+        
       * Say no to specific technologies, like javascript, http, whatever. If you
         need to manifest a specific technology it will be python.
       * Anytime there is a mention of anything voice related, skip it
@@ -34,70 +133,6 @@
       * Find a way to publish and subscribe 
       * If a tag is redundant, pick the best name, the drop the rest (send and
         raise, pick send)
-    
-    The lead author works at Genesys which has 12 employees. Another author
-    works at Voxeo, which is focused on CCXML and VoiceXML.  Nuance has real
-    technical roots, and they may be interested in seeing a useful SCXML.
-    Another member is Torbjörn Lager who is a visiting professor who teaches a
-    class on SCXML.  Another member is an academic Johan Roxendal,  who wrote a
-    paper on SCXML in 2013 (focused on bots).  There are folks there from IBM,
-    Nokia and Microsoft.  But the standard seems to be strongly governed by
-    people interested in bots, VoiceXML and the CCXML, which will significantly
-    distort the standard away from a general description of a Harel statechart.
-    
-    So it seems that SCXML is a stolen name space.  Its standard should be a general form for
-    describing state charts in XML, but it is not. It is something which has been
-    aimed at a specific set of industrial problems.  As such, it will probably
-    fail in its mission, especially since a lot of people on its steering
-    committee are from tiny tech companies or from the technology rust belt.
-    
-    I feel no loyalty to their mission since they are serving their own specific
-    industrial needs and not describing a general topological language as
-    envisioned by David Harel.
-
-    The QT team which ported SCXML probably faced the same problem:
-    what in the SCXML is good and what is bad?  I could research what they
-    support and use this to guide what I should focus on.
- 
-    I need to find a way to drop arbitrary python code into the XML as soon as
-    possible.  This will reduce a lot of the port's risk, in that it can be used
-    instead of supporting strange ideas like a ``foreach`` loop and a
-    SCXML-domain-specific-language which will be 1 trillionth as powerful as
-    Python itself.
-   
-    But I still don't have a good handle on a lot of the standard.  Once I
-    understand more about how it is implemented I might see some of the
-    reasoning in why things are being asked for.  In time if I still think
-    things are stupid I will just show how to implement them using the Python
-    datamodel in the SCXML.  Or write a note about what is not supported and
-    why.
-    
-    In the end I might not say I support SCXML at all, unless I intend on
-    attacking that business space.  It's not that interesting to me, I would
-    rather have a way to use XML to change parts of programs in botnets or
-    controllers that aren't focused on telephony.
-
-  *What is the problem?*
-  
-    SCXML is large, and it ties into the XML morass
-    
-  *Resources:*
-    [[https://www.w3.org/TR/scxml/|scxml spec]] 
-    [[https://www.w3.org/Voice/2013/scxml-irp/#tests|scxml tests]]
-    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
-    
-    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html|ElementTree XML API]]
-    [[https://docs.python.org/3.5/library/xml.etree.elementtree.html#xpath-support|xpath support]]
-    [[https://stackoverflow.com/questions/40796231/how-does-xpath-deal-with-xml-namespaces|Xpath namespaces]]
-    [[https://realpython.com/python-thinking-recursively/|python recursion article]]
-    [[https://towardsdatascience.com/processing-xml-in-python-elementtree-c8992941efd2|A good quick start]]
-    [[https://www.youtube.com/watch?v=rFxXDO8-keg|Getting Started with Python XML]] 
-    [[http://aiweb.cs.washington.edu/research/projects/xmltk/xmldata/|example xml datasets]]
-    [[https://github.com/jroxendal/PySCXML/tree/master/examples/scxml_sandbox/example_docs|pyscxml example docs]]
-    
-    [[https://www.researchgate.net/publication/272355963_From_Harel_To_Kripke_A_Provable_Datamodel_for_SCXML|Kripke]]
-    
-    [[https://www.youtube.com/watch?v=5ebxa-nIpiE&feature=youtu.be&list=PLUbY_L_9E-b_YuK-IWjUWYxcpcKccSX1N|video tutorial for SCXML]]
   
   *Discoveries:* ([[notes.xml_to_miros|notes]])
   
