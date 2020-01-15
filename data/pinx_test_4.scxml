@@ -1,0 +1,49 @@
+<!--
+Confirm pickled object can be sent across the wire. Glob 'cond' should block transition to Pass
+
+This document demonstrates how to access serialized python code which is 
+defined outside of this document.  It needs to be serialized if we intend
+on sending it across the wire.
+
+To build the required serialized code:
+
+  # Beginning of python code required to make this document work
+  import dill
+
+  # function which will be dilled into this document:
+  def _build_payload():
+    from collections import namedtuple
+    Payload = namedtuple('Payload', ['proof'])
+    payload = Payload(proof=True)
+    return payload
+
+  dill.dump(_build_payload, open("build_payload.p", "wb"))
+
+  # End of python code required to make this document work
+-->
+<scxml name="pinx" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+  <datamodel>
+    <data expr="dill.load(open(str(Path(__file__).parent / 'build_payload.p'), 'rb'))" id="dilled_function"/>
+  </datamodel>
+  <state id="Start">
+    <onentry>
+      <send event="evidence">
+        <param name="payload" expr="self.dilled_function()"/>
+      </send>
+      <send event="to_fail" id="to_fail" delay="1s"/>
+    </onentry>
+    <transition event="*" cond="event.payload.proof == False" target="Pass">
+    </transition>
+  </state>
+  <state id="Pass">
+    <onentry>
+      <log expr="Pass!"/>
+      <cancel sendid="to_fail"/>
+    </onentry>
+  </state>
+  <state id="Fail">
+    <onentry>
+      <log expr="Fail!"/>
+    </onentry>
+  </state>
+</scxml>

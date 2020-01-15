@@ -1,0 +1,107 @@
+[[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
+*Python In Document*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.python_in_document|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.python_in_document|subgoals]])
+    
+    A simple way to include python in SCXML statecharts.  I will stop dragging
+    my ass on this part of the mission.
+    
+    The solution will be easy for the user to use.  I don't want a lot of ugly
+    in the design, but it's hard to avoid with XML.
+
+  *What is the problem?*
+  
+    I can't seem to find an obvious way to do it. (other than the obvious way)
+    
+    Including any code in XML involves adding strange syntax to escape the
+    quotes and that kind of thing.  Python requires white space to work, this
+    could be a problem when including it in XML.
+    
+    Even python's serialization system doesn't work very well.  The dill
+    library, which was going to remedy this, has limitations.  Python is hard to
+    serialize. See link in the discoveries if you need to work around this.
+    
+    The SCXML standard isn't very good (as for as I can tell).  So, I will
+    either have to do a tonne of work to support a weak construct, or I will
+    have to break from the standard.  This mission will give you the option to
+    break away.  It will reduce the risk and need to comply with the bad parts
+    of the standard while taking the good parts.
+    
+    SCXML has so many different goals.  My goal is straight forward, to have a
+    document that can be translated into a working statechart, either entirely
+    on it's own or within an existing working system.  The SCXML wants to build
+    a code Rosetta stone, and support for VoiceXML etc.
+    (bad/expensive/time-wasting stuff)
+    
+    My frustration with this standard is rising.  It seems like a lot of work to
+    support something that is over-complicated.
+
+  *Discoveries:* ([[notes.python_in_document|notes]])
+  [[https://github.com/uqfoundation/dill|dill: python library to serialize everything]]
+  [[https://stackoverflow.com/questions/49821323/python3-pickle-a-function-without-side-effects|pickle function without side effects]]
+  [[https://stackoverflow.com/questions/28218466/unpickling-a-python-2-object-with-python-3|unpickling]]
+ 
+  Excellent article by Emlyn O'Regan:
+  [[https://medium.com/@emlynoregan/serialising-all-the-functions-in-python-cd880a63b591|serializing functions in python]]
+  
+  
+= Orient =
+  *Symptoms:* [[symptoms.python_in_document|symptoms]]
+
+== Questions ==
+  *Questions for Python In Document: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+  Can we add pickle's snippets into any text document?
+  Can we add dill's snippets into any text document?
+  Can we add python json's snippets into any text document?
+  Is there a way to include python and not break the SCXML standard?
+  How do other people include source in XML?
+  Should we be bothered that some functions can't be pickled by the dill
+  library?
+
+  [[#Questions]]
+  *Idea/Hypotheses for Python In Document: >=5*
+  * [X] Create an experiment where you bake in pickled code into a statechart
+  * [o] See if you can get the pickled experiment to run from XML
+    * [X] Create what you think is the SCXML which can write python in a chart.
+          see: pinx_test_1.scxml
+    * [X] Write code to support dill in your framework
+    * [X] Extend framework to manage the param tag.  Have this tag create a
+          payload: add this to the _d_prepend_shooter method
+    * [X] Fix the datamodel and data tags to include pickled objects
+    * [ ] Extend frame to manage the cond attribute, add guard capability to the
+          transition tag... look in transition
+    * [ ] Add a test in the pinx file for the condition check
+    * [ ] Add a test scxml file to have conditions on SCXML_INIT_SIGNAL
+    * [ ] Add a test scxml file to have conditions on globs
+    * [ ] Add a test scxml file to have conditions automatic transitions
+    * [ ] Describe pinx test like you described scxml test... go back and check
+          other tests for comments.  If their quality is low, improve the
+          quality before you move on.
+  * [ ] Add information about what version of pickling you are using into the.
+        chart (is this needed or can pickle figure it out)
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.python_in_document|plan]]) ==
+
+= Act =
+  
+

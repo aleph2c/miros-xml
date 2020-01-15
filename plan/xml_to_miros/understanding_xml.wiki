@@ -1,0 +1,52 @@
+[[subgoals.xml_to_miros|back]]
+*Understanding Xml*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.understanding_xml|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.understanding_xml|subgoals]])
+    To actually understand XML.
+    I don't understand how to build a namespace
+    I don't understand how to transform one name space to another
+
+  *What is the problem?*
+    what seems to be the problem?
+
+  *Discoveries:* ([[notes.understanding_xml|notes]])
+  
+= Orient =
+  *Symptoms:* [[symptoms.understanding_xml|symptoms]]
+
+== Questions ==
+  *Questions for Understanding Xml: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for Understanding Xml: >=5*
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.understanding_xml|plan]]) ==
+
+= Act =
+  
+
