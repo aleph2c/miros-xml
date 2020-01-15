@@ -4,8 +4,10 @@
   * [ ] datamodel [[datamodel|link]]
   * [ ] script [[script|link]]
   * [ ] state [[state|link]]
-  * [ ] parallel
   * [ ] transition [[transition|link]]
+  * [ ] python in document [[python_in_document|link]]  
+  * [ ] understanding xml [[understanding_xml|link]]
+  * [ ] parallel
   * [ ] initial
   * [ ] final
   * [ ] onentry

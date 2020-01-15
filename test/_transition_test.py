@@ -274,7 +274,6 @@ def test_transition_send_cancellation_all_2():
 
 @pytest.mark.transition
 def test_transition_send_cancellation_all_3():
-  logging.shutdown()
   time.sleep(0.1)
   path = data_path / 'test208_eventexpr_delayexpr_all.scxml'
   xml_chart = XmlToMiros(path)

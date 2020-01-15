@@ -60,18 +60,18 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
 
     # What does your project relate to?
-    keywords='iot scxml xml hsm HSM statechart hierarchical state machine statemachine miros pika rabbitmq',
+    keywords='iot scxml xml hsm HSM statechart hierarchical state machine statemachine miros',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['docs', 'test', 'experiment', 'plan']),
 
     install_requires=[
+      'dill',
       'miros',
-      'xmltodict',
-      'DataModelDict',
     ],
 )

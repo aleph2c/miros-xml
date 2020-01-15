@@ -71,6 +71,25 @@ List of exceptions to the standard so far:
 <send eventexpr="post_lifo(Event(signal='timeout.token1.token2'))" delayexpr="times=1, period=1.0, deferred=True"/>
 ```
 
+Sending a payload seems very hard in SCXML
+```xml
+<!-- trying to write:  
+  pickled_function = dill.load(open("build_payload.p", "rb"))
+-->
+<datamodel>
+  <data expr="dill.load(open(&quote;build_payload.p&quote;, &quote;rb&quote;))", id="pickled_function"/>
+</datamodel>
+
+<!-- trying to write: 
+  post_fifo(Event(signal=signals.evidence, payload=pickled_function())) 
+-->
+<send event="evidence">
+  <param name="payload" expr="pickled_function()"/>
+</send>
+
+```
+
+
 * Multi-shots can be implemented in multiple ways:
 
 ```xml

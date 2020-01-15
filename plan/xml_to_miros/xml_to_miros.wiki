@@ -2,15 +2,29 @@
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
 
+ *Standards are wonderful, everyone should have one!*
+ 
+ *Luck in the residue of design* -- Branch Rickey
+ 
   *What defines Success?:* ([[subgoals.xml_to_miros|subgoals]])
-  
-    *Standards are wonderful, everyone should have one!*
+ 
+    Immediate Success:
     
-    * To be compliant enough with SCXML such that you can make miros statecharts
-      with open source SCXML GUI tools.
+      * Find a way to define working Python within an XML document as early as possible.
+      * Find a way to support deep and shallow history using miros.
+      * Find a way to define deep and shallow history in SCXML.
+   
+    Intermediate Success:
     
-    * To have a clear making decision process which will describe what to
-      support and what not to support in the standard.    
+      * To have a clear making decision process which will describe what to
+        support and what not to support in the standard.    
+      
+    Long term Success:
+    
+      * To be compliant enough with SCXML such that you can make miros
+        statecharts with open source SCXML GUI tools.
+      * Possibly build an XML translation from your chosen solution to SCXML
+      
 
   *What is the problem?*
   
@@ -178,7 +192,7 @@
   * [X] Get an example recursive function working against data
   * [X] Get example which injects other xml prior to parse (xi) (python 3.9 fixes this)
   * [X] See if you can handle event names like "error.execution" with miros
-  * [ ] Build out subgoals
+  * [X] Build out subgoals
   * [ ] Track down tests for confirm build is working
 
   *Chosen Research-Goal/Hypothesis*

@@ -211,27 +211,29 @@ def test_scxml_build_a_small_chart():
   ao.stop()
 
   result = get_log_as_stripped_string(data_path / 'scxml_test_3.log')
-  target = """
-[Scxml] START
-[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
-[Scxml] ENTRY_SIGNAL:Start
-[Scxml] POST_FIFO:SCXML_INIT_SIGNAL
-[Scxml] [1, 2, 3, 4, 5] <class 'list'>
-[Scxml] This is a string! <class 'str'>
-[Scxml] 1 <class 'int'>
-[Scxml] True <class 'bool'>
-[Scxml] Hello from "start"
-[Scxml] INIT_SIGNAL:Start
-[Scxml] <- Queued:(1) Deferred:(0)
-[Scxml] SCXML_INIT_SIGNAL:Start
-[Scxml] SEARCH_FOR_SUPER_SIGNAL:Work
-[Scxml] SEARCH_FOR_SUPER_SIGNAL:Start
-[Scxml] EXIT_SIGNAL:Start
-[Scxml] ENTRY_SIGNAL:Work
-[Scxml] Hello from "work"
-[Scxml] INIT_SIGNAL:Work
-[Scxml] <- Queued:(0) Deferred:(0)
-"""
+  result = ao.spy()
+  target = \
+  ['START',
+    'SEARCH_FOR_SUPER_SIGNAL:Start',
+    'ENTRY_SIGNAL:Start',
+    'POST_FIFO:SCXML_INIT_SIGNAL',
+    "[1, 2, 3, 4, 5] <class 'list'>",
+    "This is a string! <class 'str'>",
+    "1 <class 'int'>",
+    "True <class 'bool'>",
+    'Hello from "start"',
+    'INIT_SIGNAL:Start',
+    '<- Queued:(1) Deferred:(0)',
+    'SCXML_INIT_SIGNAL:Start',
+    'SEARCH_FOR_SUPER_SIGNAL:Work',
+    'SEARCH_FOR_SUPER_SIGNAL:Start',
+    'EXIT_SIGNAL:Start',
+    'ENTRY_SIGNAL:Work',
+    'Hello from "work"',
+    'INIT_SIGNAL:Work',
+    '<- Queued:(0) Deferred:(0)']
+
+
   assert(target == result)
 
 @pytest.mark.scxml
