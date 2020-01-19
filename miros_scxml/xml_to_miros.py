@@ -381,11 +381,22 @@ class XmlToMiros():
     '''convert <log>{contents}</log> to self.scribble({contents})'''
     log_nodes = self.findall_fn['log'](node)
     for log_node in log_nodes:
-      if self._state_chart_dict['datamodel'] == 'python':
-        expression = log_node.attrib['expr']
+      log_type = None
+      if self._state_chart_dict['datamodel'] == 'python' and 'type' in log_node.attrib:
+        if log_node.attrib['type'] == 'code':
+          log_type = 'code'
+        else:
+          log_type = 'string'
+
+      if log_type == 'code':
         for datamodel_variable in self.datamodel_variables:
           expression = expression.replace(datamodel_variable, "self." + datamodel_variable)
-        # self.datamodel_variables
+        string = "self.scribble({})\n".format(expression)
+
+      expression = log_node.attrib['expr']
+      if log_type == 'code':
+        for datamodel_variable in self.datamodel_variables:
+          expression = expression.replace(datamodel_variable, "self." + datamodel_variable)
         string = "self.scribble({})\n".format(expression)
       else:
         string = "self.scribble(\'{}\')\n".format(
@@ -411,11 +422,15 @@ class XmlToMiros():
     for param in param_nodes:
       if param.attrib['name'] != 'payload':
         raise NameError('library only supports param names called "payload"')
-      code = param.attrib['expr']
-      if code != None and len(code) != 0:
+      right = param.attrib['expr']
+      if self._state_chart_dict['datamodel'] == 'python':
+        for datamodel_variable in self.datamodel_variables:
+          right = right.replace(datamodel_variable, "self." + datamodel_variable)
+          right = right.replace("self.self.", "self.")
+      if right != None and len(right) != 0:
         new_string = re.sub(
           r'(Event.+?)\)',
-          r'\1, payload={code})'.format(code=code),
+          r'\1, payload={code})'.format(code=right),
           event_string
         )
     return new_string
@@ -441,7 +456,7 @@ class XmlToMiros():
           time_in_seconds = self._sc_get_time(send_node.attrib['delay'])
         if 'event' in send_node.attrib:
           if sendid:
-            eventexpr = "self.post_fifo_with_sendid(\"{sendid}\",".format(sendid=sendid)
+            eventexpr = "self.post_fifo_with_sendid(\"{sendid}\", ".format(sendid=sendid)
           else:
             eventexpr = "self.post_fifo("
           send_signal_name = send_node.attrib['event']
@@ -599,6 +614,7 @@ class XmlToMiros():
       self._d_prepend_debugger(name, entry_node, 'ENTRY_SIGNAL')
       self._d_prepend_log(name, entry_node, 'ENTRY_SIGNAL')
       self._d_prepend_shooter(name, entry_node, 'ENTRY_SIGNAL')
+      self._d_prepend_assign(name, entry_node, 'ENTRY_SIGNAL')
 
   def _d_init(self, name, node, parent):
     self._states_dict[name]['cl'].append(
@@ -626,6 +642,29 @@ class XmlToMiros():
       self._d_prepend_debugger(name, init_node, 'INIT_SIGNAL')
       self._d_prepend_log(name, init_node, 'INIT_SIGNAL')
       self._d_prepend_shooter(name, init_node, 'INIT_SIGNAL')
+      self._d_prepend_assign(name, init_node, 'INIT_SIGNAL')
+
+  def _d_prepend_assign(self, name, node, signal_name):
+    '''convert <assign>location="{contents1}'" expr="{content2}"</assign> to
+    self.{contents1} = {contenxt2}'''
+    log_nodes = self.findall_fn['assign'](node)
+    for assign_node in log_nodes:
+      assign_type = None
+      if self._state_chart_dict['datamodel'] != 'python':
+        raise NameError('library only supports assign with python datamodel')
+
+      left = assign_node.attrib['location']
+      right = assign_node.attrib['expr']
+
+      for datamodel_variable in self.datamodel_variables:
+        left = left.replace(datamodel_variable, "self." + datamodel_variable)
+        right = right.replace(datamodel_variable, "self." + datamodel_variable)
+
+      string = "{left} = {right}\n".format(left=left, right=right)
+
+      index = self.index_for_signal(self._states_dict[name]['cl'], signal_name)
+      string += self._states_dict[name]['cl'][index][signal_name]
+      self._states_dict[name]['cl'][index] = {signal_name:string}
 
   def _d_scxml_init(self, name, node, parent):
     # this can be over-written by a transition, see _d_transition
@@ -642,6 +681,7 @@ class XmlToMiros():
       self._d_prepend_canceller(name, exit_node, 'EXIT_SIGNAL')
       self._d_prepend_log(name, exit_node, 'EXIT_SIGNAL')
       self._d_prepend_shooter(name, exit_node, 'EXIT_SIGNAL')
+      self._d_prepend_assign(name, exit_node, 'EXIT_SIGNAL')
 
   def _d_transition(self, name, node, parent):
     transition_nodes = self.findall_fn['transition'](node)
@@ -654,32 +694,39 @@ class XmlToMiros():
         code = "status = self.trans({})".format(transition.attrib['target'])
         if 'cond' in transition.attrib:
           code = 'status = return_status.HANDLED\n'
-          code += "if({}):\n".format(transition.attrib['cond']) 
+          if 'event.' in transition.attrib['cond'] or 'e.' in transition.attrib['cond']:
+            snippet = transition.attrib['cond'].replace('event.', 'e.')
+          else:
+            snippet = 'self.' + transition.attrib['cond']
+          code += "if({}):\n".format(snippet) 
           code += self.indent_amount + "status = self.trans({})".format(transition.attrib['target'])
         self._states_dict[name]['cl'].append(
           {event_type: code}
         )
         self._states_dict[name]['*'] |= False if event_type != '*' else True
+        self._d_prepend_assign(name, transition, name)
 
     # manage SCXML_INIT_SIGNAL
     transition_nodes = self.findall_fn['transition'](node)
     for node in transition_nodes:
       if not 'target' in node.attrib:
-        # TODO: feature not supported yet
-        raise("feature not supported yet")
+        raise NameError('transition without target not supported yet')
 
-      if "event" in node.attrib:
-        code_string = "status = return_status.HANDLED" 
-      else:
-        code_string = "status = self.trans({})".format(node.attrib['target'])
+      code_string = "status = self.trans({})".format(node.attrib['target'])
+      if not "event" in node.attrib:
+        if 'cond' in transition.attrib:
+          code_string = 'status = return_status.HANDLED\n'
+          snippet = 'self.' + transition.attrib['cond']
+          code_string += "if({}):\n".format(snippet) 
+          code_string += self.indent_amount + "status = self.trans({})".format(transition.attrib['target'])
+
         self._d_prepend_log(name, node, 'SCXML_INIT_SIGNAL')
         # force the posting of the SCXML_INIT_SIGNAL event in the entry code
         # of this state
         self._d_prepend_posting_of_scxml_init_in_entry_condition(name, node)
 
       index = self.index_for_signal(self._states_dict[name]['cl'], 'SCXML_INIT_SIGNAL')
-      self._states_dict[name]['cl'][index] = \
-        {'SCXML_INIT_SIGNAL': code_string}
+      self._states_dict[name]['cl'][index] = {'SCXML_INIT_SIGNAL': code_string}
 
   def make(self):
     '''Make the statechart
@@ -798,43 +845,43 @@ class XmlToMiros():
     )
     return file_name
 
-  def _x_findall(self, xpath, ns=None, node=None):
-    '''find all subnodes of node given the xpath search parameter
+  #def _x_findall(self, xpath, ns=None, node=None):
+  #  '''find all subnodes of node given the xpath search parameter
 
-    **Args**:
-       | ``xpath`` (type1): xpath without namespace clutter
-       | ``ns=None`` (type1): optional namespace
-       | ``node=None`` (type1): the node to search, root if omitted
+  #  **Args**:
+  #     | ``xpath`` (type1): xpath without namespace clutter
+  #     | ``ns=None`` (type1): optional namespace
+  #     | ``node=None`` (type1): the node to search, root if omitted
 
 
-    **Returns**:
-       (xml.etree.ElementTree.Element): result of search
+  #  **Returns**:
+  #     (xml.etree.ElementTree.Element): result of search
 
-    **Example(s)**:
-      
-    .. code-block:: python
-       
-       main = XmlToMiros('main.scxml')
-       result = main.findall(.//state[@id='Test2']")
+  #  **Example(s)**:
+  #    
+  #  .. code-block:: python
+  #     
+  #     main = XmlToMiros('main.scxml')
+  #     result = main.findall(.//state[@id='Test2']")
 
-    '''
-    if node is None:
-      search_root = self.root
+  #  '''
+  #  if node is None:
+  #    search_root = self.root
 
-    if ns is None:
-      # create a copy of our input
-      _xpath = "{}".format(xpath)
-      for tag_name_without_ns in self.tag_lookup.keys():
-        # Does our origin search has a tag which is protected
-        # by a namespace prefix? If so, add the namespace 
-        # prefix to our internal version of that xpath
-        if tag_name_without_ns in xpath:
-          _xpath = "{}".format(_xpath.replace(tag_name_without_ns,
-            self.tag_lookup[tag_name_without_ns]))
-    else:
-      _xpath = xpath
+  #  if ns is None:
+  #    # create a copy of our input
+  #    _xpath = "{}".format(xpath)
+  #    for tag_name_without_ns in self.tag_lookup.keys():
+  #      # Does our origin search has a tag which is protected
+  #      # by a namespace prefix? If so, add the namespace 
+  #      # prefix to our internal version of that xpath
+  #      if tag_name_without_ns in xpath:
+  #        _xpath = "{}".format(_xpath.replace(tag_name_without_ns,
+  #          self.tag_lookup[tag_name_without_ns]))
+  #  else:
+  #    _xpath = xpath
 
-    return search_root.findall(_xpath)
+  #  return search_root.findall(_xpath)
 
   def _x_findall_multiple_tags(self, ns, node=None):
     '''A base function to search for multiple tag types in XML, from which to
@@ -1354,7 +1401,11 @@ def {state_name}(self, e):
               signal_name=signal_name,
               event_code= event_code)
       else:
-          catch_all = glob_template.format(i=indent_amount, event_code=event_code)
+        #event_code.replace('\n', '{i}{i}{i}\n'.format(i=indent_amount))
+        code = ""
+        for event_code_snippet in event_code.split('\n'):
+          code += glob_template.format(i=indent_amount, event_code=event_code_snippet) + '\n'
+        catch_all = code
 
     # remove distracting double new lines
     cls = cls.replace("\n\n", "\n")

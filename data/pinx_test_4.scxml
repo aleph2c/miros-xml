@@ -32,6 +32,7 @@ To build the required serialized code:
       </send>
       <send event="to_fail" id="to_fail" delay="1s"/>
     </onentry>
+    <transition event="to_fail" target="Fail"/>
     <transition event="*" cond="event.payload.proof == False" target="Pass">
     </transition>
   </state>

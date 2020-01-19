@@ -1,5 +1,5 @@
 <!--
-Confirm pickled object can be sent across the wire. 'cond' should cause transition to Pass
+Confirm 'cond' works for automatic transition with 'cond' False
 
 This document demonstrates how to access serialized python code which is 
 defined outside of this document.  It needs to be serialized if we intend
@@ -23,30 +23,27 @@ To build the required serialized code:
 -->
 <scxml name="pinx" version="1.0" xmlns="http://www.w3.org/2005/07/scxml" datamodel="python">
   <datamodel>
-    <data expr="dill.load(open(str(Path(__file__).parent / 'build_payload.p'), 'rb'))" id="dilled_function"/>
+    <data id="dilled_function" expr="dill.load(open(str(Path(__file__).parent / 'build_payload.p'), 'rb'))" />
+    <data id="condition" expr="False" />
   </datamodel>
   <state id="Start">
     <onentry>
-      <send event="evidence">
-        <param name="payload" expr="dilled_function()"/>
-      </send>
-      <send event="to_fail" id="to_fail" delay="1s">
-        <param name="payload" expr="self.dilled_function()"/>
-      </send>
+      <!-- impliment assign in onentry, onexit, initial, final, transition, final -->
+      <assign location="condition" expr="dilled_function()"/>
     </onentry>
-    <transition event="to_fail" target="Fail"/>
-    <transition event="evidence" cond="event.payload.proof == True" target="Pass">
+    <!-- impliment this with SCXML_INIT_SIGNAL -->
+    <transition cond="condition.proof == False" target="Pass">
     </transition>
   </state>
   <state id="Pass">
     <onentry>
-      <log type='string' expr="Pass!"/>
+      <log expr="Pass!"/>
       <cancel sendid="to_fail"/>
     </onentry>
   </state>
   <state id="Fail">
     <onentry>
-      <log type='string' expr="Fail!"/>
+      <log expr="Fail!"/>
     </onentry>
   </state>
 </scxml>

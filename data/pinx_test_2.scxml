@@ -21,17 +21,18 @@ To build the required serialized code:
 
   # End of python code required to make this document work
 -->
-<scxml name="pinx" version="1.0" xmlns="http://www.w3.org/2005/07/scxml">
+<scxml name="pinx" version="1.0" xmlns="http://www.w3.org/2005/07/scxml" datamodel="python">
   <datamodel>
     <data expr="dill.load(open(str(Path(__file__).parent / 'build_payload.p'), 'rb'))" id="dilled_function"/>
   </datamodel>
   <state id="Start">
     <onentry>
       <send event="evidence">
-        <param name="payload" expr="self.dilled_function()"/>
+        <param name="payload" expr="dilled_function()"/>
       </send>
       <send event="to_fail" id="to_fail" delay="1s"/>
     </onentry>
+    <transition event="to_fail" target="Fail"/>
     <!-- force a failure -->
     <transition event="evidence" cond="event.payload.proof == False" target="Pass">
     </transition>

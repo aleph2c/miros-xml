@@ -4,7 +4,7 @@
 == Evidence ([[evidence.state|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.state|subgoals]])
-    Implimentation of all non-parallel state features of the state tag
+    Implementation of all non-parallel state features of the state tag
 
   *What is the problem?*
     The problem is that I don't understand what they want yet and why they want

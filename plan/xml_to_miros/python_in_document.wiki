@@ -4,16 +4,34 @@
 == Evidence ([[evidence.python_in_document|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.python_in_document|subgoals]])
+  
+    To give myself the option of writing Python directly into my XML charts.
+    This option is needed, since SCXML standard seems to be very long and very
+    bad.  It is becoming an albatross around my neck.  So I need some insurance, I
+    need a way to escape the SCXML, yet have a way to embed statechart in XML.
     
-    A simple way to include python in SCXML statecharts.  I will stop dragging
-    my ass on this part of the mission.
+    Ideally I would like to at least partially support SCXML.  If I can find a
+    way to add Python without escaping the standard, then great.
     
-    The solution will be easy for the user to use.  I don't want a lot of ugly
-    in the design, but it's hard to avoid with XML.
+    The solution should be easy for the user to use.  I don't want the design to
+    be ugly, but it's hard to avoid ugliness with XML.
 
   *What is the problem?*
   
-    I can't seem to find an obvious way to do it. (other than the obvious way)
+    The SCXML standard doesn't seem to be very good (as for as I can tell).  So,
+    I will either have to do a tonne of work to support a weak construct, or I
+    will have to break from the standard entirely.  This mission will give me
+    the option to break away.  It will reduce the risk and need to comply with
+    the bad parts of the standard while taking the good parts.
+    
+    I can't seem to find a clear way to add python to SCXML.  The "assign" tag can
+    be used, but python can be injected with a bunch of other tags too.  I'm not
+    sure how to build mnemonics for my users.
+    
+    It might be that making it hard to add Python to SCXML is exactly the point
+    of the standard.  It does include a kind of programming Rosetta stone, yet,
+    they support javascript and they kind of support custom code from other
+    languages.  I still haven't found the heart beat of its designer's intent.
     
     Including any code in XML involves adding strange syntax to escape the
     quotes and that kind of thing.  Python requires white space to work, this
@@ -23,25 +41,21 @@
     library, which was going to remedy this, has limitations.  Python is hard to
     serialize. See link in the discoveries if you need to work around this.
     
-    The SCXML standard isn't very good (as for as I can tell).  So, I will
-    either have to do a tonne of work to support a weak construct, or I will
-    have to break from the standard.  This mission will give you the option to
-    break away.  It will reduce the risk and need to comply with the bad parts
-    of the standard while taking the good parts.
-    
     SCXML has so many different goals.  My goal is straight forward, to have a
     document that can be translated into a working statechart, either entirely
     on it's own or within an existing working system.  The SCXML wants to build
     a code Rosetta stone, and support for VoiceXML etc.
     (bad/expensive/time-wasting stuff)
     
-    My frustration with this standard is rising.  It seems like a lot of work to
-    support something that is over-complicated.
 
   *Discoveries:* ([[notes.python_in_document|notes]])
-  [[https://github.com/uqfoundation/dill|dill: python library to serialize everything]]
-  [[https://stackoverflow.com/questions/49821323/python3-pickle-a-function-without-side-effects|pickle function without side effects]]
-  [[https://stackoverflow.com/questions/28218466/unpickling-a-python-2-object-with-python-3|unpickling]]
+    [[https://www.w3.org/TR/scxml/|scxml spec]] 
+    [[https://www.w3.org/Voice/2013/scxml-irp/#tests|scxml tests]]
+    [[https://github.com/alexzhornyak/SCXML-tutorial|SCXML tutorial by Alex Zhornyak]]
+  
+    [[https://github.com/uqfoundation/dill|dill: python library to serialize everything]]
+    [[https://stackoverflow.com/questions/49821323/python3-pickle-a-function-without-side-effects|pickle function without side effects]]
+    [[https://stackoverflow.com/questions/28218466/unpickling-a-python-2-object-with-python-3|unpickling]]
  
   Excellent article by Emlyn O'Regan:
   [[https://medium.com/@emlynoregan/serialising-all-the-functions-in-python-cd880a63b591|serializing functions in python]]
@@ -77,25 +91,26 @@
   [[#Questions]]
   *Idea/Hypotheses for Python In Document: >=5*
   * [X] Create an experiment where you bake in pickled code into a statechart
-  * [o] See if you can get the pickled experiment to run from XML
+  * [X] See if you can get the pickled experiment to run from XML
     * [X] Create what you think is the SCXML which can write python in a chart.
           see: pinx_test_1.scxml
     * [X] Write code to support dill in your framework
     * [X] Extend framework to manage the param tag.  Have this tag create a
           payload: add this to the _d_prepend_shooter method
     * [X] Fix the datamodel and data tags to include pickled objects
-    * [ ] Extend frame to manage the cond attribute, add guard capability to the
+    * [X] Extend frame to manage the cond attribute, add guard capability to the
           transition tag... look in transition
-    * [ ] Add a test in the pinx file for the condition check
-    * [ ] Add a test scxml file to have conditions on SCXML_INIT_SIGNAL
-    * [ ] Add a test scxml file to have conditions on globs
-    * [ ] Add a test scxml file to have conditions automatic transitions
-    * [ ] Describe pinx test like you described scxml test... go back and check
+    * [X] Add a test in the pinx file for the condition check
+    * [X] Add a test scxml file to have conditions on SCXML_INIT_SIGNAL
+    * [X] Add a test scxml file to have conditions on globs
+    * [X] Impliment the assign tag, make pinx_test_5.scxml work
+          add assign capabilities to the onentry, onexit, initial, transition, final
+    * [X] Add a test scxml file to have conditions automatic transitions
+    * [X] Describe pinx test like you described scxml test... go back and check
           other tests for comments.  If their quality is low, improve the
           quality before you move on.
-  * [ ] Add information about what version of pickling you are using into the.
-        chart (is this needed or can pickle figure it out)
-  * [ ] 
+    * [X] Add tests for attribute conditions while receiving non
+          SCXML_INIT_SIGNAL events
 
   *Chosen Research-Goal/Hypothesis*
     

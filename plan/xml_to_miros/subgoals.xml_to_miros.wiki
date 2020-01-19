@@ -2,12 +2,11 @@
 = Subgoals: Support the following features =
   * [ ] scxml [[scxml|link]]
   * [ ] datamodel [[datamodel|link]]
-  * [ ] script [[script|link]]
+  * [ ] script
   * [ ] state [[state|link]]
   * [ ] transition [[transition|link]]
   * [ ] python in document [[python_in_document|link]]  
-  * [ ] understanding xml [[understanding_xml|link]]
-  * [ ] parallel
+  * [ ] parallel [[parallel|link]]
   * [ ] initial
   * [ ] final
   * [ ] onentry
@@ -19,7 +18,7 @@
   * [ ] else
   * [ ] elsif
   * [ ] foreach
-  * [ ] log
+  * [ ] log [[log|link]]
   * [ ] data
   * [ ] assign
   * [ ] donedata
@@ -30,3 +29,4 @@
   * [ ] invoke
   * [ ] finalize
   * [ ] basic http I/O processor
+  * [ ] understanding xml [[understanding_xml|link]]

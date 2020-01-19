@@ -1,0 +1,51 @@
+[[subgoals.xml_to_miros|back]]
+*Log*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.log|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.log|subgoals]])
+    Translate the SCXML log tag into a useful scribble message in miros
+
+  *What is the problem?*
+    Currently we would like to be able to log strings and code.  We need a way
+    to distinguish them apart.
+
+  *Discoveries:* ([[notes.log|notes]])
+  
+= Orient =
+  *Symptoms:* [[symptoms.log|symptoms]]
+
+== Questions ==
+  *Questions for Log: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for Log: >=5*
+  * [ ] Adjust the existing test code to use the log label = 'code' or 'string'
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.log|plan]]) ==
+
+= Act =
+  
+

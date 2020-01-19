@@ -8,10 +8,10 @@
   <state id="Start">
     <onentry>
       <log expr='&quot;Hello from \&quot;start\&quot;&quot;'/>
-      <log expr='"{} {}".format(var_bool, type(var_bool))'/>
-      <log expr='"{} {}".format(var_int, type(var_int))'/>
-      <log expr='"{} {}".format(var_str, type(var_str))'/>
-      <log expr='"{} {}".format(var_list, type(var_list))'/>
+      <log type="code" expr='"{} {}".format(var_bool, type(var_bool))'/>
+      <log type="code" expr='"{} {}".format(var_int, type(var_int))'/>
+      <log type="code" expr='"{} {}".format(var_str, type(var_str))'/>
+      <log type="code" expr='"{} {}".format(var_list, type(var_list))'/>
     </onentry>
     <transition target="Work"/>
   </state>

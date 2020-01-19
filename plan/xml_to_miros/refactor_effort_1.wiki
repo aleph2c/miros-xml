@@ -1,0 +1,50 @@
+[[subgoals.xml_to_miros|back]], [[xml_to_miros]]
+*Refactor Effort 1*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.refactor_effort_1|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.refactor_effort_1|subgoals]])
+    Simplified easy to read code
+    
+    You will have gone over your code and refactored it.  Possibly add
+    statecharts, or better recursion, or introduce Lexx/Yacc kind of parsing.
+
+  *What is the problem?*
+    Your code seems strange, you seem to be doing things the hard way.
+    
+    * there are two identical methods with the same name
+
+  *Discoveries:* ([[notes.refactor_effort_1|notes]])
+  
+= Orient =
+  *Symptoms:* [[symptoms.refactor_effort_1|symptoms]]
+
+== Questions ==
+  *Questions for Refactor Effort 1: >= 5*
+    What about your code seems strange?
+    What in your code can you not immediately understand?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+  What about your code feels strange?
+
+  [[#Questions]]
+  *Idea/Hypotheses for Refactor Effort 1: >=5*
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.refactor_effort_1|plan]]) ==
+
+= Act =
+  
+
