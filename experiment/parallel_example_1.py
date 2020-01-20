@@ -38,8 +38,9 @@ def p_spy_on(fn):
     if chart.instrumented:
       status = spy_on(fn)(chart, *args)
       for line in list(chart.rtc.spy):
-        m = re.search(r'hidden_region', str(line))
-        if not m:
+        m1 = re.search(r'hidden_region', str(line))
+        m2 = re.search(r'START', str(line))
+        if not m1 and not m2:
           chart.outer.live_spy_callback(
             "{}::{}".format(chart.name, line))
       chart.rtc.spy.clear()
@@ -201,15 +202,31 @@ class Regions():
     for region in self._regions:
       region.start_at(region.starting_state)
 
+  @property
+  def instrumented(self):
+    instrumented = True
+    for region in self._regions:
+      instrumented &= region.instrumented
+    return instrumented
+
+  @instrumented.setter
+  def instrumented(self, _bool):
+    for region in self._regions:
+      region.instrumented = _bool
+
+
 
 STXRef = namedtuple('STXRef', ['send_id', 'thread_id'])
 
 class ScxmlChart(InstrumentedActiveObject):
-  def __init__(self, name, log_file, live_spy=None):
+  def __init__(self, name, log_file, live_spy=None, live_trace=None):
     super().__init__(name, log_file)
 
     if not live_spy is None:
       self.live_spy = live_spy
+
+    if not live_trace is None:
+      self.live_trace = live_trace
 
     self.shot_lookup = {}
     self.regions = {}
@@ -219,8 +236,17 @@ class ScxmlChart(InstrumentedActiveObject):
   def start(self):
     #for region in self.p_regions:
     #  region.start_at(region.starting_state)
+    if self.live_spy:
+      self.regions['p'].instrumented = self.instrumented
+    else:
+      self.regions['p'].instrumented = False
     self.regions['p'].start()
+
     self.start_at(outer_state)
+
+  def instrumented(self, _bool):
+    super().instrumented = _bool
+    self.region['p'].instrumented = _bool
 
   @lru_cache(maxsize=32)
   def tockenize(self, signal_name):
@@ -422,7 +448,8 @@ def p(self, e):
   status = return_status.UNHANDLED
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    self.live_spy_callback("{}:p".format(e.signal_name))
+    if self.live_spy and self.instrumented:
+      self.live_spy_callback("{}:p".format(e.signal_name))
     self.regions['p'].post_fifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
@@ -430,7 +457,8 @@ def p(self, e):
       self.token_match(e.signal_name, "e2") or 
       self.token_match(e.signal_name, "e4")
       ):
-    self.live_spy_callback("{}:p".format(e.signal_name))
+    if self.live_spy and self.instrumented:
+      self.live_spy_callback("{}:p".format(e.signal_name))
     self.regions['p'].post_fifo(e)
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, self.regions['p'].final_signal_name)):
@@ -446,8 +474,10 @@ if __name__ == '__main__':
   example = ScxmlChart(
     name='parallel',
     log_file="/mnt/c/github/xml/experiment/parallel_example_1.log",
-    live_spy=True
+    live_trace=True,
+    live_spy=True,
   )
+  #example.instrumented = True
   example.start()
   example.post_fifo(Event(signal=signals.to_p))
   example.post_fifo(Event(signal=signals.e4))

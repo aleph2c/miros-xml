@@ -26,7 +26,7 @@ valign=top
       <w>100</w>
       <h>90</h>
     </coordinates>
-    <panel_attributes>*S11*
+    <panel_attributes>*p_s11*
 --
 entry /
 exit /
@@ -85,7 +85,7 @@ valign=top
       <w>100</w>
       <h>90</h>
     </coordinates>
-    <panel_attributes>*S12*
+    <panel_attributes>*p_s12*
 --
 entry /
 exit /
@@ -101,7 +101,7 @@ valign=top
       <w>100</w>
       <h>90</h>
     </coordinates>
-    <panel_attributes>*S21*
+    <panel_attributes>*p_s21*
 --
 entry /
 exit /
@@ -118,7 +118,7 @@ valign=top
       <w>100</w>
       <h>90</h>
     </coordinates>
-    <panel_attributes>*S22*
+    <panel_attributes>*p_s22*
 --
 entry /
 exit /
@@ -268,11 +268,11 @@ lt=-&gt;</panel_attributes>
     <id>UMLNote</id>
     <coordinates>
       <x>740</x>
-      <y>270</y>
-      <w>90</w>
+      <y>260</y>
+      <w>100</w>
       <h>30</h>
     </coordinates>
-    <panel_attributes>S1 Region
+    <panel_attributes>p_s1 region
 layer=3</panel_attributes>
     <additional_attributes/>
   </element>
@@ -280,13 +280,13 @@ layer=3</panel_attributes>
     <id>Relation</id>
     <coordinates>
       <x>660</x>
-      <y>270</y>
+      <y>260</y>
       <w>100</w>
-      <h>50</h>
+      <h>60</h>
     </coordinates>
     <panel_attributes>lt=.
 layer=3</panel_attributes>
-    <additional_attributes>10.0;30.0;80.0;10.0</additional_attributes>
+    <additional_attributes>10.0;40.0;80.0;10.0</additional_attributes>
   </element>
   <element>
     <id>UMLNote</id>
@@ -296,7 +296,7 @@ layer=3</panel_attributes>
       <w>90</w>
       <h>30</h>
     </coordinates>
-    <panel_attributes>S2 Region
+    <panel_attributes>p_s2 region
 layer=3</panel_attributes>
     <additional_attributes/>
   </element>
@@ -386,7 +386,7 @@ layer=3</panel_attributes>
       <w>140</w>
       <h>40</h>
     </coordinates>
-    <panel_attributes>S1Final
+    <panel_attributes>p_s1_region_final
 layer=3</panel_attributes>
     <additional_attributes/>
   </element>
@@ -410,7 +410,7 @@ layer=3</panel_attributes>
       <w>140</w>
       <h>40</h>
     </coordinates>
-    <panel_attributes>S2Final
+    <panel_attributes>p_s2_region_final
 layer=3</panel_attributes>
     <additional_attributes/>
   </element>
