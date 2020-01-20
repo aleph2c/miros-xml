@@ -1101,6 +1101,7 @@ import dill
 import time
 import logging
 from pathlib import Path
+from functools import wraps
 from functools import partial
 from functools import lru_cache
 from collections import namedtuple
@@ -1113,6 +1114,24 @@ from miros import signals
 from miros import ActiveObject
 from miros import return_status
 {custom_imports}
+
+def p_spy_on(fn):
+  @wraps(fn)
+  def _pspy_on(chart, *args):
+    if chart.instrumented:
+      status = spy_on(fn)(chart, *args)
+      for line in list(chart.rtc.spy):
+        m = re.search(r'hidden_region', str(line))
+        if not m:
+          chart.outer.live_spy_callback(
+            \"%s::%s\", chart.name, line)
+      chart.rtc.spy.clear()
+    else:
+      e = args[0] if len(args) == 1 else args[-1]
+      status = fn(chart, e)
+    return status
+  return _pspy_on
+
 {state_code}"""
 
   def _s_logging_class_definition_template(self):

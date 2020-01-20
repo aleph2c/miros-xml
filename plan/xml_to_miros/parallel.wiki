@@ -51,22 +51,45 @@
   *Research Needed For?:*
  
   In the experiment folder, using the ActiveObject class and flat state methods
-  implement: 
+  implement:
   * [ ] xml_chart_2
   * [ ] xml_chart_3 
-  Add requirements/hypothesis/ideas to this plan as
-  you work through the problem.
+  Add requirements/hypothesis/ideas to this plan as you work through the problem.
+  
+  In your example code automate the construction of a set of regions
+  parallel_example_1.py:ScxmlChart:107,115
   
   Timebox your work, really hustle in how you attack these problems.  Use your
   previous work as a reference.
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel: >=5*
-  * [ ] Extend instrumentation as described in the xml_chart example above
-  * [ ] 
-  * [ ] 
-  * [ ] 
-  * [ ] 
+  * [ ] Extend instrumentation for p as described in the xml_chart example above.
+  * [ ] Need to find a way to recursively post to outer charts, see
+        post_p_final_to_outer_if_ready to see why this is required
+  * [ ] Need a way to name final events given a p region name, see
+        parallel_example_1.py:ScxmlChart:107
+  * [ ] Need a way to progammatically construct p_regions given p region state
+        tags: parallel_example_1.py:ScxmlChart:107
+  * [ ] Need a way to make hidden-region-state names given p region state
+        tags: parallel_example_1.py:ScxmlChart:107
+  * [ ] Need a way to make region-state-names given p region state
+        tags: parallel_example_1.py:ScxmlChart:107
+  * [ ] Build template for a parallel region state, using p_spy_on
+  * [ ] Build template for a parallel region state for globs, using p_spy_on
+  * [ ] Need to inject the p name in front of each state which it is within so
+        that the code can be read at a glance
+  * [ ] The ScxmlChart will have a regions dict which who's keys are the names
+        of the 'p' tags in the xml documente.  If a 'p' tag contains inner 'p'
+        tags, they will just be added to the regions dict in a flat manner.  The
+        recursive property will be handled by the outer state pointers of the
+        state functions, and by the 'p' junctions into a given parallel region.
+        See parallel_example_1.py:p:413
+  * [ ] According to this stupid SCXML standard, any p region will have to
+        implicitly have a final state, from which the chart will post a
+        magically named signal when all regions are in their final state.
+        Should I add this?  It could add a lot of complexity (technical debt)
+        and it could just be added to the XML in an explicit fashion
 
   *Chosen Research-Goal/Hypothesis*
     
