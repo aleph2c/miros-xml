@@ -473,7 +473,7 @@ def p(self, e):
 if __name__ == '__main__':
   example = ScxmlChart(
     name='parallel',
-    log_file="/mnt/c/github/xml/experiment/parallel_example_1.log",
+    log_file="/mnt/c/github/xml/experiment/parallel_example_2.log",
     live_trace=True,
     live_spy=True,
   )

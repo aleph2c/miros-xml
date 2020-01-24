@@ -52,8 +52,10 @@
  
   In the experiment folder, using the ActiveObject class and flat state methods
   implement:
-  * [ ] xml_chart_2
+
+  * [X] xml_chart_2
   * [ ] xml_chart_3 
+        
   Add requirements/hypothesis/ideas to this plan as you work through the problem.
   
   In your example code automate the construction of a set of regions
@@ -64,6 +66,8 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel: >=5*
+  * [ ] Add subproject from the xml_chart_3 diagram, because it is so hard to
+        implement 
   * [ ] Extend instrumentation for p as described in the xml_chart example above.
   * [ ] Need to find a way to recursively post to outer charts, see
         post_p_final_to_outer_if_ready to see why this is required

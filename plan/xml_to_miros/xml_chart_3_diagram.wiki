@@ -1,0 +1,74 @@
+[[subgoals.xml_to_miros|back]]
+*Xml Chart 3 Diagram*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.xml_chart_3_diagram|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.xml_chart_3_diagram|subgoals]])
+   
+    Have a clear set of instructions for how to place an orthogonal region
+    within a statechart using the Miro Samek algorithm and the miros python
+    library.
+    
+    These instructions will make it possible to implement the good parts of the
+    SCXML standard.
+    
+  *What is the problem?*
+  
+    The xml chart diagram, describes features that aren't available within the
+    miros library.  It contains orthogonal regions, which will be manifested
+    with an orthogonal component strategy.
+    
+    We need to solve a general form of this diagram so we need to make sure the
+    seed design is streamlined as much as possible.  If you start with a bad
+    architecture, you will end up in hell.
+    
+    There are signal dynamics which break the orthogonal bounds between states
+    -- see WTF signals.  Ensure your software can manage these signals.
+    
+
+  *Discoveries:* ([[notes.xml_chart_3_diagram|notes]])
+  
+  [[file:///C:/github/miros/docs/othogonalregions.html|old write up]]
+  [[https://github.com/aleph2c/miros/blob/master/examples/xml_chart.py|old code]]
+  
+= Orient =
+  *Symptoms:* [[symptoms.xml_chart_3_diagram|symptoms]]
+
+== Questions ==
+  *Questions for Xml Chart 3 Diagram: >= 5*
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have enough information?
+    Is your information organized?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    Do you have something to baseline from?
+    What recently changed?
+    What don't you know that you need to know?
+  
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for Xml Chart 3 Diagram: >=5*
+  * [ ] Find a way to reflect on the current active states
+  * [ ] Implement a few of the WTF signals on xml_chart_3.  See if you can find
+        a simple pattern for doing this.
+  * [ ] Consider leaving the orthogonal region to orthogonal component strategy
+        for another one: see concurrent charts with publish/subscribe mappings
+  * [ ] Clean up the instrumentation stream it's a mess
+  * [ ] Find a way to leave and enter orthogonal regions recursively so that
+        your topological pictures can be applied
+  * [ ] Create a comprehensive diagram to capture all topological targets
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.xml_chart_3_diagram|plan]]) ==
+
+= Act =
+  
+
