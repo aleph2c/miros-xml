@@ -50,20 +50,45 @@
 = Decide =
   [[#Questions]]
   *Research Needed For?:*
-    
+   
+    Re-read David Harel's paper to see what he does about orthogonal transitions
+    to answer the WTF1 contradiction.
 
   [[#Questions]]
   *Idea/Hypotheses for Xml Chart 3 Diagram: >=5*
-  * [ ] Find a way to reflect on the current active states
-  * [ ] Implement a few of the WTF signals on xml_chart_3.  See if you can find
+  * [X] Find a way to reflect on the current active states [active_states()]
+  * [ ] Work through the diagram and the code with asserts, debug any issues
+        with the chart
+  * [ ] WFT1
+  * [ ] Need to breech bound and not fire init while continuing the transition
+        into the inner region, this can be done through an init_hack
+        An init_hack, needs to looking for INIT_META_SIGNALS, then post a
+        
+    Need a method which will return a region based on a name
+        
+    expecting: [['pp12_s11', 'pp12_s22'], 'p_s21']
+    
+    Questions (Exception Needed):
+      
+      If I'm in pp12_s12 and I block WTF1, but I'm also in pp12_s22 (which
+      doesn't block WTF1), what do I do?  This seems like a contradiction or a
+      broken formalism.
+      
+      So as a rule, we will not let parallel states block signals that are used
+      by their other half.  We need to catch such situations and break the code
+      on them.
+        
+        
+  * [ ] Implement a WTF2 signal on xml_chart_3.  See if you can find
         a simple pattern for doing this.
   * [ ] Consider leaving the orthogonal region to orthogonal component strategy
         for another one: see concurrent charts with publish/subscribe mappings
   * [ ] Clean up the instrumentation stream it's a mess
   * [ ] Find a way to leave and enter orthogonal regions recursively so that
         your topological pictures can be applied
-  * [ ] Create a comprehensive diagram to capture all topological targets
-
+  * [X] Create a comprehensive diagram to capture all topological targets, (but
+        have you thought of everything)?
+        
   *Chosen Research-Goal/Hypothesis*
     
 

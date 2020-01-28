@@ -45,7 +45,10 @@
     What don't you know that you need to know?
   
   *Assumptions*
-
+    You have to use orthogonal components and keep everything in one thread.
+    You don't, you could just build multi-threaded charts using publish and
+    subscribe.
+    
 = Decide =
   [[#Questions]]
   *Research Needed For?:*
@@ -66,7 +69,7 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel: >=5*
-  * [ ] Add subproject from the xml_chart_3 diagram, because it is so hard to
+  * [ ] Add sub-project from the xml_chart_3 diagram, because it is so hard to
         implement 
   * [ ] Extend instrumentation for p as described in the xml_chart example above.
   * [ ] Need to find a way to recursively post to outer charts, see
