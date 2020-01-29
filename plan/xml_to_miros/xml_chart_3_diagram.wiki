@@ -9,9 +9,6 @@
     within a statechart using the Miro Samek algorithm and the miros python
     library.
     
-    These instructions will make it possible to implement the good parts of the
-    SCXML standard.
-    
   *What is the problem?*
   
     The xml chart diagram, describes features that aren't available within the
@@ -23,20 +20,14 @@
     architecture, you will end up in hell.
     
     There are signal dynamics which break the orthogonal bounds between states
-    -- see WTF signals.  Ensure your software can manage these signals.
+    Ensure your software can manage all possible typologies, see xml_chart_4.xml
     
 
   *Discoveries:* ([[notes.xml_chart_3_diagram|notes]])
   
-   *Exceptions Needed:*
+     Inner states within inner regions will not be able to block signals that
+     are managed by the outermost state.
       
-      If I'm in pp12_s12 and I block WTF1, but I'm also in pp12_s22 (which
-      doesn't block WTF1), what do I do?  This seems like a contradiction or a
-      broken formalism.
-      
-      So as a rule, we will not let parallel states block signals that are used
-      by their other half.  We need to catch such situations and break the code
-      on them.
       
   *Terminology*
   
@@ -50,24 +41,34 @@
              an inner queue, then drive the inner statecharts using their
              ``complete_circuit` method unit their queues are empty.
              
-    *region dispatcher state*: `p` and `pp12` are states with the responsibility to drive
-    events further into the regions which they encapsulate.  The region
-    dispatcher states wrap an inner region of the chart. The region dispatcher
-    state exists in an outer statechart from the regions they control.  They
-    dispatch event to it using a reference to the `Regions` object and that
-    object's `_post_fifo`, `post_fifo`, ... API.
-   
-    *hidden region state*:  A region statechart needs a hidden state, so that it
-    can be transitioned to, without worry of an INIT_SIGNAL driving the action
-    back into the center of the region again (if it is designed this way).  The
-    hidden region is a outer holding state which by design does not have an
-    INIT_SIGNAL handler.  The hidden region state exists within the statechart
-    that manages a region.  There will be one per region.
+    *region dispatcher state*: `p` and `pp12` are states with the responsibility
+    to drive events further into the regions which they encapsulate.  The region
+    dispatcher states wrap an inner orthogonal component of the chart. The
+    region dispatcher state exists in an outer statechart from the regions they
+    control.  They dispatch event to it using a reference to the `Regions`
+    object and that object's `_post_fifo`, `post_fifo`, ... API.
     
-    *region state*:  The immediate child state of a *hidden region state*, it's
-    `INIT_SIGNAL` handler can initialize the region and can be programmed to
-    respond to message provided by outer regions about how they need this inner
-    region to respond, via the *init_stack* method.
+    *region state*:  The region state holds the entry, init and exit handlers
+    for an entire regions.  Below it is the under_hidden state and above it is
+    the over_hidden state and above that is the rest of the state machine for
+    that region.
+    
+    The region state's `INIT_SIGNAL` can both initialize a region and respond to
+    `INIT_META` events (programmable initialization information) with the help
+    of the `init_stack` method.
+    
+    *hidden states*: A region will have two hidden states which sandwich the
+    region state:
+    1) under_hidden state (closes to the bottom of the chart)
+    2) over_hidden state, on the other side of the region state
+    
+      *under_hidden state*: Presents the illusion that a region can be exited.
+      It's a holding state with not initialization handler, and it is the
+      outermost (bottom) state of a region.
+      
+      *over_hidden state*: Is a state which is used to for a regions
+      re-initialization via the `force_region_init` event.  This is useful if
+      you need to send META_INIT directives over the regional walls.
     
     *init_stack*: A method which looking for `INIT_META` events in the region's
     queue.  If there is an `INIT_META` event waiting, it's payload is returned as
