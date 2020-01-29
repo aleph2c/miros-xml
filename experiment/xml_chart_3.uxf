@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <diagram program="umlet" version="14.3.0">
+  <help_text/>
   <zoom_level>10</zoom_level>
   <element>
     <id>UMLState</id>
@@ -85,7 +86,8 @@ valign=top
 
 
 valign=top
-</panel_attributes>
+
+fg=blue</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
@@ -109,7 +111,8 @@ exit /
 
 
 valign=top
-</panel_attributes>
+
+fg=blue</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
@@ -491,7 +494,7 @@ valign=top
     <id>Relation</id>
     <coordinates>
       <x>780</x>
-      <y>460</y>
+      <y>470</y>
       <w>70</w>
       <h>40</h>
     </coordinates>
@@ -617,7 +620,7 @@ layer=3</panel_attributes>
       <w>280</w>
       <h>240</h>
     </coordinates>
-    <panel_attributes>WTF1
+    <panel_attributes>E0
 lt=-&gt;
 
 layer=3
@@ -638,5 +641,32 @@ lt=-&gt;
 layer=3
 fg=blue</panel_attributes>
     <additional_attributes>230.0;40.0;10.0;40.0;40.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>440</y>
+      <w>70</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>e1
+lt=-&gt;</panel_attributes>
+    <additional_attributes>50.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>990</x>
+      <y>520</y>
+      <w>170</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>E1
+lt=-&gt;
+
+layer=3
+fg=blue</panel_attributes>
+    <additional_attributes>150.0;120.0;100.0;110.0;10.0;10.0</additional_attributes>
   </element>
 </diagram>
