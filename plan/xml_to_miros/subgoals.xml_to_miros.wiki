@@ -6,6 +6,7 @@
   * [ ] state [[state|link]]
   * [ ] transition [[transition|link]]
   * [ ] python in document [[python_in_document|link]]  
+  * [ ] meta init theory [[meta_init_theory|link]]
   * [ ] xml_chart_3 diagram [[xml_chart_3_diagram|link]]
   * [ ] parallel [[parallel|link]]
   * [ ] initial

@@ -128,6 +128,14 @@
                 r.post_fifo(_e)  # here we drive the next INIT_META if
                                  # required
           }}}
+          
+    *How to build a INIT_META event*:
+    
+      To use an `INIT_META` signal, start from the deepest arrow head, and create an
+      event with a signal name, `INIT_META` and provide it with a
+      `INIT_META_PAYLOAD(event=None, state=<state required>)`, assume this named
+      event is a.
+      
         
   *Passing events out of regions:*
   
@@ -165,6 +173,7 @@
         with the chart
   * [X] Implement WFT1/E0, create terminology and an algorithm for how to pass
         events into inner regions.
+  * [ ] Figure out theory of META_INIT
   * [ ] Implement E1. go!
         
   * [ ] Implement a WTF2 signal on xml_chart_3.  See if you can find

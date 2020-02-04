@@ -4,6 +4,9 @@
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]])
+    Catch the META_EXIT in pp12
+    Successfully get over the wall with G3
+    
     To implement parallel regions to an arbitrary level with SCXML.
 
   *What is the problem?*

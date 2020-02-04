@@ -1,13 +1,10 @@
 import re
-import dill
 import time
 import logging
-from pathlib import Path
 from functools import wraps
 from functools import partial
 from functools import lru_cache
 from collections import namedtuple
-from collections import OrderedDict
 
 from miros import Event
 from miros import spy_on
@@ -17,7 +14,7 @@ from miros import return_status
 from miros import HsmWithQueues
 
 
-INIT_META_PAYLOAD = namedtuple("INIT_META_PAYLOAD", ['event', 'state'])
+META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD", ['event', 'state', 'source_event', 'region'])
 import pprint
 def pp(item):
   pprint.pprint(item)
@@ -31,9 +28,9 @@ def p_spy_on(fn):
     **Returns**:
        (function): wrapped function
     **Example(s)**:
-      
+g
     .. code-block:: python
-       
+g
        @p_spy_on
        def example(p, e):
         status = return_status.UNHANDLED
@@ -47,7 +44,7 @@ def p_spy_on(fn):
         m1 = re.search(r'under_hidden_region', str(line))
         m2 = re.search(r'START', str(line))
         if not m1 and not m2:
-          chart.outer.live_spy_callback(
+          chart.outmost.live_spy_callback(
             "{}::{}".format(chart.name, line))
       chart.rtc.spy.clear()
     else:
@@ -59,24 +56,25 @@ def p_spy_on(fn):
 Reflections = []
 
 class Region(HsmWithQueues):
-  def __init__(self, name, starting_state, outer, final_event, instrumented=True):
+  def __init__(self, name, starting_state, outmost, final_event, instrumented=True, outer=None):
     super().__init__()
     self.name = name
-    self.outer = outer
+    self.outmost = outmost
     self.final_event = final_event
     self.instrumented = instrumented
     self.starting_state = starting_state
     self.bottom = self.top
+    self.outer = outer
 
     self.final = False
     self.regions = []
 
-  def post_p_final_to_outer_if_ready(self):
+  def post_p_final_to_outmost_if_ready(self):
     ready = False if self.regions is None and len(self.regions) < 1 else True
     for region in self.regions:
       ready &= True if region.final else False
     if ready:
-      self.outer.post_fifo(self.final_event)
+      self.outmost.post_fifo(self.final_event)
 
   @lru_cache(maxsize=32)
   def tockenize(self, signal_name):
@@ -109,6 +107,34 @@ class Region(HsmWithQueues):
     while(True):
       if(self.temp.fun == current_state):
         result = True
+        r = return_status.IGNORED
+      else:
+        r = self.temp.fun(self, super_e)
+      if r == return_status.IGNORED:
+        break;
+    self.temp.fun = old_temp
+    self.state.fun = old_fun
+    return result
+
+  def get_region(self, fun=None):
+
+    if fun is None:
+      current_state = self.temp.fun
+    else:
+      current_state = fun
+
+    old_temp = self.temp.fun
+    old_fun = self.state.fun
+
+    self.temp.fun = current_state
+
+    result = ''
+    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    while(True):
+      if 'region' in self.temp.fun.__name__:
+        result = self.temp.fun.__name__
+        r = return_status.IGNORED
+      elif 'top' in self.temp.fun.__name__:
         r = return_status.IGNORED
       else:
         r = self.temp.fun(self, super_e)
@@ -154,7 +180,7 @@ class Regions():
       Region(
         name='s1_r',
         starting_state=p_r2_under_hidden_region,
-        outer=self,
+        outmost=self,
         final_event=Event(signal=signals.p_final)
       )
     )
@@ -162,7 +188,7 @@ class Regions():
       Region(
         name='s2_r',
         starting_state=p_r2_under_hidden_region,
-        outer=self,
+        outmost=self,
         final_event=Event(signal=signals.p_final)
       )
     )
@@ -174,16 +200,16 @@ class Regions():
 
   With this:
 
-    self.p_regions = Regions(name='p', outer=self).add('s1_r').add('s2_r').regions
+    self.p_regions = Regions(name='p', outmost=self).add('s1_r').add('s2_r').regions
 
   '''
-  def __init__(self, name, outer):
+  def __init__(self, name, outmost):
     self.name = name
-    self.outer = outer
+    self.outmost = outmost
     self._regions = []
     self.final_signal_name = name + "_final"
 
-  def add(self, region_name):
+  def add(self, region_name, outer=None):
     '''
     This code basically provides this feature:
 
@@ -191,21 +217,22 @@ class Regions():
         Region(
           name='s2_r',
           starting_state=p_r2_under_hidden_region,
-          outer=self,
+          outmost=self,
           final_event=Event(signal=signals.p_final)
         )
       )
     Where to 'p_r2_under_hidden_region', 'p_final' are inferred based on conventions
-    and outer was provided to the Regions __init__ method
+    and outmost was provided to the Regions __init__ method
 
     '''
     self._regions.append(
       Region(
         name=region_name,
         starting_state=eval(region_name+"_under_hidden_region"),
-        outer=self.outer,
-        final_event = Event(signal=self.final_signal_name)
-      ) 
+        outmost=self.outmost,
+        final_event = Event(signal=self.final_signal_name),
+        outer=outer
+      )
     )
     return self
 
@@ -286,10 +313,20 @@ class ScxmlChart(InstrumentedActiveObject):
 
     self.shot_lookup = {}
     self.regions = {}
-    self.regions['p'] = Regions(name='p',
-        outer=self).add('p_r1').add('p_r2').link()
-    self.regions['pp12'] = Regions(name='pp12',
-        outer=self).add('pp12_r1').add('pp12_r2').link()
+
+    outer = self
+    self.regions['p'] = Regions(
+      name='p',
+      outmost=self)\
+    .add('p_r1', outer=outer)\
+    .add('p_r2', outer=outer).link()
+
+    outer = self.regions['p']
+    self.regions['pp12'] = Regions(
+      name='pp12',
+      outmost=self)\
+    .add('pp12_r1', outer=outer)\
+    .add('pp12_r2', outer=outer).link()
 
   def start(self):
     if self.live_spy:
@@ -358,7 +395,6 @@ class ScxmlChart(InstrumentedActiveObject):
 
   def active_states(self):
 
-    state_name = self.state_name
     parallel_state_names = self.regions.keys()
 
     def recursive_get_states(name):
@@ -407,12 +443,14 @@ def p_r1_region(r, e):
   elif(e.signal == signals.INIT_SIGNAL):
     (_e, _state) = r.init_stack(e) # search for INIT_META
     # if _state is a child of this state then transition to it
+
     if _state is None or not r.has_a_child(_state):
       status = r.trans(p_s11)
     else:
       status = r.trans(_state)
       if not _e is None:
         r.post_fifo(_e)
+
   elif(e.signal == signals.region_exit):
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META):
@@ -437,9 +475,11 @@ def p_s11(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name,"e4")):
+  elif(r.token_match(e.signal_name, "e4")):
     # inner parallel
     status = r.trans(pp12)
+  elif(r.token_match(e.signal_name, "G3")):
+    status = r.trans(p_s11)
   elif(e.signal == signals.EXIT_SIGNAL):
     status = return_status.HANDLED
   else:
@@ -452,7 +492,7 @@ def p_r1_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     r.final = True
-    r.post_p_final_to_outer_if_ready()
+    r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     r.final = False
@@ -464,38 +504,47 @@ def p_r1_final(r, e):
 
 @spy_on
 def pp12(r, e):
-  outer = r.outer
+  outmost = r.outmost
   status = return_status.UNHANDLED
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    if outer.live_spy and outer.instrumented:
-      outer.live_spy_callback("{}:pp12".format(e.signal_name))
+    if outmost.live_spy and outmost.instrumented:
+      outmost.live_spy_callback("{}:pp12".format(e.signal_name))
     (_e, _state) = r.init_stack(e) # search for INIT_META
     if _state:
-      outer.regions['pp12']._post_fifo(_e)
-    outer.regions['pp12'].post_lifo(Event(signal=signals.enter_region))
+      outmost.regions['pp12']._post_fifo(_e)
+    outmost.regions['pp12'].post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(outer.token_match(e.signal_name, "e1") or
-      outer.token_match(e.signal_name, "e2") or 
-      outer.token_match(e.signal_name, "e4")
+  elif(outmost.token_match(e.signal_name, "e1") or
+      outmost.token_match(e.signal_name, "e2") or
+      outmost.token_match(e.signal_name, "e4") or
+      outmost.token_match(e.signal_name, "G3")
       ):
-    if outer.live_spy and outer.instrumented:
-      outer.live_spy_callback("{}:pp12".format(e.signal_name))
-    outer.regions['pp12'].post_fifo(e)
+
+    if outmost.live_spy and outmost.instrumented:
+      outmost.live_spy_callback("{}:pp12".format(e.signal_name))
+    outmost.regions['pp12'].post_fifo(e)
     status = return_status.HANDLED
   # final token match
-  elif(outer.token_match(e.signal_name, outer.regions['pp12'].final_signal_name)):
-    if outer.live_spy and outer.instrumented:
-      outer.live_spy_callback("{}:pp12".format(e.signal_name))
+  elif(outmost.token_match(e.signal_name, outmost.regions['pp12'].final_signal_name)):
+    if outmost.live_spy and outmost.instrumented:
+      outmost.live_spy_callback("{}:pp12".format(e.signal_name))
     status = r.trans(p_r1_final)
-  elif(outer.token_match(e.signal_name, "e5")):
+  elif(outmost.token_match(e.signal_name, "e5")):
     status = r.trans(p_r1_final)
+  elif(e.signal == signals.META_EXIT):
+    region1 = r.get_region()
+    region2 = r.get_region(e.payload.state)
+    if region1 == region2:
+      status = r.trans(e.payload.state)
+    else:
+      status = return_status.HANDLED
   # exit signals
   elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
-    if outer.live_spy and outer.instrumented:
-      outer.live_spy_callback("{}:pp12".format(Event(signal=signals.region_exit)))
-    outer.regions['pp12'].post_lifo(Event(signal=signals.region_exit))
+    if outmost.live_spy and outmost.instrumented:
+      outmost.live_spy_callback("{}:pp12".format(Event(signal=signals.region_exit)))
+    outmost.regions['pp12'].post_lifo(Event(signal=signals.region_exit))
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r1_over_hidden_type
@@ -582,7 +631,7 @@ def pp12_r1_final(rr, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     rr.final = True
-    rr.post_p_final_to_outer_if_ready()
+    rr.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     rr.final = False
@@ -643,6 +692,21 @@ def pp12_s21(rr, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     status = return_status.HANDLED
+  elif(rr.token_match(e.signal_name, "G3")):
+    source_event = e.signal_name
+    rr.outer._post_lifo(
+      Event(signal=signals.META_EXIT,
+        payload=META_SIGNAL_PAYLOAD(
+          event=None,
+          state=p_s11,
+          source_event=source_event,
+          region=None,
+        )
+      )
+    )
+    rr.outmost.complete_circuit()
+    #status = rr.trans(pp12_r2_under_hidden_region)
+    status = return_status.HANDLED
   elif(rr.token_match(e.signal_name, "e1")):
     status = rr.trans(pp12_s22)
   else:
@@ -671,7 +735,7 @@ def pp12_r2_final(rr, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     rr.final = True
-    rr.post_p_final_to_outer_if_ready()
+    rr.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     rr.final = False
@@ -701,7 +765,7 @@ def p_r2_region(r, e):
     if _state is None or not r.has_a_child(_state):
       status = r.trans(p_s21)
     else:
-      status = rr.trans(_state)
+      status = r.trans(_state)
       if not _e is None:
         r.post_fifo(_e)
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -758,7 +822,7 @@ def p_r2_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
     r.final = True
-    r.post_p_final_to_outer_if_ready()
+    r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     r.final = False
@@ -780,33 +844,26 @@ def outer_state(self, e):
   elif(self.token_match(e.signal_name, "E0")):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
-    # We will use the queue of each active object as a stack to tell
-    # the INIT_SIGNAL how we want it to act (see init_stack for how this works)
 
-    # starting from the arrow head of E0:
-    # 1) identify next event which must be sent
-    # 2) identify target state (handled by region state)
-    pp12_e = Event(
-      signal=signals.INIT_META, 
-      payload=INIT_META_PAYLOAD(event=None, state=pp12_s22)
-    )
-    # 1) identify next event which must be sent (pp12_e)
-    # 2) identify target state pp12 (handled by orthononal component handler)
-    pp_e = Event(
-      signal=signals.INIT_META, 
-      payload=INIT_META_PAYLOAD(event=pp12_e, state=pp12)
-    )
-    # 1) identify next event which must be sent (pp_e)
-    # 2) identify target state pp12 (handled by region state)
-    p_e = Event(
+    eeee = Event(
       signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=pp_e, state=pp12)
+      payload=META_SIGNAL_PAYLOAD(
+        event=None, state=pp12_s22, source_event=e, region=None)
     )
-    # 1) identify next event which must be sent (p_e)
-    # 2) identify target state p (handled by orthononal component handler)
+    eee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eeee, state="pp12", source_event=e,
+        region=None)
+    )
+    ee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eee, state=pp12, source_event=e,
+        region=None)
+    )
     _e = Event(
       signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=p_e, state=p)
+      payload=META_SIGNAL_PAYLOAD(event=ee, state="pp12", source_event=e,
+        region=None)
     )
     self.post_fifo(_e)
     status = self.trans(p)
@@ -814,27 +871,25 @@ def outer_state(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
 
-    _eee = Event(
-      signal=signals.INIT_META, 
-      payload=INIT_META_PAYLOAD(event=None, state=pp12)
+    eeee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=None, state=pp12, source_event=e,
+        region=None)
     )
-    # 1) identify next event which must be sent (pp12_e)
-    # 2) identify target state pp12 (handled by orthononal component handler)
-    _ee = Event(
-      signal=signals.INIT_META, 
-      payload=INIT_META_PAYLOAD(event=_eee, state=pp12)
+    eee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eeee, state="pp12", source_event=e,
+        region=None)
     )
-    # 1) identify next event which must be sent (pp_e)
-    # 2) identify target state pp12 (handled by region state)
+    ee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eee, state=pp12, source_event=e,
+        region=None)
+    )
     _e = Event(
       signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=_ee, state=pp12)
-    )
-    # 1) identify next event which must be sent (p_e)
-    # 2) identify target state p (handled by orthononal component handler)
-    _e = Event(
-      signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=_e, state=p)
+      payload=META_SIGNAL_PAYLOAD(event=ee, state="p", source_event=e,
+        region=None)
     )
     self.post_fifo(_e)
     status = self.trans(p)
@@ -871,6 +926,7 @@ def p(self, e):
       self.token_match(e.signal_name, "e3") or 
       self.token_match(e.signal_name, "e4") or 
       self.token_match(e.signal_name, "e5") or 
+      self.token_match(e.signal_name, "G3") or 
       self.token_match(e.signal_name, self.regions['pp12'].final_signal_name)
       ):
     if self.live_spy and self.instrumented:
@@ -881,25 +937,28 @@ def p(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:p".format(e.signal_name))
 
+    # this breaks the code... p_r2 should not be re-initialized
     self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
     #self.regions['p'].post_fifo(Event(signal=signals.region_exit))
-    ___e = Event(
-      signal=signals.INIT_META, 
-      payload=INIT_META_PAYLOAD(event=None, state=pp12_s12)
+    eee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=None, state=pp12_s12, source_event=e,
+        region=None)
     )
 
-    __e = Event(
+    ee = Event(
       signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=___e, state=pp12)
+      payload=META_SIGNAL_PAYLOAD(event=eee, state="pp12", source_event=e,
+        region=None)
     )
 
     _e = Event(
       signal=signals.INIT_META,
-      payload=INIT_META_PAYLOAD(event=__e, state=pp12)
+      payload=META_SIGNAL_PAYLOAD(event=ee, state=pp12, source_event=e,
+        region=None)
     )
 
     self.regions['p'].post_fifo(_e)
-
     status = return_status.HANDLED
   # final token match
   elif(self.token_match(e.signal_name, self.regions['p'].final_signal_name)):
@@ -909,6 +968,18 @@ def p(self, e):
     status = self.trans(some_other_state)
   elif(self.token_match(e.signal_name, "to_outer")):
     status = self.trans(outer_state)
+  elif(e.signal == signals.META_EXIT):
+    if hasattr(e.payload, "state"):
+      self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
+      state = e.payload.state
+      source_event = e.payload.source_event
+      _e = Event(
+        signal=signals.INIT_META,
+        payload=META_SIGNAL_PAYLOAD(event=None, state=state,
+          source_event=source_event, region=None)
+      )
+      self.regions['p'].post_fifo(_e)
+    status = return_status.HANDLED
   # exit
   elif(e.signal == signals.EXIT_SIGNAL):
     if self.live_spy and self.instrumented:
@@ -1035,6 +1106,13 @@ if __name__ == '__main__':
   print(active_states)
   assert active_states == [['pp12_s11', 'pp12_s21'], 'p_s21']
 
+  example.post_fifo(Event(signal=signals.G3))
+  time.sleep(0.1)
+  active_states = example.active_states()
+  print(active_states)
+  time.sleep(1000.1)
+
+
   #example.post_fifo(Event(signal=signals.e1))
   #time.sleep(0.1)
   #active_states = example.active_states()
@@ -1043,7 +1121,6 @@ if __name__ == '__main__':
 
   #example.post_fifo(Event(signal=signals.e5))
   #time.sleep(0.1)
-  #active_states = example.active_states()
   #print(active_states)
   #assert active_states == ['some_other_state']
 
