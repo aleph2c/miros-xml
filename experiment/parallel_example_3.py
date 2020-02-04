@@ -1110,7 +1110,7 @@ if __name__ == '__main__':
   time.sleep(0.1)
   active_states = example.active_states()
   print(active_states)
-  time.sleep(1000.1)
+  assert active_states == ['p_s11', 'p_s21']
 
 
   #example.post_fifo(Event(signal=signals.e1))

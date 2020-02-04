@@ -13,14 +13,14 @@
   
     The xml chart diagram, describes features that aren't available within the
     miros library.  It contains orthogonal regions, which will be manifested
-    with an orthogonal component strategy.
+    within an orthogonal component strategy.
     
     We need to solve a general form of this diagram so we need to make sure the
     seed design is streamlined as much as possible.  If you start with a bad
-    architecture, you will end up in hell.
+    architecture, you will end up in hell!
     
     There are signal dynamics which break the orthogonal bounds between states
-    Ensure your software can manage all possible typologies, see xml_chart_4.xml
+    Ensure your software can manage all possible topologies, see xml_chart_4.xml
     
 
   *Discoveries:* ([[notes.xml_chart_3_diagram|notes]])
@@ -136,6 +136,8 @@
       `INIT_META_PAYLOAD(event=None, state=<state required>)`, assume this named
       event is a.
       
+    *Passing from inner region to an outer region:*
+      
         
   *Passing events out of regions:*
   
@@ -155,6 +157,7 @@
     Do you have something to baseline from?
     What recently changed?
     What don't you know that you need to know?
+    Have you thought about all topologies?
   
   *Assumptions*
 
@@ -168,23 +171,18 @@
   [[#Questions]]
   *Idea/Hypotheses for Xml Chart 3 Diagram: >=5*
   * [X] Find a way to reflect on the current active states [active_states()]
+  * [X] Create a comprehensive diagram to capture all topological targets
   * [X] Add asserts to the bottom of your file as a "car alarm" so if you break
         something while discovering against this file it will become obvious.
         with the chart
   * [X] Implement WFT1/E0, create terminology and an algorithm for how to pass
         events into inner regions.
-  * [ ] Figure out theory of META_INIT
-  * [ ] Implement E1. go!
-        
-  * [ ] Implement a WTF2 signal on xml_chart_3.  See if you can find
-        a simple pattern for doing this.
+  * [ ] Implement a G3 signal on xml_chart_3.  
+  * [ ] Add writing describing how to implement G3.
+  * [ ] Clean up the instrumentation stream it's a mess (remove hidden
+        messaging)
   * [ ] Consider leaving the orthogonal region to orthogonal component strategy
         for another one: see concurrent charts with publish/subscribe mappings
-  * [ ] Clean up the instrumentation stream it's a mess
-  * [ ] Find a way to leave and enter orthogonal regions recursively so that
-        your topological pictures can be applied
-  * [X] Create a comprehensive diagram to capture all topological targets, (but
-        have you thought of everything)?
         
   *Chosen Research-Goal/Hypothesis*
     
