@@ -177,10 +177,10 @@
         with the chart
   * [X] Implement WFT1/E0, create terminology and an algorithm for how to pass
         events into inner regions.
-  * [ ] Implement a G3 signal on xml_chart_3.  
-  * [ ] Add writing describing how to implement G3.
-  * [ ] Clean up the instrumentation stream it's a mess (remove hidden
-        messaging)
+  * [X] Implement a G3 signal on xml_chart_3.  
+  * [ ] Create parallel_example_4.py... without WTF signals
+  * [ ] Add writing describing how to implement G3 in parallel_example_3.py
+  * [ ] Clean up the instrumentation stream it's a mess (remove hidden messaging)
   * [ ] Consider leaving the orthogonal region to orthogonal component strategy
         for another one: see concurrent charts with publish/subscribe mappings
         
