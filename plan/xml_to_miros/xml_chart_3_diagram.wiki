@@ -41,7 +41,7 @@
              an inner queue, then drive the inner statecharts using their
              ``complete_circuit` method unit their queues are empty.
              
-    *region dispatcher state*: `p` and `pp12` are states with the responsibility
+    *injector*: `p` and `pp12` are states with the responsibility
     to drive events further into the regions which they encapsulate.  The region
     dispatcher states wrap an inner orthogonal component of the chart. The
     region dispatcher state exists in an outer statechart from the regions they

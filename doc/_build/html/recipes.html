@@ -32,32 +32,136 @@
 
           <div class="body" role="main">
             
-  <blockquote>
-<div><p><em>Simple things should be simple, complex things should be possible.</em></p>
-<p class="attribution">—Alan Kay</p>
+  <blockquote id="recipes">
+<div><p><em>I’m writing these docs to help myself understand how to build an XML-to-miros parser.</em></p>
 </div></blockquote>
+<div class="section" id="recipes-recipes">
+<span id="id1"></span><h1><a class="toc-backref" href="#id2">Recipes</a><a class="headerlink" href="#recipes-recipes" title="Permalink to this headline">¶</a></h1>
 <div class="contents topic" id="contents">
-<span id="recipes"></span><p class="topic-title">Contents</p>
+<p class="topic-title">Contents</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#recipes-recipes" id="id2">Recipes</a></p>
 <ul>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id3">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#summary" id="id3">Summary</a></p></li>
+<li><p><a class="reference internal" href="#context-and-terminology" id="id4">Context and Terminology</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id5">Writing WTF Events Across Regions</a></p></li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id6">Hidden Dynamics</a></p></li>
 </ul>
 </li>
 </ul>
 </div>
-<div class="section" id="recipes-recipes">
-<span id="id1"></span><h1><a class="toc-backref" href="#id2">Recipes</a><a class="headerlink" href="#recipes-recipes" title="Permalink to this headline">¶</a></h1>
-<p>This section will contain the recipes for construct the blue <code class="docutils literal notranslate"><span class="pre">WFT</span></code> signals
-that span across parallel regions in this example program:</p>
+<div class="section" id="summary">
+<span id="recipes-summary"></span><h2><a class="toc-backref" href="#id3">Summary</a><a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
+<p>I would like to support parallel statecharts using David Harel’s notation.  The
+Parallel statechart, or orthogonal regions are not supported by the algorithm
+developed by Miro Samek.  However, Miro Samek offered an alternative and faster
+pattern, the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthorgonal component</a>;
+an HSM within an HSM.</p>
+<p>If you haven’t seen orthogonal regions before reference <a class="reference external" href="https://aleph2c.github.io/miros/othogonalregions.html">this document on
+orthogonal regions and miros.</a>.</p>
+<p>In this project and in these documents I will be writing about how to have one
+orthogonal region communicate with another.  My implementation of orthogonal
+regions will be a mapping of Miros Samek’s orthogonal component pattern (HSMs
+within other HSMs) onto a design which will look and behave like an orthogonal
+region.  This will be done by recursively mapping orthogonal components within a
+chart.  An outer region will <code class="docutils literal notranslate"><span class="pre">dispatch</span></code> events into a deeper or inner region.
+The outer region which injects an event will be called an <strong>Injector</strong> and the
+region which receives the events will be called an <strong>Injectee</strong>.  An HSM can both
+be an <strong>Injector</strong> and an <strong>Injectee</strong>, and the outermost chart will only be an
+<strong>Injector</strong>.</p>
+<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+<p>The chart will be run within the outermost HSM’s thread, and the inner regions
+will be driven by dispatching events and driving them through the orthogonal
+component with the <code class="docutils literal notranslate"><span class="pre">complete_circuit</span></code> method.</p>
+<p>To manifest transitions between regions, the queue of the various components
+will be treated as call stacks into which instructions can be placed.  Otherwise
+the majority of the chart will behave using the dynamics of the miros algorithm.</p>
+<p>This document is being written so that I can invent enough theory and give
+myself enough instruction so as to generalize the construction of any orthogonal
+region, described by an XML document, within its <code class="docutils literal notranslate"><span class="pre">&lt;parallel&gt;</span></code> tag.</p>
+</div>
+<div class="section" id="context-and-terminology">
+<span id="recipes-context-and-terminology"></span><h2><a class="toc-backref" href="#id4">Context and Terminology</a><a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><dl>
+<dt>Region</dt><dd><p>HsmWithQueues object with addition supporting methods, in the software
+it is represented as a class.  In the design it is an othogonal
+component called the <strong>injectee</strong>.  In statechart theory, the othogonal
+region is one of the areas partitioned within a dashed line.  It and
+it’s other regions are expected to run concurrently.</p>
+<a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="align-center" src="_images/region.svg" /></a>
+</dd>
+<dt>Regions</dt><dd><p>Contains multiple Region objects in a collection.  It augments the
+regions so that they can reference one another using iterators.  It
+adds a <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">_post_lifo</span></code> method which can put items
+into all of its inner region’s queues.</p>
+<p>It adds a <code class="docutils literal notranslate"><span class="pre">post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> method which will post items
+onto an inner queue, then drive the inner statecharts using their
+<code class="docutils literal notranslate"><span class="pre">complete_circuit</span></code> method until their queues are empty.</p>
+<a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="align-center" src="_images/regions.svg" /></a>
+</dd>
+<dt>Injector:</dt><dd><p>A statechart or orthogonal component which post events into an inner
+othergonal component, then drives the events through the region it is
+encapsulated.  The <strong>injector</strong> places events and drives events using
+the <code class="docutils literal notranslate"><span class="pre">_post_fifo',</span> <span class="pre">``post_fifo</span></code> … APIs.  The <strong>p</strong> and <strong>pp12</strong>
+states would be an injector in the following diagram:</p>
+<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+</dd>
+<dt>Injectee:</dt><dd><p>An othogonal component who’s events are given to it, and driven through
+it by an <strong>injector</strong>.  An <strong>injectee</strong> can also be an <strong>injector</strong> if
+it drives another state.  An injector is hidden from view in the main
+statechart picture with the dashed lines.  However, you can see it at
+the bottom right of this picture.</p>
+<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+</dd>
+<dt>WTF events</dt><dd><p>Any event which crosses between regions.  See <code class="docutils literal notranslate"><span class="pre">E0</span></code>, <code class="docutils literal notranslate"><span class="pre">E1</span></code> and <code class="docutils literal notranslate"><span class="pre">E3</span></code>
+in the following diagram</p>
+<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+</dd>
+<dt>Under Hidden States</dt><dd><p>The outer state of an <strong>injectee</strong>.  It presents the illusion that a
+region can be exited.  It’s a holding state with no initializtion
+handler, and it is the outer most state of the region.</p>
+</dd>
+<dt>Region States</dt><dd><p>This state is sandwiched between the under and outer hidden states.  It
+contains a <code class="docutils literal notranslate"><span class="pre">INIT_SIGNAL</span></code> handler which calls the <code class="docutils literal notranslate"><span class="pre">init_stack</span></code>
+method which is used for managing <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> events (events which
+contain events and states to initialize to).  The region state also has
+a <code class="docutils literal notranslate"><span class="pre">region_exit</span></code> event handler which will cause the region to
+transition the <strong>under hidden region</strong>.</p>
+</dd>
+<dt>Over Hidden States</dt><dd><p>This state is above the region state and its purpose to to catch the
+<code class="docutils literal notranslate"><span class="pre">force_region_init</span></code> event, which will force a transition to the
+region, and thereby force a call of the <code class="docutils literal notranslate"><span class="pre">init_state</span></code> method.</p>
+</dd>
+<dt>META_INIT</dt><dd><p>An event which contains 0 or more META_INIT events and the state which
+are intended to handle the event.  They are injected into the queue of
+inner states so that the inner state’s <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> methods can
+programmatically initialize their region.</p>
+</dd>
+<dt>META_EXIT</dt><dd><p>An event which permits an WTF exit strategy</p>
+</dd>
+<dt>META_SIGNAL_PAYLOAD</dt><dd><p>The payload of a META event.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">META_SIGNAL_PAYLOAD</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
+   <span class="s2">&quot;META_SIGNAL_PAYLOAD&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;event&#39;</span><span class="p">,</span> <span class="s1">&#39;state&#39;</span><span class="p">,</span> <span class="s1">&#39;source_event&#39;</span><span class="p">,</span> <span class="s1">&#39;region&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="writing-wtf-events-across-regions">
+<span id="recipes-writing-wtf-events-across-regions"></span><h2><a class="toc-backref" href="#id5">Writing WTF Events Across Regions</a><a class="headerlink" href="#writing-wtf-events-across-regions" title="Permalink to this headline">¶</a></h2>
+<p>This section will contain the recipes needed to construct the blue <code class="docutils literal notranslate"><span class="pre">WFT</span></code>
+events, or events that span across parallel regions in this example program:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>click on the diagram to open a pdf version of it.</p>
 </div>
+</div>
 <div class="section" id="hidden-dynamics">
-<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id3">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
-<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id6">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
 <a class="reference internal" href="quickstart.html"<span class="std-ref">prev</span></a>, <a class="reference internal" href="index.html#top"><span class="std std-ref">top</span></a>, <a class="reference internal" href="introduction.html"><span class="std std-ref">next</span></a></div>
 </div>
 
@@ -75,6 +179,9 @@ that span across parallel regions in this example program:</p>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Recipes</a><ul>
+<li><a class="reference internal" href="#summary">Summary</a></li>
+<li><a class="reference internal" href="#context-and-terminology">Context and Terminology</a></li>
+<li><a class="reference internal" href="#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a></li>
 <li><a class="reference internal" href="#hidden-dynamics">Hidden Dynamics</a></li>
 </ul>
 </li>

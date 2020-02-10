@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>420</x>
+      <y>210</y>
+      <w>150</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>HsmWithQueues</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>380</x>
+      <y>270</y>
+      <w>220</w>
+      <h>230</h>
+    </coordinates>
+    <panel_attributes>*Region*
+--
+name
+starting_state
+outmost
+final_event
+instrumented
+outer
+--
+post_p_final_to_outmost_if_ready
+tokenize
+token_match
+init_stack
+has_a_child
+get_region
+
+layer=1</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>480</x>
+      <y>230</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-
+layer=3</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;40.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>470</x>
+      <y>430</y>
+      <w>120</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>injectee
+symbol=substate
+layer=2</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>
