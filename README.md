@@ -1,4 +1,5 @@
-This is a work in progress:
+A partial implimentation of the SCXML standard for building working concurrent statecharts from XML documents.
+
 [In depth engineering documents for miros-xml.](https://aleph2c.github.io/miros-xml/)
 
 # miros-scxml WIP
