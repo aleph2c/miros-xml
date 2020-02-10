@@ -1,3 +1,6 @@
+This is a work in progress:
+[In depth engineering documents for miros-xml.](https://aleph2c.github.io/miros-xml/)
+
 # miros-scxml WIP
 
   > This library is a partial-port of the [SCXML standard](https://www.w3.org/TR/scxml/) into [miros](https://github.com/aleph2c/miros).
