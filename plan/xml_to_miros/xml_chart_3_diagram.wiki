@@ -178,9 +178,15 @@
   * [X] Implement WFT1/E0, create terminology and an algorithm for how to pass
         events into inner regions.
   * [X] Implement a G3 signal on xml_chart_3.  
-  * [ ] Create parallel_example_4.py... without WTF signals
+  * [X] Updating naming of s/p states in parallel_example_4.py
+  * [X] Refactor parallel_example_4 to match diagram without the WFT signals
+  * [X] Prove chart is working with basic events and asserts
+  * [X] Clean up the instrumentation stream it's a mess (remove hidden messaging)
+  * [ ] Write documentation to help you thinking through your problems
+  * [ ] Start adding WFT signals to the parallel_example_4.py
+  * [ ] Updating naming of s/p states in parallel_example_3.py
+  * [ ] Refactor parallel_example_3 to match diagram
   * [ ] Add writing describing how to implement G3 in parallel_example_3.py
-  * [ ] Clean up the instrumentation stream it's a mess (remove hidden messaging)
   * [ ] Consider leaving the orthogonal region to orthogonal component strategy
         for another one: see concurrent charts with publish/subscribe mappings
         
@@ -190,5 +196,5 @@
 == Plan ([[plan.xml_chart_3_diagram|plan]]) ==
 
 = Act =
-  
+
 
