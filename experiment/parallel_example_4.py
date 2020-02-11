@@ -1390,32 +1390,32 @@ def outer_state(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     status = self.trans(p)
-  #elif(self.token_match(e.signal_name, "E0")):
-  #  if self.live_spy and self.instrumented:
-  #    self.live_spy_callback("{}:outer_state".format(e.signal_name))
+  elif(self.token_match(e.signal_name, "E0")):
+    if self.live_spy and self.instrumented:
+      self.live_spy_callback("{}:outer_state".format(e.signal_name))
 
-  #  eeee = Event(
-  #    signal=signals.INIT_META,
-  #    payload=META_SIGNAL_PAYLOAD(
-  #      event=None, state=p_p12_s22, source_event=e, region=None)
-  #  )
-  #  eee = Event(
-  #    signal=signals.INIT_META,
-  #    payload=META_SIGNAL_PAYLOAD(event=eeee, state="p_p12", source_event=e,
-  #      region=None)
-  #  )
-  #  ee = Event(
-  #    signal=signals.INIT_META,
-  #    payload=META_SIGNAL_PAYLOAD(event=eee, state=p_p12, source_event=e,
-  #      region=None)
-  #  )
-  #  _e = Event(
-  #    signal=signals.INIT_META,
-  #    payload=META_SIGNAL_PAYLOAD(event=ee, state="p_p12", source_event=e,
-  #      region=None)
-  #  )
-  #  self.post_fifo(_e)
-  #  status = self.trans(p)
+    eeee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(
+        event=None, state=p_p11_s21, source_event=e, region=None)
+    )
+    eee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eeee, state="p_p11_s21", source_event=e,
+        region=None)
+    )
+    ee = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=eee, state=p_p11, source_event=e,
+        region=None)
+    )
+    _e = Event(
+      signal=signals.INIT_META,
+      payload=META_SIGNAL_PAYLOAD(event=ee, state="p_p11", source_event=e,
+        region=None)
+    )
+    self.post_fifo(_e)
+    status = self.trans(p)
   #elif(self.token_match(e.signal_name, "E3")):
   #  if self.live_spy and self.instrumented:
   #    self.live_spy_callback("{}:outer_state".format(e.signal_name))
@@ -1548,7 +1548,7 @@ if __name__ == '__main__':
   active_states = None
   example = ScxmlChart(
     name='parallel',
-    log_file="/mnt/c/github/xml/experiment/parallel_example_4.log",
+    log_file="/mnt/c/github/miros-xml/experiment/parallel_example_4.log",
     live_trace=True,
     live_spy=True,
   )
@@ -1626,4 +1626,11 @@ if __name__ == '__main__':
   time.sleep(0.01)
   active_states = example.active_states()
   print("{:>10} -> {}".format("to_outer", active_states))
-  #assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21' ]
+  assert active_states == ['outer_state']
+
+  example.post_fifo(Event(signal=signals.E0))
+  time.sleep(0.01)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E0", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+

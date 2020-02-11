@@ -44,19 +44,29 @@
 <ul>
 <li><p><a class="reference internal" href="#summary" id="id3">Summary</a></p></li>
 <li><p><a class="reference internal" href="#context-and-terminology" id="id4">Context and Terminology</a></p></li>
-<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id5">Writing WTF Events Across Regions</a></p></li>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id6">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#building-a-subregion" id="id5">Building a Subregion</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id6">Writing WTF Events Across Regions</a></p>
+<ul>
+<li><p><a class="reference internal" href="#e0-wtf-event" id="id7">E0 WTF Event</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id8">Hidden Dynamics</a></p></li>
 </ul>
 </li>
 </ul>
 </div>
 <div class="section" id="summary">
 <span id="recipes-summary"></span><h2><a class="toc-backref" href="#id3">Summary</a><a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
-<p>I would like to support parallel statecharts using David Harel’s notation.  The
-Parallel statechart, or orthogonal regions are not supported by the algorithm
-developed by Miro Samek.  However, Miro Samek offered an alternative and faster
-pattern, the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthorgonal component</a>;
-an HSM within an HSM.</p>
+<p>This is me writing to think.</p>
+<p>I would like miros-xml to support parallel statecharts using David Harel’s
+notation.  The Parallel statechart, or orthogonal regions are not supported by
+the algorithm developed by Miro Samek.  However, Miro Samek offered an
+alternative and faster pattern, the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal component</a>;
+an HSM within an HSM.  The problem with this orthogonal component pattern is
+that it isn’t as graphically elegant as the one envisioned by David Harel.
+David’s Harel’s graphical abstractions permit more than one active state to
+exist within one diagram at a time; the packing of design complexity into a
+small diagram’s space is very efficient.</p>
 <p>If you haven’t seen orthogonal regions before reference <a class="reference external" href="https://aleph2c.github.io/miros/othogonalregions.html">this document on
 orthogonal regions and miros.</a>.</p>
 <p>In this project and in these documents I will be writing about how to have one
@@ -84,14 +94,14 @@ region, described by an XML document, within its <code class="docutils literal n
 <span id="recipes-context-and-terminology"></span><h2><a class="toc-backref" href="#id4">Context and Terminology</a><a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><dl>
-<dt>Region</dt><dd><p>HsmWithQueues object with addition supporting methods, in the software
-it is represented as a class.  In the design it is an othogonal
-component called the <strong>injectee</strong>.  In statechart theory, the othogonal
+<dt>Region</dt><dd><p><code class="docutils literal notranslate"><span class="pre">HsmWithQueues</span></code> object with additional supporting methods, in the software
+it is represented as a class.  In the design it is an orthogonal
+component called the <strong>injectee</strong>.  In statechart theory, the orthogonal
 region is one of the areas partitioned within a dashed line.  It and
 it’s other regions are expected to run concurrently.</p>
 <a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="align-center" src="_images/region.svg" /></a>
 </dd>
-<dt>Regions</dt><dd><p>Contains multiple Region objects in a collection.  It augments the
+<dt>Regions</dt><dd><p>Contains multiple <code class="docutils literal notranslate"><span class="pre">Region</span></code> objects in a collection.  It augments the
 regions so that they can reference one another using iterators.  It
 adds a <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">_post_lifo</span></code> method which can put items
 into all of its inner region’s queues.</p>
@@ -101,13 +111,13 @@ onto an inner queue, then drive the inner statecharts using their
 <a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="align-center" src="_images/regions.svg" /></a>
 </dd>
 <dt>Injector:</dt><dd><p>A statechart or orthogonal component which post events into an inner
-othergonal component, then drives the events through the region it is
+orthogonal component, then drives the events through the region it is
 encapsulated.  The <strong>injector</strong> places events and drives events using
 the <code class="docutils literal notranslate"><span class="pre">_post_fifo',</span> <span class="pre">``post_fifo</span></code> … APIs.  The <strong>p</strong> and <strong>pp12</strong>
 states would be an injector in the following diagram:</p>
 <a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
 </dd>
-<dt>Injectee:</dt><dd><p>An othogonal component who’s events are given to it, and driven through
+<dt>Injectee:</dt><dd><p>An orthogonal component who’s events are given to it, and driven through
 it by an <strong>injector</strong>.  An <strong>injectee</strong> can also be an <strong>injector</strong> if
 it drives another state.  An injector is hidden from view in the main
 statechart picture with the dashed lines.  However, you can see it at
@@ -117,6 +127,9 @@ the bottom right of this picture.</p>
 <dt>WTF events</dt><dd><p>Any event which crosses between regions.  See <code class="docutils literal notranslate"><span class="pre">E0</span></code>, <code class="docutils literal notranslate"><span class="pre">E1</span></code> and <code class="docutils literal notranslate"><span class="pre">E3</span></code>
 in the following diagram</p>
 <a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
+<p>The WTF events are not supported within the miros event processing
+algorithim.  This document was written, largely to understand how to
+implement these events for the miros-xml parser.</p>
 </dd>
 <dt>Under Hidden States</dt><dd><p>The outer state of an <strong>injectee</strong>.  It presents the illusion that a
 region can be exited.  It’s a holding state with no initializtion
@@ -150,18 +163,363 @@ programmatically initialize their region.</p>
 </dl>
 </div></blockquote>
 </div>
+<div class="section" id="building-a-subregion">
+<span id="recipes-building-a-subregion"></span><h2><a class="toc-backref" href="#id5">Building a Subregion</a><a class="headerlink" href="#building-a-subregion" title="Permalink to this headline">¶</a></h2>
+<p>We will build <code class="docutils literal notranslate"><span class="pre">p_p11</span></code> in the following diagram:</p>
+<a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
+<p>To build the <code class="docutils literal notranslate"><span class="pre">p_p11</span></code> subregion you will need to:</p>
+<ol class="arabic simple">
+<li><p>Create an injector:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">outmost</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">outmost</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="c1"># enter all regions</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+    <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="c1"># any event handled within there regions must be pushed from here</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e1&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e2&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e4&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;F1&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;G3&quot;</span><span class="p">)</span>
+      <span class="p">):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span>
+    <span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">final_signal_name</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p12</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;C0&quot;</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p12</span><span class="p">)</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">META_EXIT</span><span class="p">):</span>
+    <span class="n">region1</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get_region</span><span class="p">()</span>
+    <span class="n">region2</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get_region</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">region1</span> <span class="o">==</span> <span class="n">region2</span><span class="p">:</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">EXIT_SIGNAL</span> <span class="ow">or</span>
+       <span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">region_exit</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span>
+        <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">region_exit</span><span class="p">)))</span>
+    <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">region_exit</span><span class="p">))</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="n">p_r1_over_hidden_type</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+  <span class="k">return</span> <span class="n">status</span>
+</pre></div>
+</div>
+<p>2. Create the injectee states.  These are the under_hidden, region, and over_hidden state for
+that subregion of the orthogonal component which behaves like a subregion:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11_r1_under_hidden_region</span><span class="p">(</span><span class="n">rr</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">rr</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;enter_region&quot;</span><span class="p">)):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_r1_region</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">rr</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">top</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+  <span class="k">return</span> <span class="n">status</span>
+
+<span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11_r1_region</span><span class="p">(</span><span class="n">rr</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="c1"># if _state is a child of this state then transition to it</span>
+    <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">rr</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">_state</span><span class="p">):</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_s11</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">_state</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">_e</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">rr</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">region_exit</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_r1_under_hidden_region</span><span class="p">)</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_META</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">rr</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="n">p_p11_r1_under_hidden_region</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+  <span class="k">return</span> <span class="n">status</span>
+
+<span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11_r1_over_hidden_region</span><span class="p">(</span><span class="n">rr</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span><span class="o">==</span><span class="n">signals</span><span class="o">.</span><span class="n">force_region_init</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_r1_region</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">rr</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="n">p_p11_r1_region</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+  <span class="k">return</span> <span class="n">status</span>
+
+<span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11_s11</span><span class="p">(</span><span class="n">rr</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">rr</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e4&quot;</span><span class="p">)):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_s12</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">rr</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="n">p_p11_r1_over_hidden_region</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+  <span class="k">return</span> <span class="n">status</span>
+
+<span class="c1"># ..</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Ensure all signals which are passed into the region are injected by outer injectors:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@p_spy_on</span>
+<span class="k">def</span> <span class="nf">p_p11</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">outmost</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">outmost</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="c1"># enter all regions</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+    <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+  <span class="c1"># any event handled within there regions must be pushed from here</span>
+  <span class="k">elif</span><span class="p">(</span><span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e1&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e2&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e4&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;F1&quot;</span><span class="p">)</span> <span class="ow">or</span>
+       <span class="n">outmost</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;G3&quot;</span><span class="p">)</span>
+      <span class="p">):</span>
+    <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+      <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Add the region to the ScxmlChart’s regions dict within the ScxmlChart
+<code class="docutils literal notranslate"><span class="pre">__init__</span></code> method:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">outer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Regions</span><span class="p">(</span>
+  <span class="n">name</span><span class="o">=</span><span class="s1">&#39;p_p11&#39;</span><span class="p">,</span>
+  <span class="n">outmost</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>\
+<span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;p_p11_r1&#39;</span><span class="p">,</span> <span class="n">outer</span><span class="o">=</span><span class="n">outer</span><span class="p">)</span>\
+<span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;p_p11_r2&#39;</span><span class="p">,</span> <span class="n">outer</span><span class="o">=</span><span class="n">outer</span><span class="p">)</span><span class="o">.</span><span class="n">link</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="writing-wtf-events-across-regions">
-<span id="recipes-writing-wtf-events-across-regions"></span><h2><a class="toc-backref" href="#id5">Writing WTF Events Across Regions</a><a class="headerlink" href="#writing-wtf-events-across-regions" title="Permalink to this headline">¶</a></h2>
-<p>This section will contain the recipes needed to construct the blue <code class="docutils literal notranslate"><span class="pre">WFT</span></code>
-events, or events that span across parallel regions in this example program:</p>
+<span id="recipes-writing-wtf-events-across-regions"></span><h2><a class="toc-backref" href="#id6">Writing WTF Events Across Regions</a><a class="headerlink" href="#writing-wtf-events-across-regions" title="Permalink to this headline">¶</a></h2>
+<p>This section will contain the recipes needed to construct the blue <code class="docutils literal notranslate"><span class="pre">WTF</span></code>
+events, or events that span across parallel regions in this example program.
+The <code class="docutils literal notranslate"><span class="pre">xml_chart_4</span></code> diagram shown below is based upon the <a class="reference external" href="https://aleph2c.github.io/miros/_static/comprehensive_no_instrumentation.pdf">hsm comprehensive
+diagram in the miros project</a>.</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>click on the diagram to open a pdf version of it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">WTF</span></code> is a backronym and it stands for “Witness The Fitness” (lifted from
+my friend Jen Farroll’s <a class="reference external" href="http://www.witnessthefitness.ca">personal training business</a>).</p>
+</div>
+<div class="section" id="e0-wtf-event">
+<span id="recipes-e0-wtf-event"></span><h3><a class="toc-backref" href="#id7">E0 WTF Event</a><a class="headerlink" href="#e0-wtf-event" title="Permalink to this headline">¶</a></h3>
+<p>The E0 event occurs from the outer most threaded state chart and it passes over
+multiple regional boundaries.</p>
+<a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
+<p>As it passes a boundary it turns that boundary on, by issueing an INIT_SIGNAL.
+If the INIT_SIGNAL handling code finds INIT_META events waiting in that region’s
+deque, it will pull out its META_SIGNAL_PAYLOAD, extract the state and event
+information, then transition to the state and post then next event into the
+deque.  In this way the deque acts like a program stack, but in a very light
+way.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The downside of this technique is that the source of the <code class="docutils literal notranslate"><span class="pre">E0</span></code> event needs to
+know about the structure of the chart, the algorithm can not figure it out on
+the fly like it would if it were using the miros algorithim.</p>
+<p>This could be addressed by having the <code class="docutils literal notranslate"><span class="pre">E0</span></code> events or other <code class="docutils literal notranslate"><span class="pre">E</span></code> event be
+structured programmatically with an autocacher wrapping the method.</p>
+</div>
+<p>The source state needs to know a lot of information about the statechart for the
+<code class="docutils literal notranslate"><span class="pre">E0</span></code> signal to work.  In the diagram listed above the outer</p>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38</pre></div></td><td class="code"><div class="highlight"><pre><span></span>   <span class="nd">@spy_on</span>
+   <span class="k">def</span> <span class="nf">outer_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+     <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+     <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+       <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+     <span class="k">elif</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;to_p&quot;</span><span class="p">)):</span>
+       <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:outer_state&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+       <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="hll">     <span class="k">elif</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;E0&quot;</span><span class="p">)):</span>
+</span><span class="hll">       <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+</span><span class="hll">         <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:outer_state&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+</span><span class="hll">       <span class="n">eeee</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span>
+</span><span class="hll">         <span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">INIT_META</span><span class="p">,</span>
+</span><span class="hll">         <span class="n">payload</span><span class="o">=</span><span class="n">META_SIGNAL_PAYLOAD</span><span class="p">(</span>
+</span><span class="hll">           <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">p_p11_s21</span><span class="p">,</span> <span class="n">source_event</span><span class="o">=</span><span class="n">e</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span class="hll">       <span class="p">)</span>
+</span><span class="hll">       <span class="n">eee</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span>
+</span><span class="hll">         <span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">INIT_META</span><span class="p">,</span>
+</span><span class="hll">         <span class="n">payload</span><span class="o">=</span><span class="n">META_SIGNAL_PAYLOAD</span><span class="p">(</span>
+</span><span class="hll">           <span class="n">event</span><span class="o">=</span><span class="n">eeee</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s2">&quot;p_p11_s21&quot;</span><span class="p">,</span> <span class="n">source_event</span><span class="o">=</span><span class="n">e</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span class="hll">       <span class="p">)</span>
+</span><span class="hll">       <span class="n">ee</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span>
+</span><span class="hll">         <span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">INIT_META</span><span class="p">,</span>
+</span><span class="hll">         <span class="n">payload</span><span class="o">=</span><span class="n">META_SIGNAL_PAYLOAD</span><span class="p">(</span><span class="n">event</span><span class="o">=</span><span class="n">eee</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">p_p11</span><span class="p">,</span> <span class="n">source_event</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+</span><span class="hll">           <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span class="hll">       <span class="p">)</span>
+</span><span class="hll">       <span class="n">_e</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span>
+</span><span class="hll">         <span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">INIT_META</span><span class="p">,</span>
+</span><span class="hll">         <span class="n">payload</span><span class="o">=</span><span class="n">META_SIGNAL_PAYLOAD</span><span class="p">(</span><span class="n">event</span><span class="o">=</span><span class="n">ee</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s2">&quot;p_p11&quot;</span><span class="p">,</span> <span class="n">source_event</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+</span><span class="hll">           <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span class="hll">       <span class="p">)</span>
+</span><span class="hll">       <span class="bp">self</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+</span><span class="hll">       <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+</span>     <span class="k">else</span><span class="p">:</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">temp</span><span class="o">.</span><span class="n">fun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bottom</span>
+       <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">SUPER</span>
+     <span class="k">return</span> <span class="n">status</span>
+</pre></div>
+</td></tr></table></div>
+<p>On line 10 we see the <code class="docutils literal notranslate"><span class="pre">E0</span></code> state handler in the <code class="docutils literal notranslate"><span class="pre">outer_state</span></code>.  Lines 11-12
+report on its discovery to the spy scribble. Line 13-32 show how to construct a
+set of recursive META_INIT signals.  The bottom most is intended from an
+injector, then next and injectee and so on and so forth.  Line 33 shows how it
+is inserted into the FIFO for an init hack.  The entry handler of <code class="docutils literal notranslate"><span class="pre">p</span></code> will pull
+the META_EVENT out of the deque, then push its inner META_INIT event into the
+<code class="docutils literal notranslate"><span class="pre">p</span></code> region.  Line 34 causes a transition to <code class="docutils literal notranslate"><span class="pre">p</span></code>, so that this
+event can be dealt with once <code class="docutils literal notranslate"><span class="pre">p</span></code> has initialized.</p>
+<p>Here is part of the <code class="docutils literal notranslate"><span class="pre">p</span></code> state handler:</p>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nd">@spy_on</span>
+<span class="k">def</span> <span class="nf">p</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+  <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
+  <span class="c1"># enter all regions</span>
+<span class="hll">  <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
+</span><span class="hll">    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+</span><span class="hll">      <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+</span><span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+</span><span class="hll">    <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
+</span><span class="hll">      <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+</span><span class="hll">    <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
+</span><span class="hll">    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+</span>  <span class="c1"># any event handled within there regions must be pushed from here</span>
+  <span class="k">elif</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e1&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e2&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e3&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e4&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;e5&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="s2">&quot;C0&quot;</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="c1"># self.token_match(e.signal_name, &quot;G3&quot;) or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">final_signal_name</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p12&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">final_signal_name</span><span class="p">)</span> <span class="ow">or</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token_match</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p22&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">final_signal_name</span><span class="p">)</span>
+      <span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
+<span class="c1"># ..</span>
+</pre></div>
+</td></tr></table></div>
+<p>The entry signal occurs due to the transition made by <code class="docutils literal notranslate"><span class="pre">E0</span></code> into the <code class="docutils literal notranslate"><span class="pre">p</span></code>
+state.  On lines 6 to 7 we see that this is being reported to the spy scribble.</p>
+<p>Line 8 shows the use of the <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> method, which pulls META_INIT signals
+out of the statechart’s deque if they are there.  Lines 9-10, show that if a
+state is found (A META_INIT event was present) post the next META_INIT signal
+into the injectee state managed by this injector (<code class="docutils literal notranslate"><span class="pre">p</span></code>).</p>
+<p>Finally, on line 11 the injectee region is entered by injecting the
+<code class="docutils literal notranslate"><span class="pre">enter_region</span></code> event into this orthogonal component.</p>
+<p>The result of these commands is to force a transition from <code class="docutils literal notranslate"><span class="pre">p</span></code>’s
+<code class="docutils literal notranslate"><span class="pre">under_hidden</span></code> regions into their region handlers and ultimately to force the
+INIT of that region where another <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> call will be made to hack the
+intension of the INIT_SIGNAL.</p>
 </div>
 </div>
 <div class="section" id="hidden-dynamics">
-<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id6">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
+<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id8">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
 <a class="reference internal" href="quickstart.html"<span class="std-ref">prev</span></a>, <a class="reference internal" href="index.html#top"><span class="std std-ref">top</span></a>, <a class="reference internal" href="introduction.html"><span class="std std-ref">next</span></a></div>
 </div>
 
@@ -181,7 +539,11 @@ events, or events that span across parallel regions in this example program:</p>
 <li><a class="reference internal" href="#">Recipes</a><ul>
 <li><a class="reference internal" href="#summary">Summary</a></li>
 <li><a class="reference internal" href="#context-and-terminology">Context and Terminology</a></li>
-<li><a class="reference internal" href="#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a></li>
+<li><a class="reference internal" href="#building-a-subregion">Building a Subregion</a></li>
+<li><a class="reference internal" href="#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a><ul>
+<li><a class="reference internal" href="#e0-wtf-event">E0 WTF Event</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#hidden-dynamics">Hidden Dynamics</a></li>
 </ul>
 </li>

@@ -182,8 +182,10 @@
   * [X] Refactor parallel_example_4 to match diagram without the WFT signals
   * [X] Prove chart is working with basic events and asserts
   * [X] Clean up the instrumentation stream it's a mess (remove hidden messaging)
-  * [ ] Write documentation to help you thinking through your problems
+  * [X] Write documentation to help you thinking through your problems
+  * [X] Add instructions for building a subregion
   * [ ] Start adding WFT signals to the parallel_example_4.py
+    * [ ] For each signal add instructions to the docs
   * [ ] Updating naming of s/p states in parallel_example_3.py
   * [ ] Refactor parallel_example_3 to match diagram
   * [ ] Add writing describing how to implement G3 in parallel_example_3.py
