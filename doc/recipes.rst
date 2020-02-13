@@ -8,7 +8,7 @@
 Recipes
 =======
 
-.. contents:: 
+.. contents::
    :backlinks: entry
 
 .. _recipes-summary:
@@ -16,7 +16,8 @@ Recipes
 Summary
 ^^^^^^^
 
-This is me writing to think.
+This is me writing to think, and to try and find a simpler way to implement the
+parallel tag.
 
 I would like miros-xml to support parallel statecharts using David Harel's
 notation.  The Parallel statechart, or orthogonal regions are not supported by
@@ -25,13 +26,13 @@ alternative and faster pattern, the `orthogonal component
 <https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_;
 an HSM within an HSM.  The problem with this orthogonal component pattern is
 that it isn't as graphically elegant as the one envisioned by David Harel.
-David's Harel's graphical abstractions permit more than one active state to
+David Harel's graphical abstractions permit more than one active state to
 exist within one diagram at a time; the packing of design complexity into a
 small diagram's space is very efficient.
 
 If you haven't seen orthogonal regions before reference `this document on
 orthogonal regions and miros.
-<https://aleph2c.github.io/miros/othogonalregions.html>`_.  
+<https://aleph2c.github.io/miros/othogonalregions.html>`_.
 
 In this project and in these documents I will be writing about how to have one
 orthogonal region communicate with another.  My implementation of orthogonal
@@ -65,6 +66,13 @@ region, described by an XML document, within its ``<parallel>`` tag.
 Context and Terminology
 ^^^^^^^^^^^^^^^^^^^^^^^
 
+   .. note::
+
+     There is something cluttered about the terminology, come back and pull
+     things apart so that each thing has one meaning.
+
+-----
+
     Region
          ``HsmWithQueues`` object with additional supporting methods, in the software
          it is represented as a class.  In the design it is an orthogonal
@@ -75,7 +83,7 @@ Context and Terminology
          .. image:: _static/region.svg
              :target: _static/region.pdf
              :align: center
-         
+
 
     Regions
          Contains multiple ``Region`` objects in a collection.  It augments the
@@ -91,8 +99,27 @@ Context and Terminology
              :target: _static/regions.pdf
              :align: center
 
+         All other inner state methods, connected to a particular regions HSM
+         will have an ``@p_spy_on`` decorator.
+
+    ScxmlChart
+         Is the main statechart into which all events are posted.  It is the
+         outer most injector.
+
+         .. image:: _static/ScxmlChart.svg
+             :target: _static/ScxmlChart.pdf
+             :align: center
+
+         The ScxmlChart will have a dict containing multiple Regions.  The
+         ScxmlChart's thread will drive the entire collection of orthgonal
+         regions.  It will inject all of the events, via the regions dictionary.
+
+         All of the ScxmlChart connected state methods will have a ``@spy_on``
+         decorator.  All other inner state methods will have an ``@p_spy_on``
+         decorator.
+
     Injector:
-         A statechart or orthogonal component which post events into an inner
+         A statechart or orthogonal component which posts events into an inner
          orthogonal component, then drives the events through the region it is
          encapsulated.  The **injector** places events and drives events using
          the ``_post_fifo', ``post_fifo`` ... APIs.  The **p** and **pp12**
@@ -162,6 +189,132 @@ Context and Terminology
                "META_SIGNAL_PAYLOAD", ['event', 'state', 'source_event', 'region']
             )
 
+.. _recipes-reflection-and-logging:
+
+Reflection and Logging
+^^^^^^^^^^^^^^^^^^^^^^
+.. _recipes-suped-up-spy:
+
+Souped Up Spy
+------------
+
+It would be almost impossible to tackle this problem without the spy
+instrumentation.  To get the spy instrumentation working within the orthogonal
+regions I wrote this wrapper and placed it above each region or state within a
+region:
+
+.. code-block:: python
+  :emphasize-lines: 23,24
+  :linenos:
+
+   def p_spy_on(fn):
+     '''wrapper for the parallel regions states
+       **Note**:
+          It hide any hidden state from appearing in the instrumentation
+       **Args**:
+          | ``fn`` (function): the state function
+       **Returns**:
+          (function): wrapped function
+       **Example(s)**:
+
+       .. code-block:: python
+
+          @p_spy_on
+          def example(p, e):
+           status = return_status.UNHANDLED
+           return status
+     '''
+     @wraps(fn)
+     def _pspy_on(chart, *args):
+       if chart.instrumented:
+         status = spy_on(fn)(chart, *args)
+         for line in list(chart.rtc.spy):
+           m1 = re.search(r'.*hidden_region', str(line))
+           m2 = re.search(r'START|SEARCH_FOR_SUPER_SIGNAL|region_exit', str(line))
+           if not m1 and not m2:
+             chart.outmost.live_spy_callback(
+               "{}::{}".format(chart.name, line))
+         chart.rtc.spy.clear()
+       else:
+         e = args[0] if len(args) == 1 else args[-1]
+         status = fn(chart, e)
+       return status
+     return _pspy_on
+
+You can see on lines 23 and 24 I have filtered out any spy line with the names
+``START``, ``SEARCH_FOR_SUPER``, ``region_exit``, and ``*hidden_region``.  This
+was to reduce the amount of noise in the instrumentation.
+
+The spy itself is written to a log file and/or written to the terminal.
+
+.. _recipes-suped-up-state-name-reflection:
+
+Souped Up State Name Reflection
+-------------------------------
+
+If you use the vanilla ``state_name`` method provided within miros you will only
+be able to see the outer most state holding the orthogonal regions; but it will
+not reach into this collection of orthogonal regions and report on the active state
+of each of them.
+
+To see all of the active states at once using the ``active_states`` method of
+the ``ScxmlChart`` class.
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
+    :align: center
+
+.. code-block:: python
+  :emphasize-lines: 15
+  :linenos:
+
+  example = ScxmlChart(
+    name='parallel',
+    log_file="/mnt/c/github/miros-xml/experiment/parallel_example_4.log",
+    live_trace=True,
+    live_spy=True,
+  )
+
+  example.start()
+  time.sleep(0.01)
+
+  example.post_fifo(Event(signal=signals.to_p))
+  time.sleep(0.01)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("to_p", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+
+In the above listing we see how the chart is created, started and how you can
+send a ``to_p`` event into it, then we ask it for its active states.  We see it
+reports ``[['p_p11_s11', 'p_p11_s21'], 'p_s21']``, which describes all of it's
+current states and some regional information by having nested lists.  The
+outermost list represents the whole chart and the inner list represents that
+``p_p11_s11`` and ``p_p11_s21`` are within a parallel region.
+
+To code required to make ``active_states`` is within the ``ScxmlChart`` class:
+
+.. code-block:: python
+
+  def active_states(self):
+
+    parallel_state_names = self.regions.keys()
+
+    def recursive_get_states(name):
+      states = []
+      if name in parallel_state_names:
+        for region in self.regions[name]._regions:
+          if region.state_name in parallel_state_names:
+            _states = recursive_get_states(region.state_name)
+            states.append(_states)
+          else:
+            states.append(region.state_name)
+      else:
+        states.append(self.state_name)
+      return states
+
+    states = recursive_get_states(self.state_name)
+    return states
+
 .. _recipes-building-a-subregion:
 
 Building a Subregion
@@ -218,7 +371,7 @@ To build the ``p_p11`` subregion you will need to:
         status = r.trans(e.payload.state)
       else:
         status = return_status.HANDLED
-    elif(e.signal == signals.EXIT_SIGNAL or 
+    elif(e.signal == signals.EXIT_SIGNAL or
          e.signal == signals.region_exit):
       if outmost.live_spy and outmost.instrumented:
         outmost.live_spy_callback(
@@ -269,7 +422,7 @@ that subregion of the orthogonal component which behaves like a subregion:
     return status
 
   @p_spy_on
-  def p_p11_r1_over_hidden_region(rr, e): 
+  def p_p11_r1_over_hidden_region(rr, e):
     status = return_status.UNHANDLED
     if(e.signal==signals.force_region_init):
       status = rr.trans(p_p11_r1_region)
@@ -366,29 +519,29 @@ multiple regional boundaries.
     :target: _static/xml_chart_4.pdf
     :align: center
 
-As it passes a boundary it turns that boundary on, by issueing an INIT_SIGNAL.
+As it passes a boundary it turns that boundary on, by issuing an INIT_SIGNAL.
 If the INIT_SIGNAL handling code finds INIT_META events waiting in that region's
 deque, it will pull out its META_SIGNAL_PAYLOAD, extract the state and event
 information, then transition to the state and post then next event into the
-deque.  In this way the deque acts like a program stack, but in a very light
-way.
+deque.  In this way the deque acts like a very-lightweight program stack.
 
 .. note::
-  
+
    The downside of this technique is that the source of the ``E0`` event needs to
    know about the structure of the chart, the algorithm can not figure it out on
-   the fly like it would if it were using the miros algorithim.  
+   the fly like it would if it were using the miros algorithim.
 
    This could be addressed by having the ``E0`` events or other ``E`` event be
    structured programmatically with an autocacher wrapping the method.
 
 The source state needs to know a lot of information about the statechart for the
-``E0`` signal to work.  In the diagram listed above the outer
+``E0`` signal to work.  The ``outer_state`` in the picture above would look like
+this in code:
 
 .. code-block:: python
   :emphasize-lines: 10-34
   :linenos:
-    
+
      @spy_on
      def outer_state(self, e):
        status = return_status.UNHANDLED
@@ -442,7 +595,7 @@ Here is part of the ``p`` state handler:
 .. code-block:: python
   :emphasize-lines: 5-12
   :linenos:
-  
+
   @spy_on
   def p(self, e):
     status = return_status.UNHANDLED
@@ -457,12 +610,12 @@ Here is part of the ``p`` state handler:
       status = return_status.HANDLED
     # any event handled within there regions must be pushed from here
     elif(self.token_match(e.signal_name, "e1") or
-        self.token_match(e.signal_name, "e2") or 
-        self.token_match(e.signal_name, "e3") or 
-        self.token_match(e.signal_name, "e4") or 
-        self.token_match(e.signal_name, "e5") or 
-        self.token_match(e.signal_name, "C0") or 
-        # self.token_match(e.signal_name, "G3") or 
+        self.token_match(e.signal_name, "e2") or
+        self.token_match(e.signal_name, "e3") or
+        self.token_match(e.signal_name, "e4") or
+        self.token_match(e.signal_name, "e5") or
+        self.token_match(e.signal_name, "C0") or
+        # self.token_match(e.signal_name, "G3") or
         self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
         self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
         self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
@@ -478,16 +631,49 @@ state.  On lines 6 to 7 we see that this is being reported to the spy scribble.
 
 Line 8 shows the use of the ``init_stack`` method, which pulls META_INIT signals
 out of the statechart's deque if they are there.  Lines 9-10, show that if a
-state is found (A META_INIT event was present) post the next META_INIT signal
+state was found (A META_INIT event was present) post the next META_INIT signal
 into the injectee state managed by this injector (``p``).
 
 Finally, on line 11 the injectee region is entered by injecting the
-``enter_region`` event into this orthogonal component.
+``enter_region`` event into this orthogonal component.  This ``enter_region``
+event will cause a transition from the ``p_r1_under_hidden_region`` into the
+``p_r1_region`` state and the ``p_r2_under_hidden_region`` into the ``p_r2_region``
+state. Once the ``p_r1_region`` and ``p_r2_region`` have been entered, the event
+processor will issue an ``INIT_SIGNAL``.
 
-The result of these commands is to force a transition from ``p``'s
-``under_hidden`` regions into their region handlers and ultimately to force the
-INIT of that region where another ``init_stack`` call will be made to hack the
-intension of the INIT_SIGNAL.
+To see how the META_INIT event has its information passed into the next region
+we will look ``p_r1_region``:
+
+.. code-block:: python
+  :emphasize-lines: 6-15
+  :linenos:
+
+  @p_spy_on
+  def p_r1_region(r, e):
+    status = return_status.UNHANDLED
+    if(e.signal == signals.ENTRY_SIGNAL):
+      status = return_status.HANDLED
+    elif(e.signal == signals.INIT_SIGNAL):
+      (_e, _state) = r.init_stack(e) # search for INIT_META
+      # if _state is a child of this state then transition to it
+
+      if _state is None or not r.has_a_child(_state):
+        status = r.trans(p_p11)
+      else:
+        status = r.trans(_state)
+        if not _e is None:
+          r.post_fifo(_e)
+  # ..
+
+The ``INIT_SIGNAL`` handler for this state function has been adjusted to read
+the deque and from it pull a state and an event, if a META_INIT event was placed
+there.  This is done within the ``init_stack`` method.
+
+The default behavior for this state is seen on line 11, and the dynamics
+behavior to support the transport of a ``WTF`` event deeper into the chart is
+seen on lines 13-14.  Line 13 causes a transition to a dynamic state, feed by
+the original injectee of the ``E0`` event.  The next META_INIT event is posted
+to the next injector on line 15.
 
 .. _recipes-hidden-dynamics:
 
@@ -495,8 +681,6 @@ Hidden Dynamics
 ^^^^^^^^^^^^^^^
 
 
-
 .. raw:: html
 
   <a class="reference internal" href="quickstart.html"<span class="std-ref">prev</span></a>, <a class="reference internal" href="index.html#top"><span class="std std-ref">top</span></a>, <a class="reference internal" href="introduction.html"><span class="std std-ref">next</span></a>
-

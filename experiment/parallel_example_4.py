@@ -28,9 +28,9 @@ def p_spy_on(fn):
     **Returns**:
        (function): wrapped function
     **Example(s)**:
-g
+
     .. code-block:: python
-g
+
        @p_spy_on
        def example(p, e):
         status = return_status.UNHANDLED
@@ -438,9 +438,6 @@ class ScxmlChart(InstrumentedActiveObject):
       return states
 
     states = recursive_get_states(self.state_name)
-    #for state in states:
-    #  states = recursive_get_states(self.state_name)
-
     return states
 
 
@@ -582,7 +579,7 @@ def p_p11_r1_region(rr, e):
   return status
 
 @p_spy_on
-def p_p11_r1_over_hidden_region(rr, e): 
+def p_p11_r1_over_hidden_region(rr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
     status = rr.trans(p_p11_r1_region)
@@ -660,7 +657,7 @@ def p_p11_r2_region(rr, e):
   return status
 
 @p_spy_on
-def p_p11_r2_over_hidden_region(rr, e): 
+def p_p11_r2_over_hidden_region(rr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
     status = rr.trans(p_p11_r2_region)
@@ -835,7 +832,7 @@ def p_p12_p11(rr, e):
     outmost.regions['p_p12_p11'].post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(outmost.token_match(e.signal_name, "G1") or 
+  elif(outmost.token_match(e.signal_name, "G1") or
        outmost.token_match(e.signal_name, outmost.regions['p_p12_p11'].final_signal_name)
       ):
     if outmost.live_spy and outmost.instrumented:
@@ -1471,12 +1468,12 @@ def p(self, e):
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(self.token_match(e.signal_name, "e1") or
-      self.token_match(e.signal_name, "e2") or 
-      self.token_match(e.signal_name, "e3") or 
-      self.token_match(e.signal_name, "e4") or 
-      self.token_match(e.signal_name, "e5") or 
-      self.token_match(e.signal_name, "C0") or 
-      # self.token_match(e.signal_name, "G3") or 
+      self.token_match(e.signal_name, "e2") or
+      self.token_match(e.signal_name, "e3") or
+      self.token_match(e.signal_name, "e4") or
+      self.token_match(e.signal_name, "e5") or
+      self.token_match(e.signal_name, "C0") or
+      # self.token_match(e.signal_name, "G3") or
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
@@ -1596,7 +1593,7 @@ if __name__ == '__main__':
   time.sleep(0.02)
   active_states = example.active_states()
   print("{:>10} -> {}".format("e1", active_states))
-  assert active_states == [['p_p12_r1_final', 'p_p12_s22'], ['p_p22_r1_final', 'p_p22_s22']] 
+  assert active_states == [['p_p12_r1_final', 'p_p12_s22'], ['p_p22_r1_final', 'p_p22_s22']]
 
   example.post_fifo(Event(signal=signals.e2))
   time.sleep(0.04)
@@ -1633,4 +1630,3 @@ if __name__ == '__main__':
   active_states = example.active_states()
   print("{:>10} -> {}".format("E0", active_states))
   assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
-
