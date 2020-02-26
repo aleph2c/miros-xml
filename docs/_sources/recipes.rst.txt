@@ -111,7 +111,7 @@ Context and Terminology
              :align: center
 
          The ScxmlChart will have a dict containing multiple Regions.  The
-         ScxmlChart's thread will drive the entire collection of orthgonal
+         ScxmlChart's thread will drive the entire collection of orthogonal
          regions.  It will inject all of the events, via the regions dictionary.
 
          All of the ScxmlChart connected state methods will have a ``@spy_on``
@@ -525,15 +525,6 @@ deque, it will pull out its META_SIGNAL_PAYLOAD, extract the state and event
 information, then transition to the state and post then next event into the
 deque.  In this way the deque acts like a very-lightweight program stack.
 
-.. note::
-
-   The downside of this technique is that the source of the ``E0`` event needs to
-   know about the structure of the chart, the algorithm can not figure it out on
-   the fly like it would if it were using the miros algorithim.
-
-   This could be addressed by having the ``E0`` events or other ``E`` event be
-   structured programmatically with an autocacher wrapping the method.
-
 The source state needs to know a lot of information about the statechart for the
 ``E0`` signal to work.  The ``outer_state`` in the picture above would look like
 this in code:
@@ -557,12 +548,12 @@ this in code:
          eeee = Event(
            signal=signals.INIT_META,
            payload=META_SIGNAL_PAYLOAD(
-             event=None, state=p_p11_s21, source_event=e, region=None)
+             event=None, state=p_p11_s22, source_event=e, region=None)
          )
          eee = Event(
            signal=signals.INIT_META,
            payload=META_SIGNAL_PAYLOAD(
-             event=eeee, state="p_p11_s21", source_event=e, region=None)
+             event=eeee, state=p_p11_r2_region, source_event=e, region=None)
          )
          ee = Event(
            signal=signals.INIT_META,
@@ -571,7 +562,7 @@ this in code:
          )
          _e = Event(
            signal=signals.INIT_META,
-           payload=META_SIGNAL_PAYLOAD(event=ee, state="p_p11", source_event=e,
+           payload=META_SIGNAL_PAYLOAD(event=ee, state=p_r1_region, source_event=e,
              region=None)
          )
          self.post_fifo(_e)
@@ -580,6 +571,7 @@ this in code:
          self.temp.fun = self.bottom
          status = return_status.SUPER
        return status
+
 
 On line 10 we see the ``E0`` state handler in the ``outer_state``.  Lines 11-12
 report on its discovery to the spy scribble. Line 13-32 show how to construct a
@@ -590,7 +582,12 @@ the META_EVENT out of the deque, then push its inner META_INIT event into the
 ``p`` region.  Line 34 causes a transition to ``p``, so that this
 event can be dealt with once ``p`` has initialized.
 
-Here is part of the ``p`` state handler:
+.. note::
+
+   The construction of E0 has been automated, see :ref:`update below <e0-update>`
+
+
+Here is part of the ``p`` state handler (injector):
 
 .. code-block:: python
   :emphasize-lines: 5-12
@@ -631,7 +628,7 @@ state.  On lines 6 to 7 we see that this is being reported to the spy scribble.
 
 Line 8 shows the use of the ``init_stack`` method, which pulls META_INIT signals
 out of the statechart's deque if they are there.  Lines 9-10, show that if a
-state was found (A META_INIT event was present) post the next META_INIT signal
+state was found and a META_INIT event was present, post the next META_INIT signal
 into the injectee state managed by this injector (``p``).
 
 Finally, on line 11 the injectee region is entered by injecting the
@@ -669,11 +666,225 @@ The ``INIT_SIGNAL`` handler for this state function has been adjusted to read
 the deque and from it pull a state and an event, if a META_INIT event was placed
 there.  This is done within the ``init_stack`` method.
 
-The default behavior for this state is seen on line 11, and the dynamics
+The default behavior for this state is seen on line 11, and the dynamic
 behavior to support the transport of a ``WTF`` event deeper into the chart is
 seen on lines 13-14.  Line 13 causes a transition to a dynamic state, feed by
 the original injectee of the ``E0`` event.  The next META_INIT event is posted
 to the next injector on line 15.
+
+----
+
+.. _e0-update:
+
+**Update:**
+
+A method was constructed to build the ``E0`` ``WTF`` meta event.  It was called
+``build_meta_event``, to use it you provide the target, and the event name:
+
+   .. code-block:: python
+     :emphasize-lines: 7, 8
+     :linenos:
+
+     @spy_on
+     def outer_state(self, e):
+        # ..
+        elif(self.token_match(e.signal_name, "E0")):
+          if self.live_spy and self.instrumented:
+            self.live_spy_callback("{}:outer_state".format(e.signal_name))
+           _e = self.build_meta_event(t=p_p11_s22, sig='E0')
+           self.post_fifo(_e.payload.event)
+           status = self.trans(_e.payload.state)
+        # ..
+
+This is a generalized solution for creating an ``E0`` event.  It replaces this
+code:
+
+
+.. code-block:: python
+  :emphasize-lines: 7-26
+  :linenos:
+
+     @spy_on
+     def outer_state(self, e):
+       # ...
+       elif(self.token_match(e.signal_name, "E0")):
+         if self.live_spy and self.instrumented:
+           self.live_spy_callback("{}:outer_state".format(e.signal_name))
+         eeee = Event(
+           signal=signals.INIT_META,
+           payload=META_SIGNAL_PAYLOAD(
+             event=None, state=p_p11_s22, source_event=e, region=None)
+         )
+         eee = Event(
+           signal=signals.INIT_META,
+           payload=META_SIGNAL_PAYLOAD(
+             event=eeee, state=p_p11_r2_region, source_event=e, region=None)
+         )
+         ee = Event(
+           signal=signals.INIT_META,
+           payload=META_SIGNAL_PAYLOAD(event=eee, state=p_p11, source_event=e,
+             region=None)
+         )
+         _e = Event(
+           signal=signals.INIT_META,
+           payload=META_SIGNAL_PAYLOAD(event=ee, state=p_r1_region, source_event=e,
+             region=None)
+         )
+         self.post_fifo(_e)
+         status = self.trans(p)
+       else:
+         self.temp.fun = self.bottom
+         status = return_status.SUPER
+       return status
+
+To make ``build_meta_event`` work I had to adjust the ``Region`` class to track the
+``under_hidden_state_function``, ``region_state_function`` and
+``over_hidden_state_function`` within its ``fns`` attribute (dict).  By tracking
+the ``region_state_function`` it became possible to add a ``has_state`` method
+to the ``Region`` class.  The ``has_state`` method is used to determine if a
+region contained a state.  Since the regions are in a collection, and you can
+ask them if a state is in that region, I now have the capability of infering the
+graph structure of the recursive orthogonal regions, once we have a target
+function.  The search requires iteration, but the result will always be the
+same, so the process can be sped up by using the autocaching ``@lcu_cache``
+decorator.
+
+.. _recipes-e1-wtf-event:
+
+E1 WTF Event
+------------
+
+The E1 event occurs from an inner orthogonal state chart and deeper into the
+chart, passing over one or more regional boundaries.
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
+    :align: center
+
+Despite, ``E1`` being handled within the p region, we handle it within the ``p``
+injector, which still has access to the outer chart's thread:
+
+.. code-block:: python
+  :emphasize-lines: 8-11
+  :linenos:
+
+   @spy_on
+   def p(self, e):
+     status = return_status.UNHANDLED
+   # ..
+     elif(self.token_match(e.signal_name, "E1")):
+       if self.live_spy and self.instrumented:
+         self.live_spy_callback("{}:p".format(e.signal_name))
+       _e = self.build_meta_event(t=p_p11_s22, s=p, sig=e.signal_name)
+       self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
+       self.regions['p'].post_fifo(_e)
+       status = return_status.HANDLED
+
+On line 8 the meta event is constructed, with a target equal to ``p_p11_s22``
+and it's sources state set to ``p``.  The event name is passed through into the
+method, though it is currently not used.
+
+Line 9, pushes a ``force_region_init`` into the ``p`` region's orthogonal
+component's queue, then on line 10, the meta event is placed and the events are
+driven through the orthogonal component by the ``complete_circuit`` method
+within the ``post_fifo`` call.
+
+E2 WTF Event
+------------
+The E2 event occurs from an inner orthogonal state chart and causes a transition
+event even deeper into the chart, passing over one or more regional boundaries.
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
+    :align: center
+
+To make this work, the ``E2`` must first be injected and driven through the
+internal orthogonal components by the outer most injector:
+
+.. code-block:: python
+  :emphasize-lines: 12
+  :linenos:
+
+   @spy_on
+   def p(self, e):
+     # ..
+
+     # any event handled within there regions must be pushed from here
+     elif(type(self.regions) == dict and (self.token_match(e.signal_name, "e1") or
+         self.token_match(e.signal_name, "e2") or
+         self.token_match(e.signal_name, "e3") or
+         self.token_match(e.signal_name, "e4") or
+         self.token_match(e.signal_name, "e5") or
+         self.token_match(e.signal_name, "C0") or
+         self.token_match(e.signal_name, "E2") or
+         # self.token_match(e.signal_name, "G3") or
+         self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
+         self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
+         self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
+         )):
+       if self.live_spy and self.instrumented:
+         self.live_spy_callback("{}:p".format(e.signal_name))
+       self.regions['p'].post_fifo(e)
+       status = return_status.HANDLED
+
+The construction of its META_INIT event occurs within the ``p_p12`` handler:
+
+.. code-block:: python
+  :emphasize-lines: 3, 6-12
+  :linenos:
+
+   @p_spy_on
+   def p_p12(r, e):
+     outmost = r.outmost
+     status = return_status.UNHANDLED
+     # ..
+     elif outmost.token_match(e.signal_name, "E2"):
+       if outmost.live_spy and outmost.instrumented:
+         outmost.live_spy_callback("{}:p_p12".format(e.signal_name))
+       _e = outmost.build_meta_event(t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
+       outmost.regions['p_p12']._post_lifo(Event(signal=signals.force_region_init))
+       outmost.regions['p_p12'].post_fifo(_e)
+       status = return_status.HANDLED
+
+On line 3, the region makes a handle to the outer most statechart ``ScxmlChart``
+so it can access the methods required to build a meta event and to access the
+queues and post events.
+
+Line 9 demonstrates for the ``E2`` type event we need to specify the target,
+``t``, the source ``s`` and the event's signals name (E2).  The resulting meta
+event is returned as ``_e``.
+
+On line 10 the first location of each queue of the orthogonal regions of
+``p_p12`` have the ``force_region_init`` event posted to their far left location.  On
+line 11, the ``_e`` meta event is placed the the right of each
+``force_region_init`` event for each queue in the ``p_p12`` region, then all
+events are pushed through those machines.
+
+To make the ``E2`` event work for the entire chart, a handler needs to be added
+to ``p_p22`` (and I currently don't understand why this is the case):
+
+.. code-block:: python
+  :emphasize-lines: 10
+  :linenos:
+
+   @p_spy_on
+   def p_p22(r, e):
+     outmost = r.outmost
+     status = return_status.UNHANDLED
+     # ..
+     # any event handled within there regions must be pushed from here
+     elif(outmost.token_match(e.signal_name, "e1") or
+         outmost.token_match(e.signal_name, "e2") or
+         outmost.token_match(e.signal_name, "e4") or
+         outmost.token_match(e.signal_name, "E2")
+         ):
+       if outmost.live_spy and outmost.instrumented:
+         outmost.live_spy_callback("{}:p_p22".format(e.signal_name))
+       outmost.regions['p_p22'].post_fifo(e)
+       status = return_status.HANDLED
+
+If ``E2`` is not permitted to be driven through the ``p_p22`` the statechart
+doesn't work properly.
 
 .. _recipes-hidden-dynamics:
 

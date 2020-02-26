@@ -395,46 +395,54 @@
       /><text x="5" font-size="13px" y="37.0938" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >entry /</text
       ><text x="5" font-size="13px" y="52.1406" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  self.regions[&lt;name&gt;].post_fifo(Event(signal=signals.enter_region))</text
+      >  (_e, _state) = self.init_stack(e) # search for INIT_META</text
+      ><text x="5" font-size="13px" y="67.1875" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >  if _state:</text
       ><text x="5" font-size="13px" y="82.2344" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >force_region_init as e /</text
+      >    self.regions[&lt;name&gt;]._post_fifo(_e)</text
       ><text x="5" font-size="13px" y="97.2812" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  self.post_fifo(event=e)</text
+      >  self.regions[&lt;name&gt;].post_lifo(Event(signal=signals.enter_region))</text
       ><text x="5" font-size="13px" y="112.3281" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  self.post_fifo(event=e.payload)</text
-      ><text x="5" font-size="13px" y="127.375" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >  status = return_status.HANDLED</text
       ><text x="5" font-size="13px" y="142.4219" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >force_region_init as e /</text
       ><text x="5" font-size="13px" y="157.4688" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >  self.post_fifo(event=e)</text
+      ><text x="5" font-size="13px" y="172.5156" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >  self.post_fifo(event=e.payload)</text
       ><text x="5" font-size="13px" y="187.5625" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >E1 /</text
+      >  .</text
       ><text x="5" font-size="13px" y="202.6094" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  self.regions['p']._post_lifo(Event(signal=signals.force_region_init))</text
+      >  .</text
       ><text x="5" font-size="13px" y="217.6562" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  # ... build E1's META_INIT as _e</text
-      ><text x="5" font-size="13px" y="232.7031" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  self.regions['p'].post_fifo(_e)</text
+      >  .</text
       ><text x="5" font-size="13px" y="247.75" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  </text
+      >E1 /</text
       ><text x="5" font-size="13px" y="262.7969" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >  self.regions['p']._post_lifo(Event(signal=signals.force_region_init))</text
       ><text x="5" font-size="13px" y="277.8438" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >  # ... build E1's META_INIT as _e</text
       ><text x="5" font-size="13px" y="292.8906" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  .</text
+      >  self.regions['p'].post_fifo(_e)</text
       ><text x="5" font-size="13px" y="307.9375" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >  </text
       ><text x="5" font-size="13px" y="322.9844" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >exit / </text
+      >  .</text
       ><text x="5" font-size="13px" y="338.0312" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  (_e, _state) = self.init_stack(e) # search for INIT_META</text
+      >  .</text
       ><text x="5" font-size="13px" y="353.0781" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  if _state:</text
+      >  .</text
       ><text x="5" font-size="13px" y="368.125" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >    self.regions['p']._post_fifo(_e)</text
+      >  </text
       ><text x="5" font-size="13px" y="383.1719" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >exit / </text
+      ><text x="5" font-size="13px" y="398.2188" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >  (_e, _state) = self.init_stack(e) # search for INIT_META</text
+      ><text x="5" font-size="13px" y="413.2656" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >  if _state:</text
+      ><text x="5" font-size="13px" y="428.3125" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
+      >    self.regions['p']._post_fifo(_e)</text
+      ><text x="5" font-size="13px" y="443.3594" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >  self.regions[&lt;name&gt;].post_lifo(Event(signal=signals.region_exit))</text
     ></g
     ><g transform="translate(660,740)"

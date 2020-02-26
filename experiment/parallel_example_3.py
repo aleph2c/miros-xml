@@ -922,11 +922,11 @@ def p(self, e):
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(self.token_match(e.signal_name, "e1") or
-      self.token_match(e.signal_name, "e2") or 
-      self.token_match(e.signal_name, "e3") or 
-      self.token_match(e.signal_name, "e4") or 
-      self.token_match(e.signal_name, "e5") or 
-      self.token_match(e.signal_name, "G3") or 
+      self.token_match(e.signal_name, "e2") or
+      self.token_match(e.signal_name, "e3") or
+      self.token_match(e.signal_name, "e4") or
+      self.token_match(e.signal_name, "e5") or
+      self.token_match(e.signal_name, "G3") or
       self.token_match(e.signal_name, self.regions['pp12'].final_signal_name)
       ):
     if self.live_spy and self.instrumented:
@@ -997,7 +997,7 @@ if __name__ == '__main__':
   active_states = None
   example = ScxmlChart(
     name='parallel',
-    log_file="/mnt/c/github/xml/experiment/parallel_example_2.log",
+    log_file="/mnt/c/github/miros-xml/experiment/parallel_example_3.log",
     live_trace=True,
     live_spy=True,
   )
@@ -1123,4 +1123,3 @@ if __name__ == '__main__':
   #time.sleep(0.1)
   #print(active_states)
   #assert active_states == ['some_other_state']
-

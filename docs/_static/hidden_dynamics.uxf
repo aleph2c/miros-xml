@@ -356,7 +356,11 @@ layer=3</panel_attributes>
     <panel_attributes>*state_which_owns_a_region_othogonal_component*
 --
 entry /
-  self.regions[&lt;name&gt;].post_fifo(Event(signal=signals.enter_region))
+  (_e, _state) = self.init_stack(e) # search for INIT_META
+  if _state:
+    self.regions[&lt;name&gt;]._post_fifo(_e)
+  self.regions[&lt;name&gt;].post_lifo(Event(signal=signals.enter_region))
+  status = return_status.HANDLED
 
 force_region_init as e /
   self.post_fifo(event=e)
@@ -369,12 +373,12 @@ E1 /
   self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
   # ... build E1's META_INIT as _e
   self.regions['p'].post_fifo(_e)
-  
+
   .
   .
   .
-  
-exit / 
+
+exit /
   (_e, _state) = self.init_stack(e) # search for INIT_META
   if _state:
     self.regions['p']._post_fifo(_e)
@@ -418,15 +422,15 @@ layer=3</panel_attributes>
       <w>343</w>
       <h>91</h>
     </coordinates>
-    <panel_attributes>elif(e.signal == signals.INIT_SIGNAL):  
+    <panel_attributes>elif(e.signal == signals.INIT_SIGNAL):
   (_e, _state) = r.init_stack(e)
   if _state is None or not r.has_a_child(_state):
     status = r.trans(p_s11)  # predetermined init behavior based on chart
   else:
     status = r.trans(_state) # transition to state carried in META_INIT_PAYLOAD
-    if not _e is None: 
+    if not _e is None:
       r.post_fifo(_e)  # to inject into inner othogonal compoent if there
-   
+
 style=wordwrap
 layer=3</panel_attributes>
     <additional_attributes/>
@@ -751,7 +755,7 @@ layer=3</panel_attributes>
       <w>70</w>
       <h>35</h>
     </coordinates>
-    <panel_attributes>entry / 
+    <panel_attributes>entry /
 exit /
 style=wordwrap
 layer=3</panel_attributes>
@@ -1120,8 +1124,8 @@ fg=blue</panel_attributes>
       <w>105</w>
       <h>49</h>
     </coordinates>
-    <panel_attributes>sent when 
-ps12_s1Final and 
+    <panel_attributes>sent when
+ps12_s1Final and
 ps12_s2Final states
 have been entered
 layer=3</panel_attributes>

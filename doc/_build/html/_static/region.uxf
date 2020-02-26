@@ -18,7 +18,7 @@
       <x>380</x>
       <y>270</y>
       <w>220</w>
-      <h>230</h>
+      <h>250</h>
     </coordinates>
     <panel_attributes>*Region*
 --
@@ -28,12 +28,14 @@ outmost
 final_event
 instrumented
 outer
+fns
 --
 post_p_final_to_outmost_if_ready
 tokenize
 token_match
 init_stack
 has_a_child
+has_state
 get_region
 
 layer=1</panel_attributes>
@@ -55,7 +57,7 @@ layer=3</panel_attributes>
     <id>UMLState</id>
     <coordinates>
       <x>470</x>
-      <y>430</y>
+      <y>440</y>
       <w>120</w>
       <h>60</h>
     </coordinates>
