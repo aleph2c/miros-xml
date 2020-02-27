@@ -785,10 +785,13 @@ class ScxmlChart(InstrumentedActiveObject):
 
 # this will be wrapped into the class at some point
 @lru_cache(maxsize=32)
-def outmost_region_functions(outmost, region_name):
+def outmost_region_functions(region, region_name):
+
+  outmost = region.outmost
   def scribble(string):
     if outmost.live_spy and outmost.instrumented:
       outmost.live_spy_callback("{}:{}".format(string, region_name))
+
   post_fifo = partial(outmost.regions[region_name].post_fifo, outmost=outmost)
   _post_fifo = partial(outmost.regions[region_name]._post_fifo, outmost=outmost)
   post_lifo = partial(outmost.regions[region_name].post_lifo, outmost=outmost)
@@ -873,27 +876,26 @@ def p_p11(r, e):
   r is either p_r1, p_r2 region
   r.outer = p
   '''
+  status = return_status.UNHANDLED
   outmost = r.outmost
   (post_fifo,
    _post_fifo,
    post_lifo,
    _post_lifo,
    token_match,
-   scribble) = outmost_region_functions(outmost, 'p_p11')
+   scribble) = outmost_region_functions(r, 'p_p11')
 
-  status = return_status.UNHANDLED
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11")
     scribble(e.signal_name)
-    #if outmost.live_spy and outmost.instrumented:
-    #  outmost.live_spy_callback("{}:p_p11".format(e.signal_name))
     (_e, _state) = r.init_stack(e) # search for INIT_META
     if _state:
       _post_fifo(_e, outmost=outmost)
     outmost.ref()
     post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
+
   # any event handled within there regions must be pushed from here
   elif(token_match(e.signal_name, "e1") or
        token_match(e.signal_name, "e2") or
@@ -905,12 +907,12 @@ def p_p11(r, e):
     scribble(e.signal_name)
     post_fifo(e)
     status = return_status.HANDLED
-  elif(token_match(e.signal_name, outmost.regions['p_p11'].final_signal_name)):
+  elif token_match(e.signal_name, outmost.regions['p_p11'].final_signal_name):
     scribble(e.signal_name)
     status = r.trans(p_p12)
   elif token_match(e.signal_name, "C0"):
     status = r.trans(p_p12)
-  elif(e.signal == signals.META_EXIT):
+  elif e.signal == signals.META_EXIT:
     region1 = r.get_region()
     region2 = r.get_region(e.payload.state)
     if region1 == region2:
@@ -922,7 +924,7 @@ def p_p11(r, e):
       r.outer._post_lifo(e)
       r.outmost.complete_circuit()
     status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
+  elif e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit:
     scribble(Event(signal=signals.region_exit))
     post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p11")
@@ -1182,17 +1184,23 @@ def p_r1_final(r, e):
 
 @p_spy_on
 def p_p12(r, e):
-  outmost = r.outmost
   status = return_status.UNHANDLED
+  outmost = r.outmost
+  (post_fifo,
+   _post_fifo,
+   post_lifo,
+   _post_lifo,
+   token_match,
+   scribble) = outmost_region_functions(r, 'p_p12')
+
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12")
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12".format(e.signal_name))
+    scribble(e.signal_name)
     (_e, _state) = r.init_stack(e) # search for INIT_META
     if _state:
-      outmost.regions['p_p12']._post_fifo(_e)
-    outmost.regions['p_p12'].post_lifo(Event(signal=signals.enter_region))
+      _post_fifo(_e)
+    post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(outmost.token_match(e.signal_name, "e1") or
@@ -1200,29 +1208,25 @@ def p_p12(r, e):
       outmost.token_match(e.signal_name, "e4") or
       outmost.token_match(e.signal_name, "G3")
       ):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12".format(e.signal_name))
-    outmost.regions['p_p12'].post_fifo(e)
+    scribble(e.signal_name)
+    post_fifo(e)
     status = return_status.HANDLED
   # final token match
   elif(outmost.token_match(e.signal_name, outmost.regions['p_p12'].final_signal_name)):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12".format(e.signal_name))
+    scribble(e.signal_name)
     status = r.trans(p_r1_final)
   elif(outmost.token_match(e.signal_name, "e5")):
     status = r.trans(p_r1_final)
   elif outmost.token_match(e.signal_name, "E2"):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12".format(e.signal_name))
+    scribble(e.signal_name)
     _e = outmost.meta_init(t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
-    outmost.regions['p_p12']._post_lifo(Event(signal=signals.force_region_init))
-    outmost.regions['p_p12'].post_fifo(_e)
+    _post_lifo(Event(signal=signals.force_region_init))
+    post_fifo(_e)
     status = return_status.HANDLED
   # exit signals
   elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12".format(Event(signal=signals.region_exit)))
-    outmost.regions['p_p12'].post_lifo(Event(signal=signals.region_exit))
+    scribble('region_exit')
+    post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p12")
     status = return_status.HANDLED
   else:
@@ -1297,17 +1301,23 @@ def p_p12_r1_over_hidden_region(rr, e):
 # inner parallel
 @p_spy_on
 def p_p12_p11(rr, e):
-  outmost = rr.outmost
   status = return_status.UNHANDLED
+  outmost = rr.outmost
+  (post_fifo,
+   _post_fifo,
+   post_lifo,
+   _post_lifo,
+   token_match,
+   scribble) = outmost_region_functions(rr, 'p_p12_p11')
+
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11")
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12_p11".format(e.signal_name))
+    scribble(e.signal_name)
     (_e, _state) = rr.init_stack(e) # search for INIT_META
     if _state:
-      outmost.regions['p_p12_p11']._post_fifo(_e)
-    outmost.regions['p_p12_p11'].post_lifo(Event(signal=signals.enter_region))
+      _post_fifo(_e)
+    post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   #elif(outmost.token_match(e.signal_name, "G2") or
@@ -1318,8 +1328,7 @@ def p_p12_p11(rr, e):
   #  outmost.regions['p_p12_p11'].post_fifo(e)
   #  status = return_status.HANDLED
   elif(outmost.token_match(e.signal_name, outmost.regions['p_p12_p11'].final_signal_name)):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p12_p11".format(e.signal_name))
+    scribble(e.signal_name)
     status = rr.trans(p_p12_s12)
   elif(rr.token_match(e.signal_name, "e4")):
     status = rr.trans(p_p12_s12)
@@ -1719,32 +1728,36 @@ def p_s21(r, e):
 
 @p_spy_on
 def p_p22(r, e):
-  outmost = r.outmost
   status = return_status.UNHANDLED
+  outmost = r.outmost
+  (post_fifo,
+   _post_fifo,
+   post_lifo,
+   _post_lifo,
+   token_match,
+   scribble) = outmost_region_functions(r, 'p_p22')
+
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p22")
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p22".format(e.signal_name))
+    scribble(e.signal_name)
     (_e, _state) = r.init_stack(e) # search for INIT_META
     if _state:
-      outmost.regions['p_p22']._post_fifo(_e)
-    outmost.regions['p_p22'].post_lifo(Event(signal=signals.enter_region))
+      _post_fifo(_e)
+    post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(outmost.token_match(e.signal_name, "e1") or
-      outmost.token_match(e.signal_name, "e2") or
-      outmost.token_match(e.signal_name, "e4") or
-      outmost.token_match(e.signal_name, "E2")
+  elif(token_match(e.signal_name, "e1") or
+       token_match(e.signal_name, "e2") or
+       token_match(e.signal_name, "e4") or
+       token_match(e.signal_name, "E2")
       ):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p22".format(e.signal_name))
-    outmost.regions['p_p22'].post_fifo(e)
+    scribble(e.signal_name)
+    post_fifo(e)
     status = return_status.HANDLED
   # final token match
   elif(outmost.token_match(e.signal_name, outmost.regions['p_p22'].final_signal_name)):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p22".format(e.signal_name))
+    scribble(e.signal_name)
     status = r.trans(p_r2_final)
   #elif(e.signal == signals.META_EXIT):
   #  region1 = r.get_region()
@@ -1755,9 +1768,8 @@ def p_p22(r, e):
   #    status = return_status.HANDLED
   # exit signals
   elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("{}:p_p22".format(Event(signal=signals.region_exit)))
-    outmost.regions['p_p22'].post_lifo(Event(signal=signals.region_exit))
+    scribble("region_exit")
+    post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p22")
     status = return_status.HANDLED
   else:
