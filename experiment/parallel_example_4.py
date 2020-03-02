@@ -819,6 +819,9 @@ def p_r1_under_hidden_region(r, e):
 
     status = r.trans(r.fns['region_state_function'])
     #status = r.trans(p_r1_region)
+  elif(e.signal == signals.ENTRY_SIGNAL):
+    pprint("enter p_r1_under_hidden_region")
+    status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
     status = return_status.SUPER
@@ -828,6 +831,7 @@ def p_r1_under_hidden_region(r, e):
 def p_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
+    pprint("enter p_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     (_e, _state) = r.init_stack(e) # search for INIT_META
@@ -892,7 +896,6 @@ def p_p11(r, e):
     (_e, _state) = r.init_stack(e) # search for INIT_META
     if _state:
       _post_fifo(_e, outmost=outmost)
-    outmost.ref()
     post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
 
@@ -924,8 +927,12 @@ def p_p11(r, e):
       r.outer._post_lifo(e)
       r.outmost.complete_circuit()
     status = return_status.HANDLED
-  elif e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit:
-    scribble(Event(signal=signals.region_exit))
+  elif e.signal == signals.region_exit:
+    scribble(Event(e.signal_name))
+    #post_lifo(Event(signal=signals.region_exit))
+    status = r.trans(p_r1_under_hidden_region)
+  elif e.signal == signals.EXIT_SIGNAL:
+    scribble(Event(e.signal_name))
     post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p11")
     status = return_status.HANDLED
@@ -1224,7 +1231,11 @@ def p_p12(r, e):
     post_fifo(_e)
     status = return_status.HANDLED
   # exit signals
-  elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
+  elif(e.signal == signals.region_exit):
+    scribble(e.signal_name)
+    #post_lifo(Event(signal=signals.region_exit))
+    status = r.trans(p_r1_under_hidden_region)
+  elif(e.signal == signals.EXIT_SIGNAL):
     scribble('region_exit')
     post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p12")
@@ -1332,7 +1343,11 @@ def p_p12_p11(rr, e):
     status = rr.trans(p_p12_s12)
   elif(rr.token_match(e.signal_name, "e4")):
     status = rr.trans(p_p12_s12)
+  elif(e.signal == signals.region_exit):
+    scribble(e.signal_name)
+    status = rr.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
+    post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p12_p11")
     status = return_status.HANDLED
   else:
@@ -1493,10 +1508,10 @@ def p_p12_p11_r2_over_hidden_region(rrr, e):
 def p_p12_p11_s21(rrr, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_s12")
+    pprint("enter p_p12_p11_s21")
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_s12")
+    pprint("exit p_p12_p11_s21")
     status = return_status.HANDLED
   else:
     rrr.temp.fun = p_p12_p11_r2_over_hidden_region
@@ -1767,11 +1782,13 @@ def p_p22(r, e):
   #  else:
   #    status = return_status.HANDLED
   # exit signals
-  elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
-    scribble("region_exit")
+  elif(e.signal == signals.EXIT_SIGNAL):
     post_lifo(Event(signal=signals.region_exit))
     pprint("exit p_p22")
     status = return_status.HANDLED
+  elif(e.signal == signals.region_exit):
+    scribble(e.signal_name)
+    status = r.trans(p_r2_under_hidden_region)
   else:
     r.temp.fun = p_r2_over_hidden_region
     status = return_status.SUPER
@@ -1811,7 +1828,7 @@ def p_p22_r1_region(rr, e):
         rr.post_fifo(_e)
   # can we get rid of region_exit?
   elif(e.signal == signals.region_exit):
-    status = rr.trans(rr.fns['region_state_function'])
+    status = rr.trans(rr.fns['under_hidden_state_function'])
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -2023,6 +2040,7 @@ def outer_state(self, e):
   elif(self.token_match(e.signal_name, "to_p")):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
+    pprint("to_p outer_state")
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "E0")):
     if self.live_spy and self.instrumented:
@@ -2065,7 +2083,7 @@ def p(self, e):
     if _state:
       self.regions['p']._post_fifo(_e)
     pprint("enter p")
-    self.regions['p'].post_lifo(Event(signal=signals.enter_region))
+    self.regions['p'].post_lifo(Event(signal=signals.enter_region), outmost=self)
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(type(self.regions) == dict and (self.token_match(e.signal_name, "e1") or
@@ -2110,11 +2128,16 @@ def p(self, e):
   #  self.regions['p'].post_fifo(e.payload.event)
   #  status = return_status.HANDLED
   ## exit
-  elif(e.signal == signals.EXIT_SIGNAL or e.signal == signals.region_exit):
+  elif(e.signal == signals.EXIT_SIGNAL):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:p".format('region_exit'))
-    self.regions['p'].post_lifo(Event(signal=signals.region_exit))
+    self.regions['p'].post_lifo(Event(signal=signals.region_exit), outmost=self)
     pprint("exit p")
+    status = return_status.HANDLED
+  elif(e.signal == signals.region_exit):
+    if self.live_spy and self.instrumented:
+      self.live_spy_callback("{}:p".format('region_exit'))
+    #self.regions['p'].post_lifo(Event(signal=signals.region_exit), outmost=self)
     status = return_status.HANDLED
   else:
     self.temp.fun = outer_state
@@ -2130,8 +2153,8 @@ if __name__ == '__main__':
     live_trace=True,
     live_spy=True,
   )
-  example.instrumented = False
-  #example.instrumented = True
+  #example.instrumented = False
+  example.instrumented = True
   example.start()
   time.sleep(0.20)
 
@@ -2193,77 +2216,79 @@ if __name__ == '__main__':
   time.sleep(0.20)
   active_states = example.active_states()
   print("{:>10} -> {}".format("e2", active_states))
+  # break in p_r1_final
+  # place break point at
   assert active_states == ['some_other_state']
 
-  example.post_fifo(Event(signal=signals.to_p))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("to_p", active_states))
-  assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+  # example.post_fifo(Event(signal=signals.to_p))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("to_p", active_states))
+  # assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
 
-  example.post_fifo(Event(signal=signals.e4))
-  time.sleep(0.11)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("e4", active_states))
-  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  # example.post_fifo(Event(signal=signals.e4))
+  # time.sleep(0.11)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e4", active_states))
+  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  example.post_fifo(Event(signal=signals.e1))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("e1", active_states))
-  assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
+  # example.post_fifo(Event(signal=signals.e1))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e1", active_states))
+  # assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
 
-  example.post_fifo(Event(signal=signals.to_outer))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("to_outer", active_states))
-  assert active_states == ['outer_state']
+  # example.post_fifo(Event(signal=signals.to_outer))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("to_outer", active_states))
+  # assert active_states == ['outer_state']
 
-  # here are your WTF test
-  example.post_fifo(Event(signal=signals.E0))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("E0", active_states))
-  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
+  # # here are your WTF test
+  # example.post_fifo(Event(signal=signals.E0))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E0", active_states))
+  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
 
-  onion = example.meta_init(t=p_p11_s21, sig='E0')
-  assert onion.payload.state == p
-  assert onion.payload.event.payload.state == p_r1_region
-  assert onion.payload.event.payload.event.payload.state == p_p11
-  assert onion.payload.event.payload.event.payload.event.payload.state == p_p11_r2_region
-  assert onion.payload.event.payload.event.payload.event.payload.event.payload.state == p_p11_s21
-  assert onion.payload.event.payload.event.payload.event.payload.event.payload.event == None
+  # onion = example.meta_init(t=p_p11_s21, sig='E0')
+  # assert onion.payload.state == p
+  # assert onion.payload.event.payload.state == p_r1_region
+  # assert onion.payload.event.payload.event.payload.state == p_p11
+  # assert onion.payload.event.payload.event.payload.event.payload.state == p_p11_r2_region
+  # assert onion.payload.event.payload.event.payload.event.payload.event.payload.state == p_p11_s21
+  # assert onion.payload.event.payload.event.payload.event.payload.event.payload.event == None
 
-  example.post_fifo(Event(signal=signals.E1))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("E1", active_states))
-  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  # example.post_fifo(Event(signal=signals.E1))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E1", active_states))
+  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  example.post_fifo(Event(signal=signals.E2))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("E2", active_states))
-  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  # example.post_fifo(Event(signal=signals.E2))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E2", active_states))
+  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  example.post_fifo(Event(signal=signals.C0))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("C0", active_states))
-  assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+  # example.post_fifo(Event(signal=signals.C0))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("C0", active_states))
+  # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
-  example.post_fifo(Event(signal=signals.E2))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("E2", active_states))
-  time.sleep(0.1)
-  assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+  # example.post_fifo(Event(signal=signals.E2))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E2", active_states))
+  # time.sleep(0.1)
+  # assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
-  example.post_fifo(Event(signal=signals.E0))
-  time.sleep(0.20)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("E0", active_states))
-  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
+  # example.post_fifo(Event(signal=signals.E0))
+  # time.sleep(0.20)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E0", active_states))
+  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
 
   #example.post_fifo(Event(signal=signals.F1))
   #time.sleep(0.20)

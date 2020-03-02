@@ -1,0 +1,57 @@
+[[subgoals.parallel|back]]
+*Parallel Example 4*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) =
+== Evidence ([[evidence.parallel_example_4|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
+    Build a working comprehensive example of parallel regions using othogonal
+    components.
+
+    Build up the basic regression test.
+
+  *What is the problem?*
+
+
+  *Discoveries:* ([[notes.parallel_example_4|notes]])
+    The use of the rr.fns dict has made it harder to troubleshoot problems
+    because I can not grep and search for the functions I want to search for
+    directly.
+
+= Orient =
+  *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
+
+== Questions ==
+  *Questions for Parallel Example 4: >= 5*
+    Do you have enough information?
+    Is your information organized?
+    Do you need to write something to make it easier to see?
+    Can you think of anyway to speed up your feedback cycle?
+    Do you have something to baseline from?
+    Can you reproduce the problem?
+    Can you simplify your test?
+    What recently changed?
+    Are you still working on the right problem?
+    Are you still focused on the right goal?
+    What don't you know that you need to know?
+
+  *Assumptions*
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+
+
+  [[#Questions]]
+  *Idea/Hypotheses for Parallel Example 4: >=5*
+  * [ ]
+  * [ ]
+  * [ ]
+  * [ ]
+  * [ ]
+
+  *Chosen Research-Goal/Hypothesis*
+
+
+== Plan ([[plan.parallel_example_4|plan]]) ==
+
+= Act =
