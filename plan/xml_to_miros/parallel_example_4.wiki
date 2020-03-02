@@ -10,7 +10,12 @@
     Build up the basic regression test.
 
   *What is the problem?*
-
+    The rr.fns dict makes it hard to debug, unwind this
+    * [X] place a marker about where you are right now
+    * [X] turn the regression back on
+    * [ ] unwind the  rr.fns
+    * [ ] rerun regression
+    * [ ] go back to marker
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
     The use of the rr.fns dict has made it harder to troubleshoot problems

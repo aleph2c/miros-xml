@@ -817,8 +817,7 @@ def p_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
 
-    status = r.trans(r.fns['region_state_function'])
-    #status = r.trans(p_r1_region)
+    status = r.trans(p_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r1_under_hidden_region")
     status = return_status.HANDLED
@@ -843,7 +842,7 @@ def p_r1_region(r, e):
       if not _e is None:
         r.post_fifo(_e)
   elif(e.signal == signals.region_exit):
-    status = r.trans(r.fns['under_hidden_state_function'])
+    status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -861,7 +860,7 @@ def p_r1_region(r, e):
 def p_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = r.trans(r.fns['region_state_function'])
+    status = r.trans(p_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r1_over_hidden_region")
     status = return_status.HANDLED
@@ -973,7 +972,7 @@ def p_p11_r1_region(rr, e):
       if not _e is None:
         rr.post_fifo(_e)
   elif(e.signal == signals.region_exit):
-    status = rr.trans(rr.fns['under_hidden_state_function'])
+    status = rr.trans(p_p11_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -988,7 +987,7 @@ def p_p11_r1_region(rr, e):
 def p_p11_r1_over_hidden_region(rr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = rr.trans(rr.fns['region_state_function'])
+    status = rr.trans(p_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11_r1_over_hidden_region")
     status = return_status.HANDLED
@@ -1081,7 +1080,7 @@ def p_p11_r2_region(rr, e):
       if not _e is None:
         rr.post_fifo(_e)
   elif(e.signal == signals.region_exit):
-    status = rr.trans(rr.fns['under_hidden_state_function'])
+    status = rr.trans(p_p11_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p11_r2_region")
     status = return_status.HANDLED
@@ -1094,7 +1093,7 @@ def p_p11_r2_region(rr, e):
 def p_p11_r2_over_hidden_region(rr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = rr.trans(rr.fns['region_state_function'])
+    status = rr.trans(p_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11_r2_over_hidden_region")
     status = return_status.HANDLED
@@ -1391,7 +1390,7 @@ def p_p12_p11_r1_region(rrr, e):
     status = return_status.HANDLED
   # can we get rid of region_exit?
   elif(e.signal == signals.region_exit):
-    status = rrr.trans(rrr.fns['under_hidden_state_function'])
+    status = rrr.trans(p_p12_p11_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   else:
@@ -1403,7 +1402,7 @@ def p_p12_p11_r1_region(rrr, e):
 def p_p12_p11_r1_over_hidden_region(rrr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = rrr.trans(rrr.fns['region_state_function'])
+    status = rrr.trans(p_p12_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11_r1_over_hidden_region")
     status = return_status.HANDLED
@@ -1477,7 +1476,7 @@ def p_p12_p11_r2_region(rrr, e):
       if not _e is None:
         rrr.post_fifo(_e)
   elif(e.signal == signals.region_exit):
-    status = rrr.trans(rrr.fns['under_hidden_state_function'])
+    status = rrr.trans(p_p12_p11_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_r2_region")
     status = return_status.HANDLED
@@ -1492,7 +1491,7 @@ def p_p12_p11_r2_region(rrr, e):
 def p_p12_p11_r2_over_hidden_region(rrr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = rrr.trans(rrr.fns['region_state_function'])
+    status = rrr.trans(p_p12_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11_r2_over_hidden_region")
     status = return_status.HANDLED
@@ -1586,7 +1585,7 @@ def p_p12_r2_region(rr, e):
       if not _e is None:
         rr.post_fifo(_e)
   elif(e.signal == signals.region_exit):
-    status = rr.trans(rr.fns['under_hidden_state_function'])
+    status = rr.trans(p_p12_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_r2_region")
     status = return_status.HANDLED
@@ -1601,7 +1600,7 @@ def p_p12_r2_region(rr, e):
 def p_p12_r2_over_hidden_region(rr, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = rr.trans(rr.fns['region_state_function'])
+    status = rr.trans(p_p12_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_r2_over_hidden_region")
     status = return_status.HANDLED
@@ -1701,7 +1700,7 @@ def p_r2_region(r, e):
     pprint("exit p_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.region_exit):
-    status = r.trans(r.fns['under_hidden_state_function'])
+    status = r.trans(p_r2_under_hidden_region)
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   else:
@@ -1713,7 +1712,7 @@ def p_r2_region(r, e):
 def p_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
-    status = r.trans(r.fns['region_state_function'])
+    status = r.trans(p_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r2_over_hidden_region")
     status = return_status.HANDLED
@@ -1828,7 +1827,7 @@ def p_p22_r1_region(rr, e):
         rr.post_fifo(_e)
   # can we get rid of region_exit?
   elif(e.signal == signals.region_exit):
-    status = rr.trans(rr.fns['under_hidden_state_function'])
+    status = rr.trans(p_p22_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -2220,75 +2219,76 @@ if __name__ == '__main__':
   # place break point at
   assert active_states == ['some_other_state']
 
-  # example.post_fifo(Event(signal=signals.to_p))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("to_p", active_states))
-  # assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+  example.post_fifo(Event(signal=signals.to_p))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("to_p", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
 
-  # example.post_fifo(Event(signal=signals.e4))
-  # time.sleep(0.11)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("e4", active_states))
-  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  example.post_fifo(Event(signal=signals.e4))
+  time.sleep(0.11)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("e4", active_states))
+  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  # example.post_fifo(Event(signal=signals.e1))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("e1", active_states))
-  # assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
+  example.post_fifo(Event(signal=signals.e1))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("e1", active_states))
+  assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
 
-  # example.post_fifo(Event(signal=signals.to_outer))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("to_outer", active_states))
-  # assert active_states == ['outer_state']
+  example.post_fifo(Event(signal=signals.to_outer))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("to_outer", active_states))
+  assert active_states == ['outer_state']
+  # Marker
 
-  # # here are your WTF test
-  # example.post_fifo(Event(signal=signals.E0))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E0", active_states))
-  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
+  # here are your WTF test
+  example.post_fifo(Event(signal=signals.E0))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E0", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
 
-  # onion = example.meta_init(t=p_p11_s21, sig='E0')
-  # assert onion.payload.state == p
-  # assert onion.payload.event.payload.state == p_r1_region
-  # assert onion.payload.event.payload.event.payload.state == p_p11
-  # assert onion.payload.event.payload.event.payload.event.payload.state == p_p11_r2_region
-  # assert onion.payload.event.payload.event.payload.event.payload.event.payload.state == p_p11_s21
-  # assert onion.payload.event.payload.event.payload.event.payload.event.payload.event == None
+  onion = example.meta_init(t=p_p11_s21, sig='E0')
+  assert onion.payload.state == p
+  assert onion.payload.event.payload.state == p_r1_region
+  assert onion.payload.event.payload.event.payload.state == p_p11
+  assert onion.payload.event.payload.event.payload.event.payload.state == p_p11_r2_region
+  assert onion.payload.event.payload.event.payload.event.payload.event.payload.state == p_p11_s21
+  assert onion.payload.event.payload.event.payload.event.payload.event.payload.event == None
 
-  # example.post_fifo(Event(signal=signals.E1))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E1", active_states))
-  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  example.post_fifo(Event(signal=signals.E1))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E1", active_states))
+  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  # example.post_fifo(Event(signal=signals.E2))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E2", active_states))
-  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+  example.post_fifo(Event(signal=signals.E2))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E2", active_states))
+  assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
 
-  # example.post_fifo(Event(signal=signals.C0))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("C0", active_states))
-  # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+  example.post_fifo(Event(signal=signals.C0))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("C0", active_states))
+  assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
-  # example.post_fifo(Event(signal=signals.E2))
-  # time.sleep(0.10)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E2", active_states))
-  # time.sleep(0.1)
-  # assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+  example.post_fifo(Event(signal=signals.E2))
+  time.sleep(0.10)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E2", active_states))
+  time.sleep(0.1)
+  assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
-  # example.post_fifo(Event(signal=signals.E0))
-  # time.sleep(0.20)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E0", active_states))
-  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
+  example.post_fifo(Event(signal=signals.E0))
+  time.sleep(0.20)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E0", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
 
   #example.post_fifo(Event(signal=signals.F1))
   #time.sleep(0.20)
