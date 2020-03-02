@@ -7,16 +7,11 @@
     Build a working comprehensive example of parallel regions using othogonal
     components.
 
-    Build up the basic regression test.
+    A working E0 event
 
   *What is the problem?*
-    The rr.fns dict makes it hard to debug, unwind this
-    * [X] place a marker about where you are right now
-    * [X] turn the regression back on
-    * [X] unwind the  rr.fns
-    * [X] rerun regression
-    * [X] go back to marker
-    * [ ] add pytests instead of inline testing.
+    It looks like the p_11 state initializes, and enters it's default init
+    transitions, then exits and performs the E0 transition.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
     The use of the rr.fns dict has made it harder to troubleshoot problems
