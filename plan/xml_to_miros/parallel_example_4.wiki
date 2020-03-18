@@ -4,54 +4,48 @@
 == Evidence ([[evidence.parallel_example_4|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
-    Build a working comprehensive example of parallel regions using othogonal
-    components.
-
-    A working E0 event
+    A working F1 event.  Causing a transition from p_p11_s22 to p_p12_p11_s12
+    and from p_s21 to p_p22_s11.
 
   *What is the problem?*
-    It looks like the p_11 state initializes, and enters it's default init
-    transitions, then exits and performs the E0 transition.
+    Currently the bottom part of the chart is not working.  The F1 doesn't cause
+    a transition from p_s21 to p_p22_s11.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+
     The use of the rr.fns dict has made it harder to troubleshoot problems
     because I can not grep and search for the functions I want to search for
-    directly.
+    directly.  Try to make your code grep-able.
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
 
 == Questions ==
   *Questions for Parallel Example 4: >= 5*
-    Do you have enough information?
-    Is your information organized?
+    Can you reproduce the problem?
+    Do you have something to baseline from?
     Do you need to write something to make it easier to see?
     Can you think of anyway to speed up your feedback cycle?
-    Do you have something to baseline from?
-    Can you reproduce the problem?
     Can you simplify your test?
     What recently changed?
-    Are you still working on the right problem?
-    Are you still focused on the right goal?
     What don't you know that you need to know?
 
   *Assumptions*
 
 = Decide =
+
   [[#Questions]]
   *Research Needed For?:*
 
-
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ]
-  * [ ]
-  * [ ]
-  * [ ]
-  * [ ]
+  * [ ] Get your head back in the game
 
   *Chosen Research-Goal/Hypothesis*
-
+  * [ ] Reproduce the problem
+  * [ ] Find in which state the meta signal fails
+  * [ ] Understand how the meta init signal fails
+  * [ ] Loop
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 

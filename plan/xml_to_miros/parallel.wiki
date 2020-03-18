@@ -4,34 +4,34 @@
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]])
-    
+
     Successfully get over the wall with G3
     To implement parallel regions to an arbitrary level with SCXML.
 
   *What is the problem?*
-  
+
     Miros does not implement orthogonal regions, it only supports orthogonal
     components.
-    
+
     I have demonstrated in the past how to do with with miros, but only to one
     level.  We would like parallel regions to work at an arbitrary level.
-    
+
     I do not understand this problem well enough to define the requirements for
     the SCXML project.
-    
+
     *NOTE 1:* I do not know if I want to support the final behavior of the SCXML
     requirement, since magically posting signals seems really stupid.  The
     posting of events should happen by explicit design, not implicitly due to
     someone's design preferences.
-    
+
     *NOTE 2:* this is actually a core requirement, not like other aspects of the
     SCXML (noisy)
 
   *Discoveries:* ([[notes.parallel|notes]])
-  
+
   [[file:///C:/github/miros/docs/othogonalregions.html|old write up]]
   [[https://github.com/aleph2c/miros/blob/master/examples/xml_chart.py|old code]]
-  
+
 = Orient =
   *Symptoms:* [[symptoms.parallel|symptoms]]
 
@@ -45,27 +45,27 @@
     Do you have something to baseline from?
     What recently changed?
     What don't you know that you need to know?
-  
+
   *Assumptions*
     You have to use orthogonal components and keep everything in one thread.
     You don't, you could just build multi-threaded charts using publish and
     subscribe.
-    
+
 = Decide =
   [[#Questions]]
   *Research Needed For?:*
- 
+
   In the experiment folder, using the ActiveObject class and flat state methods
   implement:
 
   * [X] xml_chart_2
   * [ ] xml_chart_3 
-        
+
   Add requirements/hypothesis/ideas to this plan as you work through the problem.
-  
+
   In your example code automate the construction of a set of regions
   parallel_example_1.py:ScxmlChart:107,115
-  
+
   Timebox your work, really hustle in how you attack these problems.  Use your
   previous work as a reference.
 
@@ -101,10 +101,10 @@
         and it could just be added to the XML in an explicit fashion
 
   *Chosen Research-Goal/Hypothesis*
-    
+
 
 == Plan ([[plan.parallel|plan]]) ==
 
 = Act =
-  
+
 
