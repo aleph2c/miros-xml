@@ -4,18 +4,41 @@
 == Evidence ([[evidence.parallel_example_4|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
+    p_r2_over_hidden_region's transition to p_r2_region must work while it is
+    being driven by the F1 event
+
     A working F1 event.  Causing a transition from p_p11_s22 to p_p12_p11_s12
     and from p_s21 to p_p22_s11.
 
   *What is the problem?*
+
     Currently the bottom part of the chart is not working.  The F1 doesn't cause
-    a transition from p_s21 to p_p22_s11.
+    a transition from p_s21 to p_p22_s11.  The p_r2_over_hidden_region's call to
+    trans(p_r2_region) must work, but it doesn't work.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
     The use of the rr.fns dict has made it harder to troubleshoot problems
     because I can not grep and search for the functions I want to search for
     directly.  Try to make your code grep-able.
+
+    Having regions with the same names as functions is extremely confusing.  It
+    would be good to name the regions as regions and the functions as functions.
+
+  *Bread Crumbs:*
+
+    How F1 works on the bottom:
+      * p_s21 catches F1
+      * a meta trans is made
+      * p_r2 (self of p_s21) post_lifo the meta trans to its outer p
+      * p_r2 calls the complete circuit of p (this is a bit of a surprise)
+      * the META_EXIT is implicitely left popped off the meta trans event
+      * this causes the META_EXIT of the p function of the 'p' region to run
+      * it post_lifo a force_region_init into each of its regions
+      * then it post_fifo the residue of the meta trans into each of its regions
+      * then it completes the circuit (this causes the top part of the chart to work)
+      * p_r2_over_hidden_region is run and it should cause a transition to p_r2_region
+      * p_r2_region entry is not called [?]
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
@@ -29,6 +52,7 @@
     Can you simplify your test?
     What recently changed?
     What don't you know that you need to know?
+    Can you take smaller steps?
 
   *Assumptions*
 
@@ -39,13 +63,14 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] Get your head back in the game
+  * [ ] Examine the spy trace to see if there are any clues
+  * [ ] The code structure is broken
+  * [ ] A complete circuit can not happen within a complete circuit
+  * [ ] Brute force your way through this, look at working transitions then look
+        at how the non-working transition mechanism is failing.
+  * [ ] miros has a bug
 
   *Chosen Research-Goal/Hypothesis*
-  * [ ] Reproduce the problem
-  * [ ] Find in which state the meta signal fails
-  * [ ] Understand how the meta init signal fails
-  * [ ] Loop
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 

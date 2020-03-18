@@ -43,6 +43,7 @@ def pe(e):
   print(payload_string(e))
 
 def pprint(value):
+  #pass
   print(value)
 
 def p_spy_on(fn):
@@ -381,7 +382,7 @@ class Regions():
   def _post_lifo(self, e, outmost=None):
     [region.post_lifo(e) for region in self._regions]
 
-  def complete_circuit(self, e, outmost=None):
+  def _complete_circuit(self, outmost=None):
     [region.complete_circuit() for region in self._regions]
 
   def start(self):
@@ -411,7 +412,7 @@ class Regions():
 
 STXRef = namedtuple('STXRef', ['send_id', 'thread_id'])
 
-class ScxmlChart(InstrumentedActiveObject):
+class XmlChart(InstrumentedActiveObject):
   def __init__(self, name, log_file, live_spy=None, live_trace=None):
     super().__init__(name, log_file)
 
@@ -585,13 +586,13 @@ class ScxmlChart(InstrumentedActiveObject):
     return states
 
   def _post_lifo(self, e, outmost=None):
-    self.post_fifo(e)
+    self.post_lifo(e)
 
   def _post_fifo(self, e, outmost=None):
     self.post_fifo(e)
 
-  def complete_circuit(self):
-    pass
+  def _complete_circuit(self):
+    self.complete_circuit()
 
   @lru_cache(maxsize=64)
   def meta_init(self, t, sig, s=None):
@@ -758,6 +759,8 @@ class ScxmlChart(InstrumentedActiveObject):
   def meta_trans(self, s, t, sig):
     lca = self.lca(_t=t, _s=s)
     # the meta init will be expressed from the lca to the target
+    # 1) p_r1_region
+    # 2) p_r2_region
     m_i_e = self.meta_init(t=t, s=lca, sig=sig)
     m_e_e = Event(
       signal=signals.META_EXIT,
@@ -809,8 +812,8 @@ def outmost_region_functions(region, region_name):
 # * define region state for each region in p
 # * define all substates
 # * define event horizon (def p)
-# * in ScxmlChart add a region
-# * in ScxmlChart start, add start to region
+# * in XmlChart add a region
+# * in XmlChart start, add start to region
 # * figure out the exits
 @p_spy_on
 def p_r1_under_hidden_region(r, e):
@@ -838,6 +841,7 @@ def p_r1_region(r, e):
     if _state is None or not r.has_a_child(_state):
       status = r.trans(p_p11)
     else:
+      print("p_r1_region init {}".format(_state))
       status = r.trans(_state)
       if not _e is None:
         r.post_fifo(_e)
@@ -1139,7 +1143,6 @@ def p_p11_s22(rr, e):
     status = return_status.HANDLED
   elif(rr.token_match(e.signal_name, "F1")):
     _e = rr.outmost.meta_trans(t=p_p12_p11_s12, s=p_p11_s22, sig=e.signal_name)
-    # META_EXIT send here
     rr.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif(rr.token_match(e.signal_name, "e2")):
@@ -1687,6 +1690,7 @@ def p_r2_under_hidden_region(r, e):
 def p_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
+    print('here2')
     pprint("enter p_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
@@ -1695,6 +1699,7 @@ def p_r2_region(r, e):
       status = r.trans(p_s21)
     else:
       status = r.trans(_state)
+      print("p_r2_region init {}".format(_state))
       if not _e is None:
         r.post_fifo(_e)
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -1713,6 +1718,7 @@ def p_r2_region(r, e):
 def p_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal==signals.force_region_init):
+    print('here1')
     status = r.trans(p_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r2_over_hidden_region")
@@ -1733,6 +1739,10 @@ def p_s21(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name,"C0")):
     status = r.trans(p_p22)
+  elif(r.token_match(e.signal_name, "F1")):
+    _e = r.outmost.meta_trans(t=p_p22_s11, s=p_s21, sig=e.signal_name)
+    r.outer.post_lifo(_e)
+    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_s21")
     status = return_status.HANDLED
@@ -2040,9 +2050,9 @@ def outer_state(self, e):
   elif(self.token_match(e.signal_name, "to_p")):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
-    pprint("to_p outer_state")
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "E0")):
+    pprint("enter outer_state")
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     _e = self.meta_init(t=p_p11_s22, sig=e.signal_name)
@@ -2125,10 +2135,16 @@ def p(self, e):
     status = self.trans(some_other_state)
   elif(self.token_match(e.signal_name, "to_outer")):
     status = self.trans(outer_state)
-  #elif(e.signal == signals.META_EXIT):
+  elif(e.signal == signals.META_EXIT):
   #  self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
   #  self.regions['p'].post_fifo(e.payload.event)
-  #  status = return_status.HANDLED
+    #raise("hell")
+    #  r.outer.post_fifo(e.payload.event)
+    self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
+    self.regions['p']._post_fifo(e.payload.event)
+    self.ref()
+    self.regions['p']._complete_circuit()
+    status = return_status.HANDLED
   ## exit
   elif(e.signal == signals.EXIT_SIGNAL):
     if self.live_spy and self.instrumented:
@@ -2149,8 +2165,8 @@ def p(self, e):
 
 if __name__ == '__main__':
   active_states = None
-  example = ScxmlChart(
-    name='parallel',
+  example = XmlChart(
+    name='p',
     log_file="/mnt/c/github/miros-xml/experiment/parallel_example_4.log",
     live_trace=True,
     live_spy=True,
@@ -2163,97 +2179,94 @@ if __name__ == '__main__':
   active_states = example.active_states()
   print("{:>10} -> {}".format("start", active_states))
 
-  ## baseline tests, to ensure the chart was structured properly
-  #event = Event(signal=signals.to_p)
-  #example.post_fifo(Event(signal=signals.to_p))
-  #time.sleep(0.20)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("to_p", active_states))
-  #assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
-
-  ## baseline tests, to ensure the chart was structured properly
-  #example.post_fifo(Event(signal=signals.to_p))
-  #time.sleep(0.20)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("to_p", active_states))
-  #assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.e4))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e4", active_states))
-  #assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.e1))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e1", active_states))
-  #assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.e2))
-  #time.sleep(0.40)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e2", active_states))
-  #assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21' ]
-
-  #example.post_fifo(Event(signal=signals.C0))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("C0", active_states))
-  #assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
-
-  #example.post_fifo(Event(signal=signals.e4))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e4", active_states))
-  #assert active_states == [['p_p12_s12', 'p_p12_s21'], ['p_p22_s12', 'p_p22_s21']]
-
-  #example.post_fifo(Event(signal=signals.e1))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e1", active_states))
-  #assert active_states == [['p_p12_r1_final', 'p_p12_s22'], ['p_p22_r1_final', 'p_p22_s22']]
-
-  #example.post_fifo(Event(signal=signals.e2))
-  #time.sleep(0.20)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e2", active_states))
-  ## break in p_r1_final
-  ## place break point at
-  #assert active_states == ['some_other_state']
-
-  #example.post_fifo(Event(signal=signals.to_p))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("to_p", active_states))
-  #assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.e4))
-  #time.sleep(0.11)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e4", active_states))
-  #assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.e1))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("e1", active_states))
-  #assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
-
-  #example.post_fifo(Event(signal=signals.to_outer))
-  #time.sleep(0.10)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("to_outer", active_states))
-  #assert active_states == ['outer_state']
-  ## Marker
-
-  # here are your WTF test
-  example.post_fifo(Event(signal=signals.E0))
-  time.sleep(0.10)
+  # baseline tests, to ensure the chart was structured properly
+  event = Event(signal=signals.to_p)
+  example.post_fifo(Event(signal=signals.to_p))
+  time.sleep(0.20)
   active_states = example.active_states()
-  print("{:>10} -> {}".format("E0", active_states))
-  time.sleep(1000)
-  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
+  print("{:>10} -> {}".format("to_p", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+
+  # # baseline tests, to ensure the chart was structured properly
+  # example.post_fifo(Event(signal=signals.to_p))
+  # time.sleep(0.20)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("to_p", active_states))
+  # assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.e4))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e4", active_states))
+  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.e1))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e1", active_states))
+  # assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.e2))
+  # time.sleep(0.20)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e2", active_states))
+  # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21' ]
+
+  # example.post_fifo(Event(signal=signals.C0))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("C0", active_states))
+  # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+
+  # example.post_fifo(Event(signal=signals.e4))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e4", active_states))
+  # assert active_states == [['p_p12_s12', 'p_p12_s21'], ['p_p22_s12', 'p_p22_s21']]
+
+  # example.post_fifo(Event(signal=signals.e1))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e1", active_states))
+  # assert active_states == [['p_p12_r1_final', 'p_p12_s22'], ['p_p22_r1_final', 'p_p22_s22']]
+
+  # example.post_fifo(Event(signal=signals.e2))
+  # time.sleep(0.20)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e2", active_states))
+  # assert active_states == ['some_other_state']
+
+  # example.post_fifo(Event(signal=signals.to_p))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("to_p", active_states))
+  # assert active_states == [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.e4))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e4", active_states))
+  # assert active_states == [['p_p11_s12', 'p_p11_s21'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.e1))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("e1", active_states))
+  # assert active_states == [['p_p11_r1_final', 'p_p11_s22'], 'p_s21']
+
+  # example.post_fifo(Event(signal=signals.to_outer))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("to_outer", active_states))
+  # assert active_states == ['outer_state']
+
+  # # here are your WTF test
+  # example.post_fifo(Event(signal=signals.E0))
+  # time.sleep(0.10)
+  # active_states = example.active_states()
+  # print("{:>10} -> {}".format("E0", active_states))
+  # time.sleep(0.1)
+  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21']
 
   # onion = example.meta_init(t=p_p11_s21, sig='E0')
   # assert onion.payload.state == p
@@ -2281,6 +2294,9 @@ if __name__ == '__main__':
   # print("{:>10} -> {}".format("C0", active_states))
   # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
+  # # Write comments in doc describing how E2 will cause p_p12_s21 to exit and
+  # # then re-initialize back into p_p12_s21.   (The E2 hits the p_p12 regional
+  # # wall, so it effects all parallel regions within it)
   # example.post_fifo(Event(signal=signals.E2))
   # time.sleep(0.10)
   # active_states = example.active_states()
@@ -2288,17 +2304,17 @@ if __name__ == '__main__':
   # time.sleep(0.1)
   # assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
 
-  # example.post_fifo(Event(signal=signals.E0))
-  # time.sleep(0.20)
-  # active_states = example.active_states()
-  # print("{:>10} -> {}".format("E0", active_states))
-  # assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
+  example.post_fifo(Event(signal=signals.E0))
+  time.sleep(0.20)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("E0", active_states))
+  assert active_states == [['p_p11_s11', 'p_p11_s22'], 'p_s21' ]
 
-  #example.post_fifo(Event(signal=signals.F1))
-  #time.sleep(0.20)
-  #active_states = example.active_states()
-  #print("{:>10} -> {}".format("F1", active_states))
+  example.post_fifo(Event(signal=signals.F1))
+  time.sleep(0.40)
+  active_states = example.active_states()
+  print("{:>10} -> {}".format("F1", active_states))
   #assert active_states == [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
-  #time.sleep(1000)
+  time.sleep(1000)
   #time.sleep(100)
   #time.sleep(100)
