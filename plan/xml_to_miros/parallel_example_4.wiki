@@ -4,17 +4,25 @@
 == Evidence ([[evidence.parallel_example_4|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
-    p_r2_over_hidden_region's transition to p_r2_region must work while it is
-    being driven by the F1 event
 
     A working F1 event.  Causing a transition from p_p11_s22 to p_p12_p11_s12
     and from p_s21 to p_p22_s11.
 
+    The force_region_init will be fired an appropriate amount of times while in
+    the F1 transition.
+
   *What is the problem?*
 
-    Currently the bottom part of the chart is not working.  The F1 doesn't cause
-    a transition from p_s21 to p_p22_s11.  The p_r2_over_hidden_region's call to
-    trans(p_r2_region) must work, but it doesn't work.
+    Nine lives:
+      * [X] 
+      * [X] 
+      * [X] 
+      * [X] 
+      * [ ] 
+      * [ ] 
+      * [ ] 
+      * [ ] 
+      * [ ] 
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
@@ -24,6 +32,15 @@
 
     Having regions with the same names as functions is extremely confusing.  It
     would be good to name the regions as regions and the functions as functions.
+
+    [hint]
+    p_r2_region is getting the meta trans event, but with the wrong internal
+    payload.  Or, it hasn't been sent the right payload yet, but the driving
+    process has shut off before it is done.
+
+    [hint]
+    In p_p11_s22 the rr.outer.post_fifo(_e) is calling a different method than
+    in p_s21 r.outer.post_fifo(_e).
 
   *Bread Crumbs:*
 
@@ -38,7 +55,7 @@
       * then it post_fifo the residue of the meta trans into each of its regions
       * then it completes the circuit (this causes the top part of the chart to work)
       * p_r2_over_hidden_region is run and it should cause a transition to p_r2_region
-      * p_r2_region entry is not called [?]
+      * p_r2_region init is called
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
@@ -53,22 +70,37 @@
     What recently changed?
     What don't you know that you need to know?
     Can you take smaller steps?
+    Why is all of the crap on the front end of the meta trans event result?
+    Is crap needed elsewhere in the code?
+    Why is the INIT_META of p_r2_region happending twice?
+    Why does meta_trans work for the upper and meta_trans2 almost work for the
+    lower?
+    Can you force it to work?
 
   *Assumptions*
+
+    You think that the complete_circuit can be used to drive events through a
+    inner statechart from than outer statechart without concern.  You think the
+    same holds true for inner to outer drives, even while they are being driven
+    by outer drives.  This may not be true.  If it isn't, the inner orthogonal
+    components could drop events into the outermost chart to make it pump all
+    events through all inner orthogonal components.  If you were to do this, you
+    could markup this driving event so that you can see how and why this process
+    is taking place.  Currently, there is a lot of stuff happening in the dark.
+
+    I assumed that the self.temp.fun and self.state.fun of an HSM would be set
+    to the function name of the state function while it was handling its
+    INIT_SIGNAL.  This isn't true.  I'm not sure if this is a bug, or just how
+    the event processor works. [found during the F1 investigation]
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
+  * [ ] 
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] Examine the spy trace to see if there are any clues
-  * [ ] The code structure is broken
-  * [ ] A complete circuit can not happen within a complete circuit
-  * [ ] Brute force your way through this, look at working transitions then look
-        at how the non-working transition mechanism is failing.
-  * [ ] miros has a bug
 
   *Chosen Research-Goal/Hypothesis*
 
