@@ -8,16 +8,16 @@
     A working F1 event.  Causing a transition from p_p11_s22 to p_p12_p11_s12
     and from p_s21 to p_p22_s11.
 
-    The force_region_init will be fired an appropriate amount of times while in
-    the F1 transition.
+*What is the problem?*
 
-  *What is the problem?*
+  The F1 event coming from the p_s21 is building a meta_trans event with a
+  META_EXIT signal at its front.
 
-    Nine lives:
+  Nine lives:
       * [X] 
       * [X] 
-      * [X] 
-      * [X] 
+      * [ ] 
+      * [ ] 
       * [ ] 
       * [ ] 
       * [ ] 
@@ -42,6 +42,14 @@
     In p_p11_s22 the rr.outer.post_fifo(_e) is calling a different method than
     in p_s21 r.outer.post_fifo(_e).
 
+    [de-aggregation]
+    I had many problems, pulled out the easy ones first them removed them.  It
+    took a long time to identify that this was happening though.
+
+    [isolation/simplification]
+    On the last remaining harder problem, removed half of the feature and only
+    focused on the part that wasn't working.  Do more of this in the future.
+
   *Bread Crumbs:*
 
     How F1 works on the bottom:
@@ -62,20 +70,9 @@
 
 == Questions ==
   *Questions for Parallel Example 4: >= 5*
-    Can you reproduce the problem?
-    Do you have something to baseline from?
-    Do you need to write something to make it easier to see?
-    Can you think of anyway to speed up your feedback cycle?
-    Can you simplify your test?
-    What recently changed?
-    What don't you know that you need to know?
-    Can you take smaller steps?
-    Why is all of the crap on the front end of the meta trans event result?
-    Is crap needed elsewhere in the code?
-    Why is the INIT_META of p_r2_region happending twice?
-    Why does meta_trans work for the upper and meta_trans2 almost work for the
-    lower?
-    Can you force it to work?
+  * How do we get the meta_trans to build an event which doesn't include the
+    META_EXIT at its front while making something that can transition from p_s21
+    to p_p22_s11?
 
   *Assumptions*
 
@@ -93,11 +90,24 @@
     INIT_SIGNAL.  This isn't true.  I'm not sure if this is a bug, or just how
     the event processor works. [found during the F1 investigation]
 
+  *Mistakes*
+
+    A force_region_exit must happen after a META_EXIT.  I made this mistake
+    because I forgot the signal existed, I remembered there was some such way of
+    initializing the orthogonal component because I forgot about the details,
+    and just used the first thing I could think about.  More docs would help
+    here, but I don't now what to write yet.
+
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
-  * [ ] 
+  * [ ] What is the difference between the "F1" handling for the top region and the
+        "F1" handling for the bottom region?
+
+  The top F1 handler calls rr.outer.post_lifo ... which has a different behavior
+  than the r.outer.post_lifo called by the bottom.  This is because for the
+  bottom, it's outer is self of the XmlChart class and of the Region class.
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
