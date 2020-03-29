@@ -47,9 +47,8 @@ def pprint(value):
    print(value)
 
 def p_spy_on(fn):
-  '''wrapper for the parallel regions states
-    **Note**:
-       It hide any hidden state from appearing in the instrumentation
+  '''spy wrapper for the parallel regions states
+
     **Args**:
        | ``fn`` (function): the state function
     **Returns**:
@@ -68,9 +67,8 @@ def p_spy_on(fn):
     if chart.instrumented:
       status = spy_on(fn)(chart, *args)
       for line in list(chart.rtc.spy):
-        m1 = re.search(r'.*zidden_region', str(line))
-        m2 = re.search(r'SEARCH_FOR_SUPER_SIGNAL', str(line))
-        if not m1 and not m2:
+        m = re.search(r'SEARCH_FOR_SUPER_SIGNAL', str(line))
+        if not m:
           if hasattr(chart, "outmost"):
             chart.outmost.live_spy_callback(
               "[{}] {}".format(chart.name, line))
@@ -136,7 +134,7 @@ class Region(HsmWithQueues):
   def init_stack(self, e):
     result = (None, None)
     if len(self.queue) >= 1 and \
-      self.queue[0].signal == signals.INIT_META:
+      self.queue[0].signal == signals.META_INIT:
       _e = self.queue.popleft()
       result = (_e.payload.event, _e.payload.state)
     return result
@@ -267,7 +265,7 @@ class InstrumentedActiveObject(ActiveObject):
     logging.debug("S: [%s] %s" % (self.name, spy))
 
   def report(self, message):
-    logging.debug("R: %s" % message)
+    logging.debug("R:%s" % message)
 
   def clear_log(self):
     with open(self.log_file, "w") as fp:
@@ -570,7 +568,7 @@ class XmlChart(InstrumentedActiveObject):
   def init_stack(self, e):
     result = (None, None)
     if len(self.queue.deque) >= 1 and \
-      self.queue.deque[0].signal == signals.INIT_META:
+      self.queue.deque[0].signal == signals.META_INIT:
       _e = self.queue.deque.popleft()
       result = (_e.payload.event, _e.payload.state)
     return result
@@ -604,13 +602,13 @@ class XmlChart(InstrumentedActiveObject):
   @lru_cache(maxsize=64)
   def meta_init(self, t, sig, s=None):
     '''Build target and meta event for the state.  The meta event will be a
-    recursive INIT_META event for a given WTF signal and return a target for
+    recursive META_INIT event for a given WTF signal and return a target for
     it's first pass off.
 
     **Note**:
        see `e0-wtf-event
        <https://aleph2c.github.io/miros-xml/recipes.html#e0-wtf-event>`_ for
-       details about and why a INIT_META is constructed and why it is needed.
+       details about and why a META_INIT is constructed and why it is needed.
 
     **Args**:
        | ``t`` (state function): target state
@@ -695,7 +693,7 @@ class XmlChart(InstrumentedActiveObject):
     layers = onion_states[:]
     for inner_target in layers:
       event = Event(
-        signal=signals.INIT_META,
+        signal=signals.META_INIT,
         payload=META_SIGNAL_PAYLOAD(
           event=event,
           state=inner_target,
@@ -763,6 +761,7 @@ class XmlChart(InstrumentedActiveObject):
         onion_states += [target_state, region_holding_state]
     return onion_states
 
+  @lru_cache(maxsize=64)
   def meta_trans(self, s, t, sig):
     lca = self.lca(_t=t, _s=s)
     # the meta init will be expressed from the lca to the target
@@ -780,6 +779,7 @@ class XmlChart(InstrumentedActiveObject):
     )
     return m_e_e
 
+  @lru_cache(maxsize=64)
   def meta_trans2(self, s, t, sig):
     lca = self.lca(_t=t, _s=s)
     # the meta init will be expressed from the lca to the target
@@ -850,18 +850,19 @@ def p_r1_region(r, e):
     pprint("enter p_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = r.init_stack(e) # search for INIT_META
+    (_e, _state) = r.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not r.has_a_child(p_r1_region, _state):
       status = r.trans(p_p11)
     else:
+      pprint(payload_string(_e))
       #print("p_r1_region init {}".format(_state))
       status = r.trans(_state)
       if not _e is None:
         r.post_fifo(_e)
   elif(e.signal == signals.region_exit):
     status = r.trans(p_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r1_region")
@@ -910,7 +911,7 @@ def p_p11(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e) # search for INIT_META
+    (_e, _state) = r.init_stack(e) # search for META_INIT
     if _state:
       _post_fifo(_e, outmost=outmost)
     post_lifo(Event(signal=signals.enter_region))
@@ -981,7 +982,7 @@ def p_p11_r1_region(rr, e):
     pprint("enter p_p11_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p11_r1_region, _state):
       status = rr.trans(p_p11_s11)
@@ -991,7 +992,7 @@ def p_p11_r1_region(rr, e):
         rr.post_fifo(_e)
   elif(e.signal == signals.region_exit):
     status = rr.trans(p_p11_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p11_r1_region")
@@ -1089,7 +1090,7 @@ def p_p11_r2_region(rr, e):
     pprint("enter p_p11_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p11_r2_region, _state):
       status = rr.trans(p_p11_s21)
@@ -1220,7 +1221,7 @@ def p_p12(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e) # search for INIT_META
+    (_e, _state) = r.init_stack(e) # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1287,7 +1288,7 @@ def p_p12_r1_region(rr, e):
     pprint("enter p_p12_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p12_r1_region, _state):
       status = rr.trans(p_p12_p11)
@@ -1299,7 +1300,7 @@ def p_p12_r1_region(rr, e):
   elif(e.signal == signals.region_exit):
     #status = rr.trans(p_p12_r1_under_hidden_region)
     status = rr.trans(p_p12_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_r1_region")
@@ -1342,7 +1343,7 @@ def p_p12_p11(rr, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11")
     scribble(e.signal_name)
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1395,7 +1396,7 @@ def p_p12_p11_r1_region(rrr, e):
     pprint("enter p_p12_p11_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rrr.init_stack(e) # search for INIT_META
+    (_e, _state) = rrr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rrr.has_a_child(p_p12_p11_r1_region, _state):
       status = rrr.trans(p_p12_p11_s11)
@@ -1409,7 +1410,7 @@ def p_p12_p11_r1_region(rrr, e):
   # can we get rid of region_exit?
   elif(e.signal == signals.region_exit):
     status = rrr.trans(p_p12_p11_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   else:
     rrr.temp.fun = p_p12_p11_r1_under_hidden_region
@@ -1485,7 +1486,7 @@ def p_p12_p11_r2_region(rrr, e):
     pprint("enter p_p12_p11_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rrr.init_stack(e) # search for INIT_META
+    (_e, _state) = rrr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rrr.has_a_child(p_p12_p11_r2_region, _state):
       status = rrr.trans(p_p12_p11_s21)
@@ -1498,7 +1499,7 @@ def p_p12_p11_r2_region(rrr, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_r2_region")
     status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   else:
     rrr.temp.fun = p_p12_p11_r2_under_hidden_region
@@ -1594,7 +1595,7 @@ def p_p12_r2_region(rr, e):
     pprint("enter p_p12_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p12_r2_region, _state):
       status = rr.trans(p_p12_s21)
@@ -1607,7 +1608,7 @@ def p_p12_r2_region(rr, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_r2_region")
     status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   else:
     rr.temp.fun = p_p12_r2_under_hidden_region
@@ -1708,7 +1709,7 @@ def p_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     status = return_status.HANDLED
-    (_e, _state) = r.init_stack(e) # search for INIT_META
+    (_e, _state) = r.init_stack(e) # search for META_INIT
     if _state is None or not r.has_a_child(p_r2_region, _state):
       status = r.trans(p_s21)
     else:
@@ -1721,7 +1722,7 @@ def p_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.region_exit):
     status = r.trans(p_r2_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_under_hidden_region
@@ -1787,7 +1788,7 @@ def p_p22(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p22")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e) # search for INIT_META
+    (_e, _state) = r.init_stack(e) # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1849,7 +1850,7 @@ def p_p22_r1_region(rr, e):
     pprint("enter p_p22_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p22_r1_region, _state):
       status = rr.trans(p_p22_s11)
@@ -1860,7 +1861,7 @@ def p_p22_r1_region(rr, e):
   # can we get rid of region_exit?
   elif(e.signal == signals.region_exit):
     status = rr.trans(p_p22_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p22_r1_region")
@@ -1960,7 +1961,7 @@ def p_p22_r2_region(rr, e):
     pprint("enter p_p22_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for INIT_META
+    (_e, _state) = rr.init_stack(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p22_r2_region, _state):
       status = rr.trans(p_p22_s21)
@@ -1973,7 +1974,7 @@ def p_p22_r2_region(rr, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p22_r2_region")
     status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     status = return_status.HANDLED
   else:
     rr.temp.fun = p_p22_r2_under_hidden_region
@@ -2077,6 +2078,7 @@ def outer_state(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     _e = self.meta_init(t=p_p11_s22, sig=e.signal_name)
+    self.scribble(payload_string(_e))
     #self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
     self.post_fifo(_e.payload.event)
     status = self.trans(_e.payload.state)
@@ -2116,7 +2118,7 @@ def p(self, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("[p] {}".format(e.signal_name))
-    (_e, _state) = self.init_stack(e) # search for INIT_META
+    (_e, _state) = self.init_stack(e) # search for META_INIT
     if _state:
       self.regions['p']._post_fifo(_e)
     pprint("enter p")
@@ -2142,7 +2144,7 @@ def p(self, e):
       self.live_spy_callback("[p] {}".format(e.signal_name))
     self.regions['p'].post_fifo(e)
     status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META):
+  elif(e.signal == signals.META_INIT):
     self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
     self.regions['p'].post_fifo(e.payload.event.payload.event)
     status = return_status.HANDLED
@@ -2150,6 +2152,7 @@ def p(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("[p] {}".format(e.signal_name))
     _e = self.meta_init(t=p_p11_s12, s=p, sig=e.signal_name)
+    self.scribble(payload_string(_e))
     self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
     self.regions['p'].post_fifo(_e)
     status = return_status.HANDLED
@@ -2211,15 +2214,16 @@ if __name__ == '__main__':
   example.instrumented = True
   example.start()
   time.sleep(0.20)
-  example.report("starting regression")
+  example.report("\nstarting regression\n")
 
   def build_test(s, expected_result, old_result, duration=0.2):
     example.post_fifo(Event(signal=s))
     time.sleep(duration)
     active_states = example.active_states()[:]
-    string = "{:>79}{:>5} <-> {:<80}".format(str(old_result), s, str(active_states))
-    print(string)
-    example.report(string)
+    string1 = "{:>79}{:>5} <-> {:<80}".format(str(old_result), s, str(active_states))
+    string2 = "\n{} <- {} == {}\n".format(str(old_result), s, str(active_states))
+    print(string1)
+    example.report(string2)
     assert active_states == expected_result
     return active_states
 
@@ -2326,6 +2330,7 @@ if __name__ == '__main__':
     duration=0.2
   )
 
+
   onion = example.meta_init(t=p_p11_s21, sig='E0')
   assert onion.payload.state == p
   assert onion.payload.event.payload.state == p_r1_region
@@ -2348,18 +2353,14 @@ if __name__ == '__main__':
     duration=0.2
   )
 
-  example.post_fifo(Event(signal=signals.C0))
-  time.sleep(0.10)
-  active_states = example.active_states()
-  print("{:>10} -> {}".format("C0", active_states))
-  assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
-
   old_results = build_test(
     s='C0',
     expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_result=old_results,
     duration=0.2
   )
+
+  exit(1)
   # Write comments in doc describing how E2 will cause p_p12_s21 to exit and
   # then re-initialize back into p_p12_s21.   (The E2 hits the p_p12 regional
   # wall, so it effects all parallel regions within it)
