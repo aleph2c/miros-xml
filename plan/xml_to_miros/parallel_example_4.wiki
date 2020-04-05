@@ -5,24 +5,27 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    A working F1 event.  Causing a transition from p_p11_s22 to p_p12_p11_s12
-    and from p_s21 to p_p22_s11.
+    Giving a starting condition which included p_s21, a working G0 event:
+    * [ ] G0 should cause p_r2 to region_exit
+    * [ ] G0 should cause a transition into p_p12_p11_p21 as if there was an E
+          event from the outer boundary of p_r1 to p_p12_p11_p21
+
+    Move through the nine lives quickly:
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
 
 *What is the problem?*
 
   The F1 event coming from the p_s21 is building a meta_trans event with a
   META_EXIT signal at its front.
 
-  Nine lives:
-      * [X] 
-      * [X] 
-      * [ ] 
-      * [ ] 
-      * [ ] 
-      * [ ] 
-      * [ ] 
-      * [ ] 
-      * [ ] 
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
@@ -51,19 +54,7 @@
     focused on the part that wasn't working.  Do more of this in the future.
 
   *Bread Crumbs:*
-
-    How F1 works on the bottom:
-      * p_s21 catches F1
-      * a meta trans is made
-      * p_r2 (self of p_s21) post_lifo the meta trans to its outer p
-      * p_r2 calls the complete circuit of p (this is a bit of a surprise)
-      * the META_EXIT is implicitely left popped off the meta trans event
-      * this causes the META_EXIT of the p function of the 'p' region to run
-      * it post_lifo a force_region_init into each of its regions
-      * then it post_fifo the residue of the meta trans into each of its regions
-      * then it completes the circuit (this causes the top part of the chart to work)
-      * p_r2_over_hidden_region is run and it should cause a transition to p_r2_region
-      * p_r2_region init is called
+  
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
