@@ -1,0 +1,36 @@
+session_name: xml
+windows:
+- focus: 'true'
+  layout: b79c,237x74,0,0{125x74,0,0[125x37,0,0,1,125x36,0,38,2],111x74,126,0,3}
+  options:
+    automatic-rename: 'off'
+  panes:
+  - shell_command:
+    - cd /mnt/c/github/miros-xml/experiment
+    - vim parallel_example_4.log
+  - focus: 'true'
+    shell_command:
+    - cd /mnt/c/github/miros-xml/experiment
+    - python3 parallel_example_4.py
+  - shell_command:
+    - cd /mnt/c/github/miros-xml/experiment
+    - vim parallel_example_4.py
+  window_name: experiment
+- options:
+    automatic-rename: 'off'
+  panes:
+  - shell_command:
+    - cd /mnt/c/github/miros-xml/plan
+    - vim xml_to_miros/parallel_example_4.wiki
+  start_directory: /mnt/c/github/miros-xml/plan
+  window_name: plan
+- options:
+    automatic-rename: 'off'
+  panes:
+  - shell_command:
+    - cd /mnt/c/github/miros-xml/
+    - vim xml.yaml
+  - shell_command:
+    - pwd
+  start_directory: /mnt/c/github/miros-xml/experiment
+  window_name: extra
