@@ -21,9 +21,19 @@ windows:
   panes:
   - shell_command:
     - cd /mnt/c/github/miros-xml/plan
-    - vim xml_to_miros/parallel_example_4.wiki
+    - deactivate
   start_directory: /mnt/c/github/miros-xml/plan
   window_name: plan
+- options:
+    automatic-rename: 'off'
+  panes:
+  - shell_command:
+    - cd /mnt/c/github/miros-xml/doc
+    - deactivate
+    - . ./venv/bin/activate
+    - python automake.py
+  start_directory: /mnt/c/github/miros-xml/doc
+  window_name: doc
 - options:
     automatic-rename: 'off'
   panes:

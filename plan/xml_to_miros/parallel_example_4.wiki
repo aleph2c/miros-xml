@@ -5,15 +5,20 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Giving a starting condition which included p_s21, a working G0 event:
-    * [ ] G0 should cause p_r2 to region_exit
-    * [ ] G0 should cause a transition into p_p12_p11_p21 as if there was an E
-          event from the outer boundary of p_r1 to p_p12_p11_p21
+    Need to understand META_INIT and META_EXIT (write them up)
+
+
+    *paused*
+    Giving a starting condition which included p_s21, a working G1 event:
+
+    * [ ] G1 will have to push p_r1 in p_r1_under_hidden_region
+    * [ ] G1 will cause a transition to
+          the two desires substates of r2 on the graph
 
     Move through the nine lives quickly:
-    * [ ] 
-    * [ ] 
-    * [ ] 
+    * [X] setup
+    * [X] investigate F2 Meta exit
+    * [X] determine if it has enough to accomplish goal 1
     * [ ] 
     * [ ] 
     * [ ] 
@@ -23,9 +28,12 @@
 
 *What is the problem?*
 
-  The F1 event coming from the p_s21 is building a meta_trans event with a
-  META_EXIT signal at its front.
 
+  You are forgetting what the new events do and why they exist.  Your docs are
+  too long winded; *make them more like cheat sheets than proper documentation*.
+
+  Once the right pictures describe what is going on, things should get a lot
+  easy.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
@@ -54,27 +62,15 @@
     focused on the part that wasn't working.  Do more of this in the future.
 
   *Bread Crumbs:*
-  
+
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
 
 == Questions ==
   *Questions for Parallel Example 4: >= 5*
-  * How do we get the meta_trans to build an event which doesn't include the
-    META_EXIT at its front while making something that can transition from p_s21
-    to p_p22_s11?
 
   *Assumptions*
-
-    You think that the complete_circuit can be used to drive events through a
-    inner statechart from than outer statechart without concern.  You think the
-    same holds true for inner to outer drives, even while they are being driven
-    by outer drives.  This may not be true.  If it isn't, the inner orthogonal
-    components could drop events into the outermost chart to make it pump all
-    events through all inner orthogonal components.  If you were to do this, you
-    could markup this driving event so that you can see how and why this process
-    is taking place.  Currently, there is a lot of stuff happening in the dark.
 
     I assumed that the self.temp.fun and self.state.fun of an HSM would be set
     to the function name of the state function while it was handling its
@@ -93,12 +89,7 @@
 
   [[#Questions]]
   *Research Needed For?:*
-  * [ ] What is the difference between the "F1" handling for the top region and the
-        "F1" handling for the bottom region?
-
-  The top F1 handler calls rr.outer.post_lifo ... which has a different behavior
-  than the r.outer.post_lifo called by the bottom.  This is because for the
-  bottom, it's outer is self of the XmlChart class and of the Region class.
+  * [ ] 
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*

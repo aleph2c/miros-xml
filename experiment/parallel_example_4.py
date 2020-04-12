@@ -16,6 +16,13 @@ from miros import HsmWithQueues
 
 META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD", ['event', 'state', 'source_event', 'region'])
 
+FrameData = namedtuple('FrameData', [
+  'filename',
+  'line_number',
+  'function_name',
+  'lines',
+  'index'])
+
 def payload_string(e):
   tabs = ""
   result = ""
@@ -33,11 +40,6 @@ def payload_string(e):
         e = e.payload.event
         tabs += "  "
   return result
-
-def pe(e):
-  tabs = ""
-  print(tabs)
-  print(payload_string(e))
 
 def pprint(value):
   #pass
@@ -108,6 +110,9 @@ class Region(HsmWithQueues):
     assert callable(self.fns['over_hidden_state_function'])
 
     self.final = False
+
+    # this will be populated by the 'link' command have each
+    # region has been added to the regions object
     self.regions = []
 
   def post_p_final_to_outmost_if_ready(self):
@@ -128,7 +133,7 @@ class Region(HsmWithQueues):
     result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
-  def init_stack(self, e):
+  def peel_meta(self, e):
     result = (None, None)
     if len(self.queue) >= 1 and \
       self.queue[0].signal == signals.META_INIT:
@@ -228,6 +233,12 @@ class Region(HsmWithQueues):
     t_chain = set(build_hierachy_chain(t))
     return list(s_chain.intersection(t_chain))[0]
 
+  def function_name(self):
+    previous_frame = inspect.currentframe().f_back
+    fdata = FrameData(*inspect.getframeinfo(previous_frame))
+    function_name = fdata.function_name
+    return function_name
+
 class InstrumentedActiveObject(ActiveObject):
   def __init__(self, name, log_file):
     super().__init__(name)
@@ -267,6 +278,7 @@ class InstrumentedActiveObject(ActiveObject):
   def clear_log(self):
     with open(self.log_file, "w") as fp:
       fp.write("")
+
 
 class Regions():
   '''Replaces long-winded boiler plate code like this:
@@ -351,22 +363,25 @@ class Regions():
     return result
 
   def link(self):
-    '''This property provides this basic feature:
+    '''Link each region back to this regions object.
 
-      # link all regions together
-      for region in self.p_regions:
-        for _region in self.p_regions:
-          region.regions.append(_region)
+    Each region will be an othogonal component, but it will need to be able post
+    events and drive these events through itself and the other regions that have
+    been added to this object via the add method.   A call to 'link' should be
+    made once all of the region objects have been added to this regions object.
 
-    We want to link all of the different regions together after we have
-    added the regions, so this is why we put it in the property getter.  A
-    client will want to get the regions array after they have finished adding
-    each region.
+    **Example(s)**:
+
+    .. code-block:: python
+
+      outer = self.regions['p']
+      self.regions['p_p11'] = Regions(
+        name='p_p11',
+        outmost=self)\
+      .add('p_p11_r1', outer=outer)\
+      .add('p_p11_r2', outer=outer).link()
+
     '''
-
-    #for region in self._regions:
-    #  for _region in self._regions:
-    #    region.regions.append(_region)
     for region in self._regions:
       for _region in self._regions:
         if _region not in region.regions:
@@ -377,7 +392,7 @@ class Regions():
     self._post_fifo(e, ignored=ignored)
     [region.complete_circuit() for region in self._regions]
 
-  def _post_fifo(self, e, outmost=None, ignored=None):
+  def _post_fifo(self, e, ignored=None):
     regions = self._regions
     if ignored:
       if not type(ignored) is list:
@@ -385,11 +400,11 @@ class Regions():
       regions = list(set(regions) - set(ignored))
     [region.post_fifo(e) for region in regions]
 
-  def post_lifo(self, e, outmost=None, ignored=None):
+  def post_lifo(self, e, ignored=None):
     self._post_lifo(e, ignored=ignored)
     [region.complete_circuit() for region in self._regions]
 
-  def _post_lifo(self, e, outmost=None, ignored=None):
+  def _post_lifo(self, e, ignored=None):
     regions = self._regions
     if ignored:
       if not type(ignored) is list:
@@ -397,7 +412,7 @@ class Regions():
       regions = list(set(regions) - set(ignored))
     [region.post_lifo(e) for region in self._regions]
 
-  def _complete_circuit(self, outmost=None, ignored=None):
+  def _complete_circuit(self, ignored=None):
     [region.complete_circuit() for region in self._regions]
 
   def start(self):
@@ -442,10 +457,6 @@ class XmlChart(InstrumentedActiveObject):
     self.shot_lookup = {}
     self.regions = {}
 
-    # TODO: once you have a minimal viable chart, look into this:
-    # Here you have messed up your terminalology, a region means something
-    # within a dotted line, but this construct, it means the outer orthogonal
-    # component.
     outer = self
     self.regions['p'] = Regions(
       name='p',
@@ -482,12 +493,6 @@ class XmlChart(InstrumentedActiveObject):
     .add('p_p22_r2', outer=outer).link()
 
   def ref(self):
-    FrameData = namedtuple('FrameData', [
-      'filename',
-      'line_number',
-      'function_name',
-      'lines',
-      'index'])
     previous_frame = inspect.currentframe().f_back
     fdata = FrameData(*inspect.getframeinfo(previous_frame))
     function_name = fdata.function_name
@@ -572,7 +577,7 @@ class XmlChart(InstrumentedActiveObject):
         self.cancel_events(Event(signal=k))
         break
 
-  def init_stack(self, e):
+  def peel_meta(self, e):
     result = (None, None)
     if len(self.queue.deque) >= 1 and \
       self.queue.deque[0].signal == signals.META_INIT:
@@ -810,22 +815,19 @@ class XmlChart(InstrumentedActiveObject):
 
 # this will be wrapped into the class at some point
 @lru_cache(maxsize=32)
-def outmost_region_functions(region, region_name):
-
-  outmost = region.outmost
-
+def outmost_workers(region, region_name):
   def scribble(string):
-    if outmost.live_spy and outmost.instrumented:
-      outmost.live_spy_callback("[{}] {}".format(region_name, string))
+    if region.outmost.live_spy and region.outmost.instrumented:
+      region.outmost.live_spy_callback("[{}] {}".format(region_name, string))
+  return (region.outmost.token_match, scribble)
 
-  post_fifo = partial(outmost.regions[region_name].post_fifo, outmost=outmost)
-  _post_fifo = partial(outmost.regions[region_name]._post_fifo, outmost=outmost)
-  post_lifo = partial(outmost.regions[region_name].post_lifo, outmost=outmost)
-  _post_lifo = partial(outmost.regions[region_name]._post_lifo, outmost=outmost)
-  token_match = outmost.token_match
-  return post_fifo, _post_fifo, post_lifo, _post_lifo, token_match, scribble
-
-
+# this will be wrapped into the class at some point
+@lru_cache(maxsize=32)
+def regions_workers(region, regions_name):
+  return (region.outmost.regions[regions_name].post_fifo,
+    region.outmost.regions[regions_name]._post_fifo,
+    region.outmost.regions[regions_name].post_lifo,
+    region.outmost.regions[regions_name]._post_lifo)
 
 ################################################################################
 #                                   p region                                   #
@@ -858,7 +860,7 @@ def p_r1_region(r, e):
     pprint("enter p_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = r.init_stack(e)  # search for META_INIT
+    (_e, _state) = r.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not r.has_a_child(p_r1_region, _state):
       status = r.trans(p_p11)
@@ -908,20 +910,25 @@ def p_p11(r, e):
   '''
   status = return_status.UNHANDLED
   outmost = r.outmost
+  # By convention this state function's name is also the key name for the outer
+  # Regions collection which holds the post_fifo..._post_lifo methods to give
+  # access to all of our sibling orthogonal components (parallel states)
+  # contained within that Region's collection
+  this_state_functions_name = r.function_name()
   (post_fifo,
    _post_fifo,
    post_lifo,
-   _post_lifo,
-   token_match,
-   scribble) = outmost_region_functions(r, 'p_p11')
+   _post_lifo) = regions_workers(r, this_state_functions_name)
+  # We pass in the function_name to make the scribble log easier to read
+  (token_match, scribble) = outmost_workers(r, this_state_functions_name)
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e)  # search for META_INIT
+    (_e, _state) = r.peel_meta(e)  # search for META_INIT
     if _state:
-      _post_fifo(_e, outmost=outmost)
+      _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
 
@@ -930,7 +937,7 @@ def p_p11(r, e):
        token_match(e.signal_name, "e2") or
        token_match(e.signal_name, "e4") or
        token_match(e.signal_name, "A") or
-       token_match(e.signal_name, "F2") or
+       token_match(e.signal_name, "F1") or
        token_match(e.signal_name, "G3")
        ):
     scribble(e.signal_name)
@@ -992,7 +999,7 @@ def p_p11_r1_region(rr, e):
     pprint("enter p_p11_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p11_r1_region, _state):
       status = rr.trans(p_p11_s11)
@@ -1100,7 +1107,7 @@ def p_p11_r2_region(rr, e):
     pprint("enter p_p11_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p11_r2_region, _state):
       status = rr.trans(p_p11_s21)
@@ -1220,18 +1227,24 @@ def p_r1_final(r, e):
 def p_p12(r, e):
   status = return_status.UNHANDLED
   outmost = r.outmost
+
+  # By convention this state function's name is also the key name for the outer
+  # Regions collection which holds the post_fifo..._post_lifo methods to give
+  # access to all of our sibling orthogonal components (parallel states)
+  # contained within that Region's collection
+  this_state_functions_name = r.function_name()
   (post_fifo,
    _post_fifo,
    post_lifo,
-   _post_lifo,
-   token_match,
-   scribble) = outmost_region_functions(r, 'p_p12')
+   _post_lifo) = regions_workers(r, this_state_functions_name)
+  # We pass in the function_name to make the scribble log easier to read
+  (token_match, scribble) = outmost_workers(r, this_state_functions_name)
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e)  # search for META_INIT
+    (_e, _state) = r.peel_meta(e)  # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1298,7 +1311,7 @@ def p_p12_r1_region(rr, e):
     pprint("enter p_p12_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p12_r1_region, _state):
       status = rr.trans(p_p12_p11)
@@ -1342,18 +1355,24 @@ def p_p12_r1_over_hidden_region(rr, e):
 def p_p12_p11(rr, e):
   status = return_status.UNHANDLED
   outmost = rr.outmost
+
+  # By convention this state function's name is also the key name for the outer
+  # Regions collection which holds the post_fifo..._post_lifo methods to give
+  # access to all of our sibling orthogonal components (parallel states)
+  # contained within that Region's collection
+  this_state_functions_name = rr.function_name()
   (post_fifo,
    _post_fifo,
    post_lifo,
-   _post_lifo,
-   token_match,
-   scribble) = outmost_region_functions(rr, 'p_p12_p11')
+   _post_lifo) = regions_workers(rr, this_state_functions_name)
+  # We pass in the function_name to make the scribble log easier to read
+  (token_match, scribble) = outmost_workers(rr, this_state_functions_name)
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11")
     scribble(e.signal_name)
-    (_e, _state) = rr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rr.peel_meta(e)  # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1406,7 +1425,7 @@ def p_p12_p11_r1_region(rrr, e):
     pprint("enter p_p12_p11_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rrr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rrr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rrr.has_a_child(p_p12_p11_r1_region, _state):
       status = rrr.trans(p_p12_p11_s11)
@@ -1496,7 +1515,7 @@ def p_p12_p11_r2_region(rrr, e):
     pprint("enter p_p12_p11_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rrr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rrr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rrr.has_a_child(p_p12_p11_r2_region, _state):
       status = rrr.trans(p_p12_p11_s21)
@@ -1538,6 +1557,12 @@ def p_p12_p11_s21(rrr, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11_s21")
     status = return_status.HANDLED
+  elif(e.signal == signals.G1):
+    onion = rrr.outmost.build_onion(t=p_p22_s11, s=p_p12_p11_s21, sig=e)
+    import pdb; pdb.set_trace()
+
+    _e = rrr.outermost.meta_trans(t=p_p22_s11, s=p_p12_p11_s21, sig=e)
+    rrr.outer.post_fifo(_e)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_s21")
     status = return_status.HANDLED
@@ -1605,7 +1630,7 @@ def p_p12_r2_region(rr, e):
     pprint("enter p_p12_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e)  # search for META_INIT
+    (_e, _state) = rr.peel_meta(e)  # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p12_r2_region, _state):
       status = rr.trans(p_p12_s21)
@@ -1719,7 +1744,7 @@ def p_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     status = return_status.HANDLED
-    (_e, _state) = r.init_stack(e) # search for META_INIT
+    (_e, _state) = r.peel_meta(e) # search for META_INIT
     if _state is None or not r.has_a_child(p_r2_region, _state):
       status = r.trans(p_s21)
     else:
@@ -1758,20 +1783,22 @@ def p_r2_over_hidden_region(r, e):
 @p_spy_on
 def p_s21(r, e):
   status = return_status.UNHANDLED
-  global watching
-
   outmost = r.outmost
+
+  # p_p21 is not an injector function, so we must know the name of
+  # the outer Regions object that contains our sibling othogonal components
+  # (parallel states).
   (post_fifo,
    _post_fifo,
    post_lifo,
-   _post_lifo,
-   token_match,
-   scribble) = outmost_region_functions(r, 'p')
+   _post_lifo) = regions_workers(r, 'p')
+
+  (token_match, scribble) = outmost_workers(r, 'p')
 
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_s21")
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name,"C0")):
+  elif(r.token_match(e.signal_name, "C0")):
     status = r.trans(p_p22)
   elif(r.token_match(e.signal_name, "F1")):
     _e = r.outmost.meta_trans2(t=p_p22_s11, s=p_s21, sig=e.signal_name)
@@ -1796,18 +1823,24 @@ def p_s21(r, e):
 def p_p22(r, e):
   status = return_status.UNHANDLED
   outmost = r.outmost
+
+  # By convention this state function's name is also the key name for the outer
+  # Regions collection which holds the post_fifo..._post_lifo methods to give
+  # access to all of our sibling orthogonal components (parallel states)
+  # contained within that Region's collection
+  this_state_functions_name = r.function_name()
   (post_fifo,
    _post_fifo,
    post_lifo,
-   _post_lifo,
-   token_match,
-   scribble) = outmost_region_functions(r, 'p_p22')
+   _post_lifo) = regions_workers(r, this_state_functions_name)
+  # We pass in the function_name to make the scribble log easier to read
+  (token_match, scribble) = outmost_workers(r, this_state_functions_name)
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p22")
     scribble(e.signal_name)
-    (_e, _state) = r.init_stack(e) # search for META_INIT
+    (_e, _state) = r.peel_meta(e) # search for META_INIT
     if _state:
       _post_fifo(_e)
     post_lifo(Event(signal=signals.enter_region))
@@ -1869,7 +1902,7 @@ def p_p22_r1_region(rr, e):
     pprint("enter p_p22_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for META_INIT
+    (_e, _state) = rr.peel_meta(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p22_r1_region, _state):
       status = rr.trans(p_p22_s11)
@@ -1980,7 +2013,7 @@ def p_p22_r2_region(rr, e):
     pprint("enter p_p22_r2_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = rr.init_stack(e) # search for META_INIT
+    (_e, _state) = rr.peel_meta(e) # search for META_INIT
     # if _state is a child of this state then transition to it
     if _state is None or not rr.has_a_child(p_p22_r2_region, _state):
       status = rr.trans(p_p22_s21)
@@ -2098,7 +2131,12 @@ def outer_state(self, e):
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     _e = self.meta_init(t=p_p11_s22, sig=e.signal_name)
     self.scribble(payload_string(_e))
+    #_f, _state = self.peel_meta(_e)
     #self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
+    #self.post_fifo(_e)
+    #status = self.trans(_state)
+    #self.post_fifo(_e.payload.event)
+    #status = self.trans(_e.payload.state)
     self.post_fifo(_e.payload.event)
     status = self.trans(_e.payload.state)
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -2137,11 +2175,11 @@ def p(self, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("[p] {}".format(e.signal_name))
-    (_e, _state) = self.init_stack(e) # search for META_INIT
+    (_e, _state) = self.peel_meta(e) # search for META_INIT
     if _state:
       self.regions['p']._post_fifo(_e)
     pprint("enter p")
-    self.regions['p'].post_lifo(Event(signal=signals.enter_region), outmost=self)
+    self.regions['p'].post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(type(self.regions) == dict and (self.token_match(e.signal_name, "e1") or
@@ -2208,7 +2246,7 @@ def p(self, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("[p] {}".format('region_exit'))
-    self.regions['p'].post_lifo(Event(signal=signals.region_exit), outmost=self)
+    self.regions['p'].post_lifo(Event(signal=signals.region_exit))
     pprint("exit p")
     status = return_status.HANDLED
   elif(e.signal == signals.region_exit):
@@ -2222,7 +2260,7 @@ def p(self, e):
 
 
 if __name__ == '__main__':
-  regression = False
+  regression = True
   active_states = None
   example = XmlChart(
     name='x',
@@ -2245,6 +2283,15 @@ if __name__ == '__main__':
       string2 = "\n{} <- {} == {}\n".format(str(old_result), s, str(active_states))
       print(string1)
       example.report(string2)
+      if active_states != expected_result:
+        previous_frame = inspect.currentframe().f_back
+        fdata = FrameData(*inspect.getframeinfo(previous_frame))
+        function_name = '__main__'
+        line_number   = fdata.line_number
+        print("Assert error from {}:{}".format(function_name, line_number))
+        print("Expecting: {}".format(active_states))
+        print("Observed:  {}".format(expected_result))
+        exit(0)
       assert active_states == expected_result
       return active_states
 
@@ -2412,12 +2459,12 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    old_results = build_test(
-      s='F2',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
-      old_result=old_results,
-      duration=0.2
-    )
+    #old_results = build_test(
+    #  s='F2',
+    #  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+    #  old_result=old_results,
+    #  duration=0.2
+    #)
 
     old_results = build_test(
       s='to_s',
@@ -2442,7 +2489,7 @@ if __name__ == '__main__':
 
     old_results = build_test(
       s='G0',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_p21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
       old_result=old_results,
       duration=0.2
     )
@@ -2469,15 +2516,15 @@ if __name__ == '__main__':
     example.report(string2)
     old_results = active_states
 
-    example.post_fifo(Event(signal='C0'))
+    example.post_fifo(Event(signal='G1'))
     time.sleep(0.4)
     active_states = example.active_states()[:]
-    string1 = "{:>79}{:>5} <-> {:<80}".format(str(old_results), 'C0', str(active_states))
+    string1 = "{:>79}{:>5} <-> {:<80}".format(str(old_results), 'G1', str(active_states))
     string2 = "\n{} <- {} == {}\n".format(str(old_results), 'C0', str(active_states))
     print(string1)
     example.report(string2)
-    assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p23_s11', 'p_p22_s21']]
-    old_results = active_states
+    # assert active_states == [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p23_s11', 'p_p22_s21']]
+    # old_results = active_states
 
     # example.post_fifo(Event(signal='G1'))
     # time.sleep(0.4)
