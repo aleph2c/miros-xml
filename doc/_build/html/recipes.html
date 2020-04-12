@@ -40,126 +40,298 @@
 <div class="contents topic" id="contents">
 <p class="topic-title">Contents</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#recipes-recipes" id="id2">Recipes</a></p>
+<li><p><a class="reference internal" href="#recipes-recipes" id="id2">Recipes</a></p></li>
+<li><p><a class="reference internal" href="#goals" id="id3">Goals</a></p>
 <ul>
-<li><p><a class="reference internal" href="#summary" id="id3">Summary</a></p></li>
-<li><p><a class="reference internal" href="#context-and-terminology" id="id4">Context and Terminology</a></p></li>
-<li><p><a class="reference internal" href="#reflection-and-logging" id="id5">Reflection and Logging</a></p>
+<li><p><a class="reference internal" href="#problem-the-tale-of-two-architectural-explosion-chambers" id="id4">Problem - The Tale of Two Architectural Explosion Chambers</a></p></li>
+<li><p><a class="reference internal" href="#class-and-hsm-relationships" id="id5">Class and HSM Relationships</a></p></li>
+<li><p><a class="reference internal" href="#context-and-terminology" id="id6">Context and Terminology</a></p></li>
+<li><p><a class="reference internal" href="#reflection-and-logging" id="id7">Reflection and Logging</a></p>
 <ul>
-<li><p><a class="reference internal" href="#souped-up-spy" id="id6">Souped Up Spy</a></p></li>
-<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id7">Souped Up State Name Reflection</a></p></li>
-<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id8">Simplifying the Inner Injector Functions</a></p></li>
-<li><p><a class="reference internal" href="#reading-the-log-file" id="id9">Reading the Log File</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-spy" id="id8">Souped Up Spy</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id9">Souped Up State Name Reflection</a></p></li>
+<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id10">Simplifying the Inner Injector Functions</a></p></li>
+<li><p><a class="reference internal" href="#reading-the-log-file" id="id11">Reading the Log File</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#building-a-subregion" id="id10">Building a Subregion</a></p></li>
-<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id11">Writing WTF Events Across Regions</a></p>
+<li><p><a class="reference internal" href="#building-a-subregion" id="id12">Building a Subregion</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id13">Writing WTF Events Across Regions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#e-wtf-events" id="id12">E WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#e0-wtf-event" id="id13">E0 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e1-wtf-event" id="id14">E1 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e2-wtf-event" id="id15">E2 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#c-wtf-events" id="id16">C WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#c0-wtf-event" id="id17">C0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e-wtf-events" id="id14">E WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#e0-wtf-event" id="id15">E0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e1-wtf-event" id="id16">E1 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e2-wtf-event" id="id17">E2 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#c-wtf-events" id="id18">C WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#c0-wtf-event" id="id19">C0 WTF Event</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id18">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id20">Hidden Dynamics</a></p></li>
 </ul>
 </li>
 </ul>
 </div>
-<div class="section" id="summary">
-<span id="recipes-summary"></span><h2><a class="toc-backref" href="#id3">Summary</a><a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="goals">
+<span id="recipes-goals"></span><h1><a class="toc-backref" href="#id3">Goals</a><a class="headerlink" href="#goals" title="Permalink to this headline">¶</a></h1>
+<p>To create an XML parser which will consume a structured document describing a
+Python statechart and turn that statechart into a working program:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>We will take the good parts of the SCXML standard.  I write <em>good parts</em>
+because the standard was not managed properly, it contains a lot of
+features that only serve one industrial group and I’m not going to work for
+them for free.</p></li>
+<li><p>The XML parser will be Python-centric, I do not want to write a new
+programming language which uses Python as its assembly (even though I can
+see why the SCXML would want to be language agnostic).</p></li>
+<li><p>The parallel regions feature will be supported, since it is a major part of
+the original David Harel paper. (This is where the technical challenge of
+this project is concentrated).</p></li>
+</ul>
+</div></blockquote>
+<p>The majority of this document is written to describe how to implement parallel
+regions using the event processor which I wrote in the miros project (based on
+the work by Dr. Miro Samek).</p>
+<div class="section" id="problem-the-tale-of-two-architectural-explosion-chambers">
+<span id="recipes-summary"></span><h2><a class="toc-backref" href="#id4">Problem - The Tale of Two Architectural Explosion Chambers</a><a class="headerlink" href="#problem-the-tale-of-two-architectural-explosion-chambers" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>I wrote this document to help me think through my problems and to try and find a
-more straightforward way to implement the parallel tag.</p>
-<p>I want miros-XML to support parallel statecharts using the dashed line, as
-described by David Harel’s notation. The miros library uses an event dispatching
-algorithm developed by Miro Samek. This event dispatching algorithm does
-not support the Parallel statechart (orthogonal regions). However, Miro Samek
-offered an alternative and faster pattern, the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal component</a>; an HSM
-within an HSM. The problem with this orthogonal component pattern is that it
-isn’t as graphically elegant as the one envisioned by David Harel. So the
-statechart community expects to use orthogonal regions. David Harel’s graphical
-abstractions permit more than one active state to exist within one diagram at a
-time; the packing of design complexity into a small diagram’s space is very
-efficient. The trade-off is you waste a lot of computer cycles when you design
-this way.
-If you haven’t seen orthogonal regions before, refer to <a class="reference external" href="https://aleph2c.github.io/miros/othogonalregions.html">this document on
-orthogonal regions and miros.</a>.</p>
-<p>In this project and these documents, I will be writing about how to have one
-orthogonal region communicate with another. My implementation of orthogonal
-regions will be a mapping of Miros Samek’s orthogonal component pattern onto a
-design that will look and behave like an orthogonal region. This work will be
-done by recursively mapping orthogonal components within a chart. An outer
-region will <code class="docutils literal notranslate"><span class="pre">dispatch</span></code> events into a deeper or inner region. The outer region
-which injects an event will be called an Injector and the region which receives
-the events will be called an Injectee. An HSM can both be an Injector and an
-Injectee, and the outermost chart will only be an Injector.</p>
-<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
-<p>The chart will be run within the outermost HSM’s thread, and the inner regions
-will be driven by dispatching events and driving them through the orthogonal
-component with the <code class="docutils literal notranslate"><span class="pre">complete_circuit</span></code> method.</p>
-<p>To manifest transitions between regions, the queue of the various components
-will be treated as call stacks into which instructions can be placed.  Otherwise
-the majority of the chart will behave using the dynamics of the miros algorithm.</p>
-<p>This document is being written so that I can invent enough theory and give
-myself enough instruction so as to generalize the construction of any orthogonal
-region, described by an XML document, within its <code class="docutils literal notranslate"><span class="pre">&lt;parallel&gt;</span></code> tag.</p>
+straightforward way to implement the &lt;p&gt; parallel tag using miros.</p>
+</div>
+<p>State machine theory used to be plagued with a problem known as state space
+explosion: The number of states needed in a finite state machine (FSM) would
+explode in number, as a system’s requirements reached even a moderate level of
+complexity.  A good engineering formalism (or way of modeling your problem)
+should compress complexity within the model, not make your model more complex
+than the real system it is intended to mirror.  So the FSM technique could only
+be applied to simple systems, with the state space explosion problem becoming
+the promised apocalypse for that system’s maintenance developer.</p>
+<p>David Harel neatly solved this issue by inventing a better formalism.  He
+invented hierarchical state machines and parallel regions.  His way of drawing
+diagrams would ensnare tremendous amounts of complexity, packing it into small
+and intuitive diagrams.  Then he wrote it up in a way that was so easy to
+understand that his paper was rejected by his reviewers because they were
+convinced that they had seen his ideas before.</p>
+<p>When state machines are running in parallel regions they are running at the same
+time: both regions react to the events which are sent to the chart.  This is
+easy for a theorist to envision, but it is much harder for the practitioner to
+implement.  Regions can exist within regions, and each region represents a
+parallel execution of code, with access to common outer memory and a need to
+react to events managed by other parts of the program.  Typically multi-threaded
+programs build a loop and run forever.  This is not the case with a program
+manifesting a Harel diagram, the regions map onto concurrent processes, but if
+you exit the region its concurrent processes should collapse onto the outer
+concurrent process.  It is like applying topology to your system forks.</p>
+<p>Miro Samek wanted to address the need to contain state explosion, but in
+a more computationally efficient way.  He invented the  <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal component
+pattern</a>:
+an HSM running within another HSM.  It is a little harder to draw than a
+parallel region, but it can pack complexity in the same way.  But Miro Samek’s
+approach didn’t catch on.  The statechart community still expects the parallel
+region to exist.  From an implementation perspective Miro Samek’s approach is
+much faster and far easier to implement, but David Harel’s paper was just too
+convincing.</p>
+<p>So why not just use Miro Samek’s approach?  Because I want to have access to the
+<a class="reference external" href="https://www.youtube.com/watch?v=NDWgtB_MD24">WTF</a> family of events (see the
+blue arrows on the diagram below).</p>
+<a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
+<p>A WTF event is an event that causes a transition from, or to, or from and to,
+one or more parallel regions.  I called these events, WTF events because I have
+no clue how to implement such a transition while the parallel regions are being
+mapped as a HSMs within and HSMs.</p>
+<p>So in a nutshell, this project is about having cake and eating it too.  I will
+recursively map Miro Samek’s orthogonal component pattern in such a way that it
+can implement the parallel region requirement of the Harel way of making
+statecharts, and I want to support (and possibly define) the WTF events.</p>
+</div>
+<div class="section" id="class-and-hsm-relationships">
+<span id="recipes-class-relationships"></span><h2><a class="toc-backref" href="#id5">Class and HSM Relationships</a><a class="headerlink" href="#class-and-hsm-relationships" title="Permalink to this headline">¶</a></h2>
+<p>Here is an example of a statechart diagram written using the Harel Formalism:</p>
+<a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
+<p>The state machines separated from one another with dashed lines are said to be
+running in parallel regions.  This means any event seen by the whole machine
+will be seen by each region and both regions are expected to run concurrently as
+if they were running on their own computer.  A statechart which supports the
+parallel region pattern can have one or more active states at a time.  The event
+processing algorithm used by miros does not support the parallel regions
+pattern.</p>
+<p>But miros <em>does</em> support the ability to place an HSM within another HSM.  This
+is called the orthogonal component pattern.  Since the state of an inner HSM is
+in a different state than the outer machine which holds it, the orthogonal
+component pattern can have more than one active state like the parallel region
+pattern.</p>
+<p>The goal of this documentation is to show how to map the orthogonal component
+pattern onto the parallel region pattern.  This way a user can use the existing
+miros infrastructure to gain the incredible complexity packing and
+ease-of-description offered by the parallel region drawing style.</p>
+<hr class="docutils" />
+<p>From a very high level the code is structured like this:</p>
+<a class="reference external image-reference" href="_static/class_relationships.pdf"><img alt="_images/class_relationships.svg" class="align-center" src="_images/class_relationships.svg" /></a>
+<p>The Region class is an HsmWithQueues, it is an HSM inside of another HSM, so it
+is an orthogonal component.</p>
+<p>The Regions object is a collection of Region objects.  The Regions object
+manages its orthogonal components by driving events through them.</p>
+<p>The XmlChart has many Regions and it inherits from the InstrumentedActiveObject
+which is just a Factory with some additional logging and customized
+instrumentation features.</p>
+<hr class="docutils" />
+<p>There will be one Region object for every region in a diagram which supports the
+dashed line notation:</p>
+<a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="align-center" src="_images/region.svg" /></a>
+<p>A Region is just an HsmWithQueues with some additional methods.  The Region will
+be attached to a state machine who’s inner part is identical to that in the
+parallel region diagram, but with three additional outer states and event
+handlers.  These outer structures will be invisible to the user, and will
+provide the means to control the orthogonal component so that its inner state
+machine will behave as if it was a parallel state in a different framework
+(Matlab/Rational Rose).  I will talk more about these outer structures later,
+but for now know that they are just there to map one technique onto another.</p>
+<p>Parallel regions occur within a state.  In this program, the state with parallel
+regions, has a Regions object to do this work for it.</p>
+<hr class="docutils" />
+<p>The Regions class can inject and drive events into all of the Region objects it
+controls.</p>
+<a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="align-center" src="_images/regions.svg" /></a>
+<p>The Regions object is constructed within the XmlChart class.</p>
+<p>In the case that some substate of a parallel region has another set of parallel
+regions (see p_p11 in the above example), the state function managing this
+transition “will have” a Regions object.  A function which sends events to a
+different set of regions or region is called an <strong>injector</strong>.</p>
+<p>In miros states are described using functions.  But in the parallel regions pattern,
+a function can have two or more concurrent state machines.  So a function might
+need to access the event driving ability of a Regions object.  In the diagram
+above we show that if a state function has parallel regions, it “has a” Regions
+object.</p>
+<p>But a function can’t really own anything in OO theory.  If you read the code you
+will see that state functions that need to control another parallel region, call
+out and get the methods required to post and drive events to that region.  It
+accesses the methods of the Regions object managing that part of the graph, its
+as if it has that Regions object.</p>
+<p>You can see this <em>faux</em> relationship connecting the “p state function” to the
+Regions class.  To provide context about the meaning of the “p state function” I
+show its region object statechart on the far left of the above diagram.</p>
+<hr class="docutils" />
+<p>State functions have Regions objects which have Region objects which have state
+functions.  This is all very confusing.  Seeing how things inter-relate in a
+graph would be nice, but this is not supported with idiomatic UML.</p>
+<p>So we will break the rules and describe their topological relationship like so:</p>
+<a class="reference external image-reference" href="_static/regions_in_regions.pdf"><img alt="_images/regions_in_regions.svg" class="align-center" src="_images/regions_in_regions.svg" /></a>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The people who would take issue with me doing this have retired.</p>
+</div>
+<p>Place your eyes on the outer most Regions object.  It has multiple region
+objects.  Its top most region object drives a partially drawn HSM.  Within this
+HSM is an <strong>injector</strong>, or a state function that has parallel regions within it.
+This <strong>injector</strong> function is called p_p11.</p>
+<p>The p_p11 injector function needs to control the collection of region objects,
+so it has a Regions object.  By convention the Regions object is given the same
+name as the injector which needs its tools.</p>
+<p>Now look within the regions being managed within the p_p11 Regions object.  If a
+state machine inside of one of its orthogonal components needs to use the
+<code class="docutils literal notranslate"><span class="pre">post_fifo</span></code>, it will be posting and driving events through all of its sibling
+orthogonal components.</p>
+<p>There will be times when a state function needs to call to drive events through
+its super-region or parent region components.  To do this it uses the
+<code class="docutils literal notranslate"><span class="pre">r.outer.post_fifo(...)</span></code> syntax.</p>
+<hr class="docutils" />
+<a class="reference external image-reference" href="_static/XmlChart.pdf"><img alt="_images/XmlChart.svg" class="align-center" src="_images/XmlChart.svg" /></a>
+<p>The XmlChart class is a statechart which has a bunch of Regions objects, which
+in turn manage groups of orthogonal components (Region objects).  I have
+discussed the inner dynamics already so I will focus now on how Regions
+objects are organized within the XmlChart class: they are in a data dictionary.
+This dictionary has key names that match the <strong>injector</strong> functions that own
+them.  There are some instances where a state function will have a Regions
+object even though it does not have internal parallel regions. This will be
+talked about in the WTF events section.</p>
+<p>Each state function will receive a handle to its Region object and an event.
+All Region objects will have an attribute that points to the outmost chart, the
+XmlChart object.  It is through this reference that the Regions objects are
+looked up to get the methods required to post and drive events to other regions.</p>
+<p>The XmlChart is the only HSM in the whole system that has a thread.  This thread
+must be used to drive all of the inner HSMs.  It acts like the spring drive in a
+mechanical watch; it drives gears which drive smaller gears which drive smaller
+gears.  Any event that is passed to our chart must first be managed by the
+XmlChart class, then pushed into the inner Regions.  All <strong>injector</strong> functions
+will also drive their received external events deeper and deeper into the chart
+until the whole collective RTC event is finished.</p>
+<hr class="docutils" />
+<p>The state machines inside of a Region will mostly look the same as how they will
+look on a David Harel diagram, or how they are structured within the &lt;p&gt; tag of
+the XML.  But for the mapping of one pattern onto another three additional
+states wrapped the machine within a parallel region.  See the diagram below for
+an example of this:</p>
+<a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_1.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_1.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_1.svg" /></a>
+<p>The wrapper states are described here:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>The <strong>under_hidden_region</strong> state presents the illusion that our region can
+be exited.  The orthogonal component pattern allows us an HSM within an
+HSM, but the parallel pattern needs a whole region to exit when it turns
+off.  This exiting behavior is captured by this <strong>under_hidden_region</strong>.</p></li>
+<li><p>The <strong>region</strong> state is sandwiched between the under and over hidden
+states.  It contains an <code class="docutils literal notranslate"><span class="pre">INIT_SIGNAL</span></code> handler which can either cause a
+transition to the default state (see p1_s11 in the diagram) or it can be
+aimed programmatically.</p></li>
+<li><p>The <strong>over_hidden</strong> state’s sole purpose is to cause a re-initialization
+event from any of it’s substates, so that the programmable init arrow
+of the region state can be run any time.</p></li>
+</ul>
+</div></blockquote>
+<p>Here we see how the parallel region is mapped onto the orthogonal component with a
+bit more detail about the Regions object and Region objects:</p>
+<a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_2.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_2.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_2.svg" /></a>
+<hr class="docutils" />
+<p>To get events into the inner regions of the chart you must pass them via the
+<strong>injectors</strong> (p in this diagram):</p>
+<a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_3.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_3.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_3.svg" /></a>
+<p>From the top diagram we can see how the bottom diagram should work.  If we start
+the chart in the outer_state, send a <code class="docutils literal notranslate"><span class="pre">to_p</span></code>, then send an <code class="docutils literal notranslate"><span class="pre">e</span></code>,  the active
+states should be <code class="docutils literal notranslate"><span class="pre">['p_s12',</span> <span class="pre">'...']</span></code>.</p>
+<p>Now look at how an event is injected into a parallel region inside of another parallel region:</p>
+<a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_4.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_4.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_4.svg" /></a>
+<p>If we start the chart in the outer_state, send a <code class="docutils literal notranslate"><span class="pre">to_p</span></code>, then send an <code class="docutils literal notranslate"><span class="pre">e1</span></code>,
+the chart should settle into <code class="docutils literal notranslate"><span class="pre">[['p_p11_s12',</span> <span class="pre">'...'],</span> <span class="pre">'...']</span></code>.</p>
+<p>From this simple exercise we can see how the pictorial-descriptive-power of the
+orthogonal components is being completely outclassed by the Harel-parallel-regions
+drawing technique.</p>
+<p>Now imagine the orthogonal component diagram from this:</p>
+<a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
+<p>I could draw it, but it would stop being useful.</p>
+<p>It seems that the orthogonal components technique can’t be used to track
+topological context for even a design of moderate complexity.  Now imagine
+trying to draw the above using finite state machines? (Architectural state-space
+explosion)</p>
+<hr class="docutils" />
+<p>Here is a walk through of our first WFT event: <code class="docutils literal notranslate"><span class="pre">E0</span></code></p>
+<a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_5.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_5.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_5.svg" /></a>
+<p>A meta event is an event that has an event inside of it.  We will use meta
+events to pass messages in and out of orthogonal components.  As you walk
+through the code, remember that <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">_post_lifo</span></code> only place
+events into the queues of all of the regions connected to those calls.
+<code class="docutils literal notranslate"><span class="pre">post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> place events and drive those events through
+their connected orthogonal components.</p>
+<p>The code that makes the programmable init work isn’t on the diagram, but it
+looks like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
+  <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+  <span class="c1"># if _state is a child of this state then transition to it</span>
+  <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">rr</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">_state</span><span class="p">):</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11</span><span class="p">)</span>  <span class="c1"># the default state to transition to</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">_state</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">_e</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">rr</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If we started the above chart in the outer_state and sent it an <code class="docutils literal notranslate"><span class="pre">E0</span></code> we would
+end up in the <code class="docutils literal notranslate"><span class="pre">[['p_p11_s12',</span> <span class="pre">'...'],</span> <span class="pre">['...']]</span></code> states.</p>
 </div>
 <div class="section" id="context-and-terminology">
-<span id="recipes-context-and-terminology"></span><h2><a class="toc-backref" href="#id4">Context and Terminology</a><a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">¶</a></h2>
-<blockquote>
-<div><div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>There is something cluttered about the terminology, come back and pull
-things apart so that each thing has one meaning.</p>
-</div>
-</div></blockquote>
-<hr class="docutils" />
+<span id="recipes-context-and-terminology"></span><h2><a class="toc-backref" href="#id6">Context and Terminology</a><a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><dl>
-<dt>Region</dt><dd><p>HsmWithQueues object with additional supporting methods; in the software, it is
-represented as a class. In the design, it is an orthogonal component called the
-injectee. In statechart theory, the orthogonal region is one of the areas
-partitioned within a dashed line. It and its other regions are expected to run
-concurrently.</p>
-<a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="align-center" src="_images/region.svg" /></a>
-</dd>
-<dt>Regions</dt><dd><p>Regions contain multiple Region objects in a collection. It augments the regions
-so that they can reference one another using iterators. It adds a _post_fifo and
-_post_lifo method, which can put items into all of its inner region’s queues.</p>
-<p>It adds a post_fifo and post_lifo method, which will post items onto an internal
-queue, then drive the inner statecharts using their complete_circuit method
-until their queues are empty.</p>
-<a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="align-center" src="_images/regions.svg" /></a>
-<p>All other inner state methods, connected to a particular regions HSM
-will have an <code class="docutils literal notranslate"><span class="pre">&#64;p_spy_on</span></code> decorator.</p>
-</dd>
-<dt>XmlChart</dt><dd><p>Is the main statechart into which all events are posted.  It is the
-outer most injector.</p>
-<a class="reference external image-reference" href="_static/XmlChart.pdf"><img alt="_images/XmlChart.svg" class="align-center" src="_images/XmlChart.svg" /></a>
-<p>The XmlChart will have a dict containing multiple Regions.  The
-XmlChart’s thread will drive the entire collection of orthogonal
-regions.  It will inject all of the events, via the regions dictionary.</p>
-<p>All of the XmlChart connected state methods will have a <code class="docutils literal notranslate"><span class="pre">&#64;spy_on</span></code>
-decorator.  All other inner state methods will have an <code class="docutils literal notranslate"><span class="pre">&#64;p_spy_on</span></code>
-decorator.</p>
-</dd>
-<dt>Injector:</dt><dd><p>A statechart or orthogonal component which posts events into an inner orthogonal
-component then drives the events through the region that injector encapsulates.
-The injector places events and drives events using the _post_fifo’, post_fifo …
-APIs. The <code class="docutils literal notranslate"><span class="pre">p</span></code> and <code class="docutils literal notranslate"><span class="pre">pp12</span></code> states are both injectors in the following diagram:</p>
-<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
-</dd>
-<dt>Injectee:</dt><dd><blockquote>
-<div><p>An orthogonal component who’s events are given to it and driven through it
-by an injector. An injectee can also be an injector if it drives another
-state. An injector is hidden from view in the main statechart picture with
-the dashed lines. However, you can see it at the bottom right of this
-picture.</p>
-</div></blockquote>
-<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
-</dd>
 <dt>WTF events</dt><dd><p>Any event which crosses between regions.  See <code class="docutils literal notranslate"><span class="pre">E0</span></code>, <code class="docutils literal notranslate"><span class="pre">E1</span></code> and <code class="docutils literal notranslate"><span class="pre">E3</span></code>
 in the following diagram</p>
 <a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="align-center" src="_images/hidden_dynamics.svg" /></a>
@@ -167,24 +339,9 @@ in the following diagram</p>
 algorithim.  This document was written, largely to understand how to
 implement these events for the miros-xml parser.</p>
 </dd>
-<dt>Under Hidden States</dt><dd><p>The outer state of an <strong>injectee</strong>.  It presents the illusion that a
-region can be exited.  It’s a holding state with no initialization
-handler, and it is the bottom state of the HSM mapped to that region.</p>
-</dd>
-<dt>Region States</dt><dd><p>This state is sandwiched between the under and outer hidden states.  It
-contains a <code class="docutils literal notranslate"><span class="pre">INIT_SIGNAL</span></code> handler which calls the <code class="docutils literal notranslate"><span class="pre">init_stack</span></code>
-method which is used for managing <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> events (events which
-contain events and states to initialize to).  The region state also has
-a <code class="docutils literal notranslate"><span class="pre">region_exit</span></code> event handler which will cause the region to
-transition the <strong>under hidden region</strong>.</p>
-</dd>
-<dt>Over Hidden States</dt><dd><p>This state is above the region state and its purpose to to catch the
-<code class="docutils literal notranslate"><span class="pre">force_region_init</span></code> event, which will force a transition to the
-region, and thereby force a call of the <code class="docutils literal notranslate"><span class="pre">init_state</span></code> method.</p>
-</dd>
 <dt>META_INIT</dt><dd><p>An event which contains 0 or more META_INIT events and the state which
 are intended to handle the event.  They are injected into the queue of
-inner states so that the inner state’s <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> methods can
+inner states so that the inner state’s <code class="docutils literal notranslate"><span class="pre">peel_meta</span></code> methods can
 programmatically initialize their region.</p>
 </dd>
 <dt>META_EXIT</dt><dd><p>An event which permits a WTF exit strategy</p>
@@ -200,9 +357,9 @@ programmatically initialize their region.</p>
 </div></blockquote>
 </div>
 <div class="section" id="reflection-and-logging">
-<span id="recipes-reflection-and-logging"></span><h2><a class="toc-backref" href="#id5">Reflection and Logging</a><a class="headerlink" href="#reflection-and-logging" title="Permalink to this headline">¶</a></h2>
+<span id="recipes-reflection-and-logging"></span><h2><a class="toc-backref" href="#id7">Reflection and Logging</a><a class="headerlink" href="#reflection-and-logging" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="souped-up-spy">
-<span id="recipes-suped-up-spy"></span><h3><a class="toc-backref" href="#id6">Souped Up Spy</a><a class="headerlink" href="#souped-up-spy" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-suped-up-spy"></span><h3><a class="toc-backref" href="#id8">Souped Up Spy</a><a class="headerlink" href="#souped-up-spy" title="Permalink to this headline">¶</a></h3>
 <p>It would be almost impossible to tackle this problem without the spy
 instrumentation.  To get the spy instrumentation working within the orthogonal
 regions I wrote this wrapper and placed it above each region or state within a
@@ -284,7 +441,7 @@ instrumentation.</p>
 <p>The spy itself is written to a log file and/or written to the terminal.</p>
 </div>
 <div class="section" id="souped-up-state-name-reflection">
-<span id="recipes-suped-up-state-name-reflection"></span><h3><a class="toc-backref" href="#id7">Souped Up State Name Reflection</a><a class="headerlink" href="#souped-up-state-name-reflection" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-suped-up-state-name-reflection"></span><h3><a class="toc-backref" href="#id9">Souped Up State Name Reflection</a><a class="headerlink" href="#souped-up-state-name-reflection" title="Permalink to this headline">¶</a></h3>
 <p>If you use the vanilla <code class="docutils literal notranslate"><span class="pre">state_name</span></code> method provided within miros you will only
 be able to see the outer most state holding the orthogonal regions; but it will
 not reach into this collection of orthogonal regions and report on the active state
@@ -353,7 +510,7 @@ outermost list represents the whole chart and the inner list represents that
 </div>
 </div>
 <div class="section" id="simplifying-the-inner-injector-functions">
-<span id="recipes-simplifying-the-inner-injector-functions"></span><h3><a class="toc-backref" href="#id8">Simplifying the Inner Injector Functions</a><a class="headerlink" href="#simplifying-the-inner-injector-functions" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-simplifying-the-inner-injector-functions"></span><h3><a class="toc-backref" href="#id10">Simplifying the Inner Injector Functions</a><a class="headerlink" href="#simplifying-the-inner-injector-functions" title="Permalink to this headline">¶</a></h3>
 <p>The inner regions will need to access XmlChart methods and attributes to work.</p>
 <p>The spy scribble method will be contained in the XmlChart object.  It will need
 to be accessed by state functions used by the inner regions.  The <code class="docutils literal notranslate"><span class="pre">outmost</span></code>
@@ -428,7 +585,7 @@ function builder used like this:</p>
 </div>
 </div>
 <div class="section" id="reading-the-log-file">
-<span id="recipes-reading-the-log-file"></span><h3><a class="toc-backref" href="#id9">Reading the Log File</a><a class="headerlink" href="#reading-the-log-file" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-reading-the-log-file"></span><h3><a class="toc-backref" href="#id11">Reading the Log File</a><a class="headerlink" href="#reading-the-log-file" title="Permalink to this headline">¶</a></h3>
 <p>The XmlChart contains the thread which drives the parallel processes.  It can
 push events through each of the inner orthogonal components with calls to the
 <code class="docutils literal notranslate"><span class="pre">complete_circuit</span></code> method of each region.  However, this makes reading the
@@ -483,7 +640,7 @@ worth the effort.</p>
 </div>
 </div>
 <div class="section" id="building-a-subregion">
-<span id="recipes-building-a-subregion"></span><h2><a class="toc-backref" href="#id10">Building a Subregion</a><a class="headerlink" href="#building-a-subregion" title="Permalink to this headline">¶</a></h2>
+<span id="recipes-building-a-subregion"></span><h2><a class="toc-backref" href="#id12">Building a Subregion</a><a class="headerlink" href="#building-a-subregion" title="Permalink to this headline">¶</a></h2>
 <p>We will build <code class="docutils literal notranslate"><span class="pre">p_p11</span></code> in the following diagram:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
 <p>To build the <code class="docutils literal notranslate"><span class="pre">p_p11</span></code> subregion you will need to:</p>
@@ -498,7 +655,7 @@ worth the effort.</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
       <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
     <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
       <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
     <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
@@ -560,7 +717,7 @@ that subregion of the orthogonal component which behaves like a subregion:</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
   <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
     <span class="c1"># if _state is a child of this state then transition to it</span>
     <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">rr</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">_state</span><span class="p">):</span>
       <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_s11</span><span class="p">)</span>
@@ -613,7 +770,7 @@ that subregion of the orthogonal component which behaves like a subregion:</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="n">outmost</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
       <span class="n">outmost</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:p_p11&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for INIT_META</span>
     <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
       <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
     <span class="n">outmost</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p_p11&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
@@ -646,7 +803,7 @@ that subregion of the orthogonal component which behaves like a subregion:</p>
 </div>
 </div>
 <div class="section" id="writing-wtf-events-across-regions">
-<span id="recipes-writing-wtf-events-across-regions"></span><h2><a class="toc-backref" href="#id11">Writing WTF Events Across Regions</a><a class="headerlink" href="#writing-wtf-events-across-regions" title="Permalink to this headline">¶</a></h2>
+<span id="recipes-writing-wtf-events-across-regions"></span><h2><a class="toc-backref" href="#id13">Writing WTF Events Across Regions</a><a class="headerlink" href="#writing-wtf-events-across-regions" title="Permalink to this headline">¶</a></h2>
 <p>This section will contain the recipes needed to construct the blue <code class="docutils literal notranslate"><span class="pre">WTF</span></code>
 events, or events that span across parallel regions in this example program.
 The <code class="docutils literal notranslate"><span class="pre">xml_chart_4</span></code> diagram shown below is based upon the <a class="reference external" href="https://aleph2c.github.io/miros/_static/comprehensive_no_instrumentation.pdf">hsm comprehensive
@@ -658,7 +815,7 @@ diagram in the miros project</a>.</p>
 my friend Jen Farroll’s <a class="reference external" href="http://www.witnessthefitness.ca">personal training business</a>).</p>
 </div>
 <div class="section" id="e-wtf-events">
-<span id="recipes-e-events"></span><h3><a class="toc-backref" href="#id12">E WTF Events</a><a class="headerlink" href="#e-wtf-events" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-e-events"></span><h3><a class="toc-backref" href="#id14">E WTF Events</a><a class="headerlink" href="#e-wtf-events" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">E</span></code> events start at the edge of a parallel region, then go deeper into the
 chart.  See <code class="docutils literal notranslate"><span class="pre">E0</span></code>, <code class="docutils literal notranslate"><span class="pre">E1</span></code> and <code class="docutils literal notranslate"><span class="pre">E2</span></code> in the diagram below.</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
@@ -670,7 +827,7 @@ caught then turned into a <code class="docutils literal notranslate"><span class
 corresponding to either an injector or injectee part of the design.</p>
 </div>
 <div class="section" id="e0-wtf-event">
-<span id="recipes-e0-wtf-event"></span><h3><a class="toc-backref" href="#id13">E0 WTF Event</a><a class="headerlink" href="#e0-wtf-event" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-e0-wtf-event"></span><h3><a class="toc-backref" href="#id15">E0 WTF Event</a><a class="headerlink" href="#e0-wtf-event" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">E0</span></code> event occurs from the outer most threaded state chart and it passes over
 multiple regional boundaries.</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
@@ -824,7 +981,7 @@ our XmlChart statechart.  On line 12 we transition to <code class="docutils lite
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;[p] </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
-<span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+<span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
 </span>    <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
     <span class="n">pprint</span><span class="p">(</span><span class="s2">&quot;enter p&quot;</span><span class="p">)</span>
@@ -848,14 +1005,14 @@ rule, and use the queue as a kind of programming callstack.</p>
           <span class="n">META_INIT</span> <span class="o">&lt;</span><span class="n">function</span> <span class="n">p_p11_s22</span> <span class="n">at</span> <span class="mh">0x7f5d25d4b510</span><span class="o">&gt;</span> <span class="o">-&gt;</span>
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> method looks like this:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">peel_meta</span></code> method looks like this:</p>
 <div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
 3
 4
 5
 6
-7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">init_stack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">peel_meta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
   <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="ow">and</span> \
     <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">META_INIT</span><span class="p">:</span>
@@ -892,7 +1049,7 @@ is none the wiser for it.</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;[p] </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
 <span class="hll">    <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
 </span><span class="hll">      <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
 </span>    <span class="n">pprint</span><span class="p">(</span><span class="s2">&quot;enter p&quot;</span><span class="p">)</span>
@@ -901,7 +1058,7 @@ is none the wiser for it.</p>
  <span class="c1"># ..</span>
 </pre></div>
 </td></tr></table></div>
-<p>After <code class="docutils literal notranslate"><span class="pre">init_stack</span></code> peals off the first onion layer of our <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event,
+<p>After <code class="docutils literal notranslate"><span class="pre">peel_meta</span></code> peels off the first onion layer of our <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event,
 we place its inner contents into the <code class="docutils literal notranslate"><span class="pre">p</span></code> subregion’s FIFO using the <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> method.</p>
 <p>Any posting event with a <code class="docutils literal notranslate"><span class="pre">_</span></code> prepended to it, by convention does not drive the
 event through its inner regions, it just posts items onto their queues:</p>
@@ -954,7 +1111,7 @@ these state functions:</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_spy</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrumented</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">live_spy_callback</span><span class="p">(</span><span class="s2">&quot;[p] </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">))</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
     <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
     <span class="n">pprint</span><span class="p">(</span><span class="s2">&quot;enter p&quot;</span><span class="p">)</span>
@@ -1002,7 +1159,7 @@ the <code class="docutils literal notranslate"><span class="pre">p_r1_region</sp
   <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
   <span class="c1"># ...</span>
 <span class="hll">  <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
-</span><span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+</span><span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
 </span><span class="hll">    <span class="c1"># if _state is a child of this state then transition to it</span>
 </span><span class="hll">    <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">p_r1_region</span><span class="p">,</span> <span class="n">_state</span><span class="p">):</span>
 </span><span class="hll">      <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11</span><span class="p">)</span>
@@ -1013,7 +1170,7 @@ the <code class="docutils literal notranslate"><span class="pre">p_r1_region</sp
 </span><span class="hll"> <span class="c1"># ...</span>
 </span></pre></div>
 </td></tr></table></div>
-<p>On line 6 we see another layer is pealed off the <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event.  If the
+<p>On line 6 we see another layer is peeled off the <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event.  If the
 <code class="docutils literal notranslate"><span class="pre">_state</span></code> information isn’t present or the target state is not a child of the
 <code class="docutils literal notranslate"><span class="pre">p_r1_region</span></code> state then we fall back to our default initialization; if line 8
 returns true, the <code class="docutils literal notranslate"><span class="pre">_e</span></code> event is thrown in the garbage and the default behavior
@@ -1073,7 +1230,7 @@ for the next internal region.</p>
   <span class="k">if</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">ENTRY_SIGNAL</span><span class="p">):</span>
     <span class="n">pprint</span><span class="p">(</span><span class="s2">&quot;enter p_p11&quot;</span><span class="p">)</span>
     <span class="n">scribble</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal_name</span><span class="p">)</span>
-    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
     <span class="k">if</span> <span class="n">_state</span><span class="p">:</span>
       <span class="n">_post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">outmost</span><span class="o">=</span><span class="n">outmost</span><span class="p">)</span>
     <span class="n">post_lifo</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signals</span><span class="o">.</span><span class="n">enter_region</span><span class="p">))</span>
@@ -1082,8 +1239,8 @@ for the next internal region.</p>
 </pre></div>
 </td></tr></table></div>
 <p>We see the same pattern we saw in the <code class="docutils literal notranslate"><span class="pre">p</span></code> injector.  If there is an
-<code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event waiting in the queue, it is pealed.  If there is <code class="docutils literal notranslate"><span class="pre">_state</span></code>
-information in the pealing, remaining part of the event is place into the fifo
+<code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event waiting in the queue, it is peeled.  If there is <code class="docutils literal notranslate"><span class="pre">_state</span></code>
+information in the peeling, remaining part of the event is place into the fifo
 of the <code class="docutils literal notranslate"><span class="pre">p_p11</span></code> region, then that region’s state handlers are sent an
 <code class="docutils literal notranslate"><span class="pre">enter_region</span></code> event.</p>
 <p>As of line 9 the following is true:</p>
@@ -1135,7 +1292,7 @@ at the <code class="docutils literal notranslate"><span class="pre">p_p11_r2_reg
   <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">UNHANDLED</span>
   <span class="c1"># ...</span>
   <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
-<span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+<span class="hll">    <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
 </span>    <span class="c1"># if _state is a child of this state then transition to it</span>
 <span class="hll">    <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">rr</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">p_p11_r2_region</span><span class="p">,</span> <span class="n">_state</span><span class="p">):</span>
 </span>      <span class="n">status</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_p11_s21</span><span class="p">)</span>
@@ -1156,7 +1313,7 @@ contains <code class="docutils literal notranslate"><span class="pre">p_p11_s22<
 not apply to <code class="docutils literal notranslate"><span class="pre">p_p11_s22</span></code>, so we call the <code class="docutils literal notranslate"><span class="pre">trans</span></code> method on line 11.</p>
 </div>
 <div class="section" id="e1-wtf-event">
-<span id="recipes-e1-wtf-event"></span><h3><a class="toc-backref" href="#id14">E1 WTF Event</a><a class="headerlink" href="#e1-wtf-event" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-e1-wtf-event"></span><h3><a class="toc-backref" href="#id16">E1 WTF Event</a><a class="headerlink" href="#e1-wtf-event" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">E1</span></code> event is very much like the <code class="docutils literal notranslate"><span class="pre">E0</span></code> event in that it uses a <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event to
 pass over multiple boundaries.  It difference from the <code class="docutils literal notranslate"><span class="pre">E0</span></code> event in that the
 <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> needs to be sent the injector managing an inner orthogonal
@@ -1374,7 +1531,7 @@ and behaves in accordance to its default INIT_SIGNAL behavior:</p>
    <span class="c1"># ...</span>
    <span class="k">elif</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">signal</span> <span class="o">==</span> <span class="n">signals</span><span class="o">.</span><span class="n">INIT_SIGNAL</span><span class="p">):</span>
      <span class="n">status</span> <span class="o">=</span> <span class="n">return_status</span><span class="o">.</span><span class="n">HANDLED</span>
-     <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">init_stack</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
+     <span class="p">(</span><span class="n">_e</span><span class="p">,</span> <span class="n">_state</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">peel_meta</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="c1"># search for META_INIT</span>
      <span class="k">if</span> <span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">r</span><span class="o">.</span><span class="n">has_a_child</span><span class="p">(</span><span class="n">p_r2_region</span><span class="p">,</span> <span class="n">_state</span><span class="p">):</span>
        <span class="n">status</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">trans</span><span class="p">(</span><span class="n">p_s21</span><span class="p">)</span>
      <span class="k">else</span><span class="p">:</span>
@@ -1395,7 +1552,7 @@ and behaves in accordance to its default INIT_SIGNAL behavior:</p>
 causing a transition to the <code class="docutils literal notranslate"><span class="pre">p_s21</span></code> state.</p>
 </div>
 <div class="section" id="e2-wtf-event">
-<h3><a class="toc-backref" href="#id15">E2 WTF Event</a><a class="headerlink" href="#e2-wtf-event" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id17">E2 WTF Event</a><a class="headerlink" href="#e2-wtf-event" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">E2</span></code> event is like the <code class="docutils literal notranslate"><span class="pre">E1</span></code> event in that it uses a <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> event
 to pass over multiple orthogonal component boundaries.  It differs from the
 <code class="docutils literal notranslate"><span class="pre">E1</span></code> event in that its <code class="docutils literal notranslate"><span class="pre">META_INIT</span></code> needs to be sent from within an orthogonal
@@ -1560,13 +1717,13 @@ to <code class="docutils literal notranslate"><span class="pre">p_p22</span></co
 doesn’t work properly.</p>
 </div>
 <div class="section" id="c-wtf-events">
-<span id="recipes-c-events"></span><h3><a class="toc-backref" href="#id16">C WTF Events</a><a class="headerlink" href="#c-wtf-events" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-c-events"></span><h3><a class="toc-backref" href="#id18">C WTF Events</a><a class="headerlink" href="#c-wtf-events" title="Permalink to this headline">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">C</span></code> events cause a transition from one orthogonal region to another.  The do
 not span boundaries:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
 </div>
 <div class="section" id="c0-wtf-event">
-<span id="recipes-c0-wtf-event"></span><h3><a class="toc-backref" href="#id17">C0 WTF Event</a><a class="headerlink" href="#c0-wtf-event" title="Permalink to this headline">¶</a></h3>
+<span id="recipes-c0-wtf-event"></span><h3><a class="toc-backref" href="#id19">C0 WTF Event</a><a class="headerlink" href="#c0-wtf-event" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">C0</span></code> event occurs within one or more orthogonal regions.   The basic
 pattern involves the outer states letting the <code class="docutils literal notranslate"><span class="pre">C0</span></code> enter into its required
 depth, then a region’s injector captures the event and uses the miros <code class="docutils literal notranslate"><span class="pre">trans</span></code> call
@@ -1649,7 +1806,7 @@ this:</p>
 </div>
 </div>
 <div class="section" id="hidden-dynamics">
-<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id18">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
+<span id="recipes-hidden-dynamics"></span><h2><a class="toc-backref" href="#id20">Hidden Dynamics</a><a class="headerlink" href="#hidden-dynamics" title="Permalink to this headline">¶</a></h2>
 <a class="reference internal" href="quickstart.html"<span class="std-ref">prev</span></a>, <a class="reference internal" href="index.html#top"><span class="std std-ref">top</span></a>, <a class="reference internal" href="introduction.html"><span class="std std-ref">next</span></a></div>
 </div>
 
@@ -1666,8 +1823,10 @@ this:</p>
 </p>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Recipes</a><ul>
-<li><a class="reference internal" href="#summary">Summary</a></li>
+<li><a class="reference internal" href="#">Recipes</a></li>
+<li><a class="reference internal" href="#goals">Goals</a><ul>
+<li><a class="reference internal" href="#problem-the-tale-of-two-architectural-explosion-chambers">Problem - The Tale of Two Architectural Explosion Chambers</a></li>
+<li><a class="reference internal" href="#class-and-hsm-relationships">Class and HSM Relationships</a></li>
 <li><a class="reference internal" href="#context-and-terminology">Context and Terminology</a></li>
 <li><a class="reference internal" href="#reflection-and-logging">Reflection and Logging</a><ul>
 <li><a class="reference internal" href="#souped-up-spy">Souped Up Spy</a></li>

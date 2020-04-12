@@ -95,6 +95,8 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
       else:
         print("the command returned with no output")
 
+    # make a function which can make a blocking call to the OS
+    to_system = partial(_to_system, queue=deque(maxlen=2))
     if event.src_path.lower().endswith('.rst'):
       filename = event.src_path
       statebuf = os.stat(filename)
@@ -102,8 +104,6 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
       if self.old is None or (self.new - self.old) > 0.5:
         print(event.src_path)
 
-        # make a function which can make a blocking call to the OS
-        to_system = partial(_to_system, queue=deque(maxlen=2))
 
         # remove the old artifacts from this directory
         # to_system('make clean')
@@ -126,6 +126,7 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
         convert_uxf_to_other_format(event.src_path, 'pdf')
         convert_uxf_to_other_format(event.src_path, 'svg')
         print(event.src_path, event.event_type)  # print now only for debug
+        to_system('rsync -a ./_build/html/ ./../docs')
       self.old = self.new
   on_created = on_modified
 

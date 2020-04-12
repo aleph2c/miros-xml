@@ -4,49 +4,81 @@
   <element>
     <id>UMLClass</id>
     <coordinates>
-      <x>90</x>
-      <y>160</y>
-      <w>150</w>
-      <h>270</h>
+      <x>490</x>
+      <y>180</y>
+      <w>130</w>
+      <h>30</h>
     </coordinates>
-    <panel_attributes>*XmlChart*
---
-live_spy
-live_trace
-bottom = self.top
-shot_lookup
-regions = {}
---
-start
-instrumented
-tokenize
-token_match
-post_fifo_with_sendid
-post_lifo_with_sendid
-cancel_with_sendid
-cancel_all
-init_stack
-active_states
-layer=1</panel_attributes>
+    <panel_attributes>Region (HSM)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>490</x>
+      <y>120</y>
+      <w>130</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>HsmWithQueues</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>540</x>
+      <y>140</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-
+layer=3</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;40.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>490</x>
+      <y>250</y>
+      <w>130</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>Regions</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>540</x>
+      <y>200</y>
+      <w>30</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;50.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>560</x>
+      <y>300</y>
+      <w>30</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>1
+style=wordwrap
+layer=3</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
     <id>Text</id>
     <coordinates>
-      <x>290</x>
-      <y>230</y>
-      <w>360</w>
-      <h>150</h>
+      <x>560</x>
+      <y>210</y>
+      <w>30</w>
+      <h>40</h>
     </coordinates>
-    <panel_attributes>    outer = self
-    self.regions['p'] = Regions(
-      name='p',
-      outmost=self)\
-    .add('p_r1', outer=outer)\
-    .add('p_r2', outer=outer).link()
-
-    # ...
-
+    <panel_attributes>*
 style=wordwrap
 layer=3</panel_attributes>
     <additional_attributes/>
@@ -54,55 +86,69 @@ layer=3</panel_attributes>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>230</x>
-      <y>170</y>
-      <w>80</w>
-      <h>30</h>
+      <x>540</x>
+      <y>270</y>
+      <w>30</w>
+      <h>70</h>
     </coordinates>
-    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;50.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>560</x>
+      <y>280</y>
+      <w>30</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>*
+style=wordwrap
 layer=3</panel_attributes>
-    <additional_attributes>10.0;10.0;60.0;10.0</additional_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>560</x>
+      <y>230</y>
+      <w>30</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>1
+style=wordwrap
+layer=3</panel_attributes>
+    <additional_attributes/>
   </element>
   <element>
     <id>UMLClass</id>
     <coordinates>
-      <x>290</x>
-      <y>160</y>
-      <w>100</w>
+      <x>660</x>
+      <y>120</y>
+      <w>130</w>
       <h>30</h>
     </coordinates>
-    <panel_attributes>dict (regions)</panel_attributes>
+    <panel_attributes>Factory</panel_attributes>
     <additional_attributes/>
   </element>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>380</x>
-      <y>170</y>
-      <w>90</w>
+      <x>610</x>
+      <y>130</y>
+      <w>70</w>
       <h>30</h>
     </coordinates>
-    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+    <panel_attributes>lt=&lt;&lt;-
 layer=3</panel_attributes>
-    <additional_attributes>10.0;10.0;70.0;10.0</additional_attributes>
+    <additional_attributes>10.0;10.0;50.0;10.0</additional_attributes>
   </element>
   <element>
     <id>UMLClass</id>
     <coordinates>
-      <x>450</x>
-      <y>160</y>
-      <w>100</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>Regions</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>UMLClass</id>
-    <coordinates>
-      <x>90</x>
-      <y>100</y>
-      <w>160</w>
+      <x>640</x>
+      <y>220</y>
+      <w>170</w>
       <h>30</h>
     </coordinates>
     <panel_attributes>InstrumentedActiveObject</panel_attributes>
@@ -111,130 +157,179 @@ layer=3</panel_attributes>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>150</x>
-      <y>120</y>
+      <x>710</x>
+      <y>140</y>
       <w>30</w>
-      <h>60</h>
+      <h>100</h>
     </coordinates>
     <panel_attributes>lt=&lt;&lt;-
 layer=3</panel_attributes>
-    <additional_attributes>10.0;10.0;10.0;40.0</additional_attributes>
+    <additional_attributes>10.0;10.0;10.0;80.0</additional_attributes>
   </element>
   <element>
     <id>Relation</id>
-    <coordinates>
-      <x>540</x>
-      <y>170</y>
-      <w>90</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
-layer=3</panel_attributes>
-    <additional_attributes>10.0;10.0;70.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>UMLClass</id>
     <coordinates>
       <x>610</x>
-      <y>160</y>
-      <w>100</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>Region</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>UMLClass</id>
-    <coordinates>
-      <x>600</x>
-      <y>100</y>
-      <w>120</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>HsmWithQueues</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>UMLClass</id>
-    <coordinates>
-      <x>350</x>
-      <y>100</y>
-      <w>160</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>ActiveObject</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>240</x>
-      <y>100</y>
-      <w>130</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>lt=&lt;&lt;-
-layer=3</panel_attributes>
-    <additional_attributes>110.0;10.0;10.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>500</x>
-      <y>100</y>
-      <w>120</w>
-      <h>30</h>
-    </coordinates>
-    <panel_attributes>lt=&lt;&lt;-
-layer=3</panel_attributes>
-    <additional_attributes>100.0;10.0;10.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>650</x>
-      <y>120</y>
-      <w>30</w>
-      <h>60</h>
-    </coordinates>
-    <panel_attributes>lt=&lt;&lt;-
-layer=3</panel_attributes>
-    <additional_attributes>10.0;10.0;10.0;40.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>160</x>
       <y>240</y>
-      <w>160</w>
-      <h>60</h>
-    </coordinates>
-    <panel_attributes>lt=.
-layer=3</panel_attributes>
-    <additional_attributes>140.0;40.0;10.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>330</x>
-      <y>180</y>
-      <w>50</w>
-      <h>70</h>
-    </coordinates>
-    <panel_attributes>lt=.
-layer=3</panel_attributes>
-    <additional_attributes>10.0;50.0;30.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
-      <x>380</x>
-      <y>180</y>
       <w>130</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-
+layer=3</panel_attributes>
+    <additional_attributes>110.0;10.0;110.0;90.0;10.0;90.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>200</x>
+      <y>250</y>
+      <w>200</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>If a Region need to
+send events to other regions
+it can get access to the required
+methods via this connection
+layer=3</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>390</x>
+      <y>220</y>
+      <w>80</w>
       <h>70</h>
     </coordinates>
     <panel_attributes>lt=.
 layer=3</panel_attributes>
-    <additional_attributes>10.0;50.0;110.0;10.0</additional_attributes>
+    <additional_attributes>10.0;50.0;60.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>820</x>
+      <y>190</y>
+      <w>100</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>Extends the
+Factory class 
+with logging
+and customizes
+how its
+instrumentation
+works
+layer=3</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>800</x>
+      <y>200</y>
+      <w>40</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.
+layer=3</panel_attributes>
+    <additional_attributes>10.0;30.0;20.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>440</x>
+      <y>320</y>
+      <w>180</w>
+      <h>270</h>
+    </coordinates>
+    <panel_attributes>*XmlChart*
+--
+live_spy
+live_trace
+bottom
+shot_lookup
+regions
+--
+_post_fifo
+post_fifo
+_post_lifo
+post_lifo
+active_states
+build_onion
+cancel_all
+cancel_with_sendid
+instrumented
+...
+
+layer=1</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>660</x>
+      <y>350</y>
+      <w>240</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>def __init__(...):
+  # ..
+  self.regions['p'] = Regions(...)
+  self.regions['p_p11'] = Regions(...)
+  self.regions['p_p12'] = Regions(...)
+  self.regions['p_p12_p11'] = Regions(...)
+  self.regions['p_p22'] = Regions(...)
+
+layer=3</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>440</x>
+      <y>190</y>
+      <w>70</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>50.0;10.0;10.0;10.0;10.0;130.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>490</x>
+      <y>400</y>
+      <w>190</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>lt=.
+layer=3</panel_attributes>
+    <additional_attributes>170.0;10.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>610</x>
+      <y>270</y>
+      <w>70</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=.
+layer=3</panel_attributes>
+    <additional_attributes>50.0;140.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>410</x>
+      <y>180</y>
+      <w>70</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>outmost
+style=wordwrap
+layer=3</panel_attributes>
+    <additional_attributes/>
   </element>
 </diagram>

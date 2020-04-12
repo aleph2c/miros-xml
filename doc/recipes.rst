@@ -11,134 +11,369 @@ Recipes
 .. contents::
    :backlinks: entry
 
+.. _recipes-goals:
+
+Goals
+====
+
+To create an XML parser which will consume a structured document describing a
+Python statechart and turn that statechart into a working program:
+
+   * We will take the good parts of the SCXML standard.  I write *good parts*
+     because the standard was not managed properly, it contains a lot of
+     features that only serve one industrial group and I'm not going to work for
+     them for free.
+   * The XML parser will be Python-centric, I do not want to write a new
+     programming language which uses Python as its assembly (even though I can
+     see why the SCXML would want to be language agnostic).
+   * The parallel regions feature will be supported, since it is a major part of
+     the original David Harel paper. (This is where the technical challenge of
+     this project is concentrated).
+
+The majority of this document is written to describe how to implement parallel
+regions using the event processor which I wrote in the miros project (based on
+the work by Dr. Miro Samek).
+
 .. _recipes-summary:
 
-Summary
-^^^^^^^
+Problem - The Tale of Two Architectural Explosion Chambers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-I wrote this document to help me think through my problems and to try and find a
-more straightforward way to implement the parallel tag.
+.. note::
 
-I want miros-XML to support parallel statecharts using the dashed line, as
-described by David Harel’s notation. The miros library uses an event dispatching
-algorithm developed by Miro Samek. This event dispatching algorithm does
-not support the Parallel statechart (orthogonal regions). However, Miro Samek
-offered an alternative and faster pattern, the `orthogonal component
-<https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_; an HSM
-within an HSM. The problem with this orthogonal component pattern is that it
-isn’t as graphically elegant as the one envisioned by David Harel. So the
-statechart community expects to use orthogonal regions. David Harel’s graphical
-abstractions permit more than one active state to exist within one diagram at a
-time; the packing of design complexity into a small diagram’s space is very
-efficient. The trade-off is you waste a lot of computer cycles when you design
-this way.
-If you haven’t seen orthogonal regions before, refer to `this document on
-orthogonal regions and miros.
-<https://aleph2c.github.io/miros/othogonalregions.html>`_.
+  I wrote this document to help me think through my problems and to try and find a
+  straightforward way to implement the <p> parallel tag using miros.
 
-In this project and these documents, I will be writing about how to have one
-orthogonal region communicate with another. My implementation of orthogonal
-regions will be a mapping of Miros Samek’s orthogonal component pattern onto a
-design that will look and behave like an orthogonal region. This work will be
-done by recursively mapping orthogonal components within a chart. An outer
-region will ``dispatch`` events into a deeper or inner region. The outer region
-which injects an event will be called an Injector and the region which receives
-the events will be called an Injectee. An HSM can both be an Injector and an
-Injectee, and the outermost chart will only be an Injector.
+State machine theory used to be plagued with a problem known as state space
+explosion: The number of states needed in a finite state machine (FSM) would
+explode in number, as a system's requirements reached even a moderate level of
+complexity.  A good engineering formalism (or way of modeling your problem)
+should compress complexity within the model, not make your model more complex
+than the real system it is intended to mirror.  So the FSM technique could only
+be applied to simple systems, with the state space explosion problem becoming
+the promised apocalypse for that system's maintenance developer.
 
-.. image:: _static/hidden_dynamics.svg
-    :target: _static/hidden_dynamics.pdf
+David Harel neatly solved this issue by inventing a better formalism.  He
+invented hierarchical state machines and parallel regions.  His way of drawing
+diagrams would ensnare tremendous amounts of complexity, packing it into small
+and intuitive diagrams.  Then he wrote it up in a way that was so easy to
+understand that his paper was rejected by his reviewers because they were
+convinced that they had seen his ideas before.
+
+When state machines are running in parallel regions they are running at the same
+time: both regions react to the events which are sent to the chart.  This is
+easy for a theorist to envision, but it is much harder for the practitioner to
+implement.  Regions can exist within regions, and each region represents a
+parallel execution of code, with access to common outer memory and a need to
+react to events managed by other parts of the program.  Typically multi-threaded
+programs build a loop and run forever.  This is not the case with a program
+manifesting a Harel diagram, the regions map onto concurrent processes, but if
+you exit the region its concurrent processes should collapse onto the outer
+concurrent process.  It is like applying topology to your system forks.
+
+Miro Samek wanted to address the need to contain state explosion, but in
+a more computationally efficient way.  He invented the  `orthogonal component
+pattern
+<https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_:
+an HSM running within another HSM.  It is a little harder to draw than a
+parallel region, but it can pack complexity in the same way.  But Miro Samek's
+approach didn't catch on.  The statechart community still expects the parallel
+region to exist.  From an implementation perspective Miro Samek's approach is
+much faster and far easier to implement, but David Harel's paper was just too
+convincing.
+
+So why not just use Miro Samek's approach?  Because I want to have access to the
+`WTF <https://www.youtube.com/watch?v=NDWgtB_MD24>`_ family of events (see the
+blue arrows on the diagram below).
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
     :align: center
 
-The chart will be run within the outermost HSM's thread, and the inner regions
-will be driven by dispatching events and driving them through the orthogonal
-component with the ``complete_circuit`` method.
+A WTF event is an event that causes a transition from, or to, or from and to,
+one or more parallel regions.  I called these events, WTF events because I have
+no clue how to implement such a transition while the parallel regions are being
+mapped as a HSMs within and HSMs.
 
-To manifest transitions between regions, the queue of the various components
-will be treated as call stacks into which instructions can be placed.  Otherwise
-the majority of the chart will behave using the dynamics of the miros algorithm.
+So in a nutshell, this project is about having cake and eating it too.  I will
+recursively map Miro Samek's orthogonal component pattern in such a way that it
+can implement the parallel region requirement of the Harel way of making
+statecharts, and I want to support (and possibly define) the WTF events.
 
-This document is being written so that I can invent enough theory and give
-myself enough instruction so as to generalize the construction of any orthogonal
-region, described by an XML document, within its ``<parallel>`` tag.
+.. _recipes-class-relationships:
+
+Class and HSM Relationships
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here is an example of a statechart diagram written using the Harel Formalism:
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
+    :align: center
+
+The state machines separated from one another with dashed lines are said to be
+running in parallel regions.  This means any event seen by the whole machine
+will be seen by each region and both regions are expected to run concurrently as
+if they were running on their own computer.  A statechart which supports the
+parallel region pattern can have one or more active states at a time.  The event
+processing algorithm used by miros does not support the parallel regions
+pattern.
+
+But miros *does* support the ability to place an HSM within another HSM.  This
+is called the orthogonal component pattern.  Since the state of an inner HSM is
+in a different state than the outer machine which holds it, the orthogonal
+component pattern can have more than one active state like the parallel region
+pattern.
+
+The goal of this documentation is to show how to map the orthogonal component
+pattern onto the parallel region pattern.  This way a user can use the existing
+miros infrastructure to gain the incredible complexity packing and
+ease-of-description offered by the parallel region drawing style.
+
+----
+
+From a very high level the code is structured like this:
+
+.. image:: _static/class_relationships.svg
+    :target: _static/class_relationships.pdf
+    :align: center
+
+The Region class is an HsmWithQueues, it is an HSM inside of another HSM, so it
+is an orthogonal component.  
+
+The Regions object is a collection of Region objects.  The Regions object
+manages its orthogonal components by driving events through them.
+
+The XmlChart has many Regions and it inherits from the InstrumentedActiveObject
+which is just a Factory with some additional logging and customized
+instrumentation features.
+
+----
+
+There will be one Region object for every region in a diagram which supports the
+dashed line notation:
+
+.. image:: _static/region.svg
+    :target: _static/region.pdf
+    :align: center
+
+A Region is just an HsmWithQueues with some additional methods.  The Region will
+be attached to a state machine who's inner part is identical to that in the
+parallel region diagram, but with three additional outer states and event
+handlers.  These outer structures will be invisible to the user, and will
+provide the means to control the orthogonal component so that its inner state
+machine will behave as if it was a parallel state in a different framework
+(Matlab/Rational Rose).  I will talk more about these outer structures later,
+but for now know that they are just there to map one technique onto another.
+
+Parallel regions occur within a state.  In this program, the state with parallel
+regions, has a Regions object to do this work for it.
+
+----
+
+The Regions class can inject and drive events into all of the Region objects it
+controls.
+
+.. image:: _static/regions.svg
+    :target: _static/regions.pdf
+    :align: center
+
+The Regions object is constructed within the XmlChart class.
+
+In the case that some substate of a parallel region has another set of parallel
+regions (see p_p11 in the above example), the state function managing this
+transition "will have" a Regions object.  A function which sends events to a
+different set of regions or region is called an **injector**.
+
+In miros states are described using functions.  But in the parallel regions pattern,
+a function can have two or more concurrent state machines.  So a function might
+need to access the event driving ability of a Regions object.  In the diagram
+above we show that if a state function has parallel regions, it "has a" Regions
+object. 
+
+But a function can't really own anything in OO theory.  If you read the code you
+will see that state functions that need to control another parallel region, call
+out and get the methods required to post and drive events to that region.  It
+accesses the methods of the Regions object managing that part of the graph, its
+as if it has that Regions object.
+
+You can see this *faux* relationship connecting the "p state function" to the
+Regions class.  To provide context about the meaning of the "p state function" I
+show its region object statechart on the far left of the above diagram.
+
+----
+
+State functions have Regions objects which have Region objects which have state
+functions.  This is all very confusing.  Seeing how things inter-relate in a
+graph would be nice, but this is not supported with idiomatic UML.
+
+So we will break the rules and describe their topological relationship like so:
+
+.. image:: _static/regions_in_regions.svg
+    :target: _static/regions_in_regions.pdf
+    :align: center
+
+.. note::
+
+  The people who would take issue with me doing this have retired.
+
+Place your eyes on the outer most Regions object.  It has multiple region
+objects.  Its top most region object drives a partially drawn HSM.  Within this
+HSM is an **injector**, or a state function that has parallel regions within it.
+This **injector** function is called p_p11.
+
+The p_p11 injector function needs to control the collection of region objects,
+so it has a Regions object.  By convention the Regions object is given the same
+name as the injector which needs its tools.
+
+Now look within the regions being managed within the p_p11 Regions object.  If a
+state machine inside of one of its orthogonal components needs to use the
+``post_fifo``, it will be posting and driving events through all of its sibling
+orthogonal components.
+
+There will be times when a state function needs to call to drive events through
+its super-region or parent region components.  To do this it uses the
+``r.outer.post_fifo(...)`` syntax.
+
+----
+
+.. image:: _static/XmlChart.svg
+    :target: _static/XmlChart.pdf
+    :align: center
+
+The XmlChart class is a statechart which has a bunch of Regions objects, which
+in turn manage groups of orthogonal components (Region objects).  I have
+discussed the inner dynamics already so I will focus now on how Regions
+objects are organized within the XmlChart class: they are in a data dictionary.
+This dictionary has key names that match the **injector** functions that own
+them.  There are some instances where a state function will have a Regions
+object even though it does not have internal parallel regions. This will be
+talked about in the WTF events section.
+
+Each state function will receive a handle to its Region object and an event.
+All Region objects will have an attribute that points to the outmost chart, the
+XmlChart object.  It is through this reference that the Regions objects are
+looked up to get the methods required to post and drive events to other regions.
+
+The XmlChart is the only HSM in the whole system that has a thread.  This thread
+must be used to drive all of the inner HSMs.  It acts like the spring drive in a
+mechanical watch; it drives gears which drive smaller gears which drive smaller
+gears.  Any event that is passed to our chart must first be managed by the
+XmlChart class, then pushed into the inner Regions.  All **injector** functions
+will also drive their received external events deeper and deeper into the chart
+until the whole collective RTC event is finished.
+
+----
+
+The state machines inside of a Region will mostly look the same as how they will
+look on a David Harel diagram, or how they are structured within the <p> tag of
+the XML.  But for the mapping of one pattern onto another three additional
+states wrapped the machine within a parallel region.  See the diagram below for
+an example of this:
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_1.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_1.pdf
+    :align: center
+
+The wrapper states are described here:
+
+   * The **under_hidden_region** state presents the illusion that our region can
+     be exited.  The orthogonal component pattern allows us an HSM within an
+     HSM, but the parallel pattern needs a whole region to exit when it turns
+     off.  This exiting behavior is captured by this **under_hidden_region**.
+
+   * The **region** state is sandwiched between the under and over hidden
+     states.  It contains an ``INIT_SIGNAL`` handler which can either cause a
+     transition to the default state (see p1_s11 in the diagram) or it can be
+     aimed programmatically.
+
+   * The **over_hidden** state's sole purpose is to cause a re-initialization
+     event from any of it's substates, so that the programmable init arrow
+     of the region state can be run any time.
+
+Here we see how the parallel region is mapped onto the orthogonal component with a
+bit more detail about the Regions object and Region objects:
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_2.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_2.pdf
+    :align: center
+
+----
+
+To get events into the inner regions of the chart you must pass them via the
+**injectors** (p in this diagram):
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_3.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_3.pdf
+    :align: center
+
+From the top diagram we can see how the bottom diagram should work.  If we start
+the chart in the outer_state, send a ``to_p``, then send an ``e``,  the active
+states should be ``['p_s12', '...']``.
+
+Now look at how an event is injected into a parallel region inside of another parallel region:
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_4.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_4.pdf
+    :align: center
+
+If we start the chart in the outer_state, send a ``to_p``, then send an ``e1``,
+the chart should settle into ``[['p_p11_s12', '...'], '...']``.
+
+From this simple exercise we can see how the pictorial-descriptive-power of the
+orthogonal components is being completely outclassed by the Harel-parallel-regions
+drawing technique.
+
+Now imagine the orthogonal component diagram from this:
+
+.. image:: _static/xml_chart_4.svg
+    :target: _static/xml_chart_4.pdf
+    :align: center
+
+I could draw it, but it would stop being useful.
+
+It seems that the orthogonal components technique can't be used to track
+topological context for even a design of moderate complexity.  Now imagine
+trying to draw the above using finite state machines? (Architectural state-space
+explosion)
+
+----
+
+Here is a walk through of our first WFT event: ``E0``
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_5.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_5.pdf
+    :align: center
+
+A meta event is an event that has an event inside of it.  We will use meta
+events to pass messages in and out of orthogonal components.  As you walk
+through the code, remember that ``_post_fifo`` and ``_post_lifo`` only place
+events into the queues of all of the regions connected to those calls.
+``post_fifo`` and ``post_lifo`` place events and drive those events through
+their connected orthogonal components.
+
+The code that makes the programmable init work isn't on the diagram, but it
+looks like this:
+
+.. code-block:: python
+
+  elif(e.signal == signals.INIT_SIGNAL):
+    (_e, _state) = r.peel_meta(e) # search for INIT_META
+    # if _state is a child of this state then transition to it
+    if _state is None or not rr.has_a_child(_state):
+      status = r.trans(p_p11)  # the default state to transition to
+    else:
+      status = r.trans(_state)
+      if not _e is None:
+        rr.post_fifo(_e)
+
+If we started the above chart in the outer_state and sent it an ``E0`` we would
+end up in the ``[['p_p11_s12', '...'], ['...']]`` states.
 
 .. _recipes-context-and-terminology:
 
 Context and Terminology
 ^^^^^^^^^^^^^^^^^^^^^^^
-
-   .. note::
-
-     There is something cluttered about the terminology, come back and pull
-     things apart so that each thing has one meaning.
-
------
-
-    Region
-         HsmWithQueues object with additional supporting methods; in the software, it is
-         represented as a class. In the design, it is an orthogonal component called the
-         injectee. In statechart theory, the orthogonal region is one of the areas
-         partitioned within a dashed line. It and its other regions are expected to run
-         concurrently.
-
-         .. image:: _static/region.svg
-             :target: _static/region.pdf
-             :align: center
-
-
-    Regions
-         Regions contain multiple Region objects in a collection. It augments the regions
-         so that they can reference one another using iterators. It adds a _post_fifo and
-         _post_lifo method, which can put items into all of its inner region’s queues.
-
-         It adds a post_fifo and post_lifo method, which will post items onto an internal
-         queue, then drive the inner statecharts using their complete_circuit method
-         until their queues are empty.
-
-         .. image:: _static/regions.svg
-             :target: _static/regions.pdf
-             :align: center
-
-         All other inner state methods, connected to a particular regions HSM
-         will have an ``@p_spy_on`` decorator.
-
-    XmlChart
-         Is the main statechart into which all events are posted.  It is the
-         outer most injector.
-
-         .. image:: _static/XmlChart.svg
-             :target: _static/XmlChart.pdf
-             :align: center
-
-         The XmlChart will have a dict containing multiple Regions.  The
-         XmlChart's thread will drive the entire collection of orthogonal
-         regions.  It will inject all of the events, via the regions dictionary.
-
-         All of the XmlChart connected state methods will have a ``@spy_on``
-         decorator.  All other inner state methods will have an ``@p_spy_on``
-         decorator.
-
-    Injector:
-         A statechart or orthogonal component which posts events into an inner orthogonal
-         component then drives the events through the region that injector encapsulates.
-         The injector places events and drives events using the _post_fifo', post_fifo …
-         APIs. The ``p`` and ``pp12`` states are both injectors in the following diagram:
-
-         .. image:: _static/hidden_dynamics.svg
-             :target: _static/hidden_dynamics.pdf
-             :align: center
-
-    Injectee:
-          An orthogonal component who’s events are given to it and driven through it
-          by an injector. An injectee can also be an injector if it drives another
-          state. An injector is hidden from view in the main statechart picture with
-          the dashed lines. However, you can see it at the bottom right of this
-          picture.
-
-
-         .. image:: _static/hidden_dynamics.svg
-             :target: _static/hidden_dynamics.pdf
-             :align: center
 
     WTF events
          Any event which crosses between regions.  See ``E0``, ``E1`` and ``E3``
@@ -152,28 +387,10 @@ Context and Terminology
          algorithim.  This document was written, largely to understand how to
          implement these events for the miros-xml parser.
 
-    Under Hidden States
-         The outer state of an **injectee**.  It presents the illusion that a
-         region can be exited.  It's a holding state with no initialization
-         handler, and it is the bottom state of the HSM mapped to that region.
-
-    Region States
-         This state is sandwiched between the under and outer hidden states.  It
-         contains a ``INIT_SIGNAL`` handler which calls the ``init_stack``
-         method which is used for managing ``META_INIT`` events (events which
-         contain events and states to initialize to).  The region state also has
-         a ``region_exit`` event handler which will cause the region to
-         transition the **under hidden region**.
-
-    Over Hidden States
-         This state is above the region state and its purpose to to catch the
-         ``force_region_init`` event, which will force a transition to the
-         region, and thereby force a call of the ``init_state`` method.
-
     META_INIT
          An event which contains 0 or more META_INIT events and the state which
          are intended to handle the event.  They are injected into the queue of
-         inner states so that the inner state's ``init_stack`` methods can
+         inner states so that the inner state's ``peel_meta`` methods can
          programmatically initialize their region.
 
     META_EXIT
@@ -480,7 +697,7 @@ To build the ``p_p11`` subregion you will need to:
     if(e.signal == signals.ENTRY_SIGNAL):
       if outmost.live_spy and outmost.instrumented:
         outmost.live_spy_callback("{}:p_p11".format(e.signal_name))
-      (_e, _state) = r.init_stack(e) # search for INIT_META
+      (_e, _state) = r.peel_meta(e) # search for INIT_META
       if _state:
         outmost.regions['p_p11']._post_fifo(_e)
       outmost.regions['p_p11'].post_lifo(Event(signal=signals.enter_region))
@@ -544,7 +761,7 @@ that subregion of the orthogonal component which behaves like a subregion:
     if(e.signal == signals.ENTRY_SIGNAL):
       status = return_status.HANDLED
     elif(e.signal == signals.INIT_SIGNAL):
-      (_e, _state) = rr.init_stack(e) # search for INIT_META
+      (_e, _state) = rr.peel_meta(e) # search for INIT_META
       # if _state is a child of this state then transition to it
       if _state is None or not rr.has_a_child(_state):
         status = rr.trans(p_p11_s11)
@@ -597,7 +814,7 @@ that subregion of the orthogonal component which behaves like a subregion:
     if(e.signal == signals.ENTRY_SIGNAL):
       if outmost.live_spy and outmost.instrumented:
         outmost.live_spy_callback("{}:p_p11".format(e.signal_name))
-      (_e, _state) = r.init_stack(e) # search for INIT_META
+      (_e, _state) = r.peel_meta(e) # search for INIT_META
       if _state:
         outmost.regions['p_p11']._post_fifo(_e)
       outmost.regions['p_p11'].post_lifo(Event(signal=signals.enter_region))
@@ -824,7 +1041,7 @@ Let's look at the important part of the ``p`` state function:
     if(e.signal == signals.ENTRY_SIGNAL):
       if self.live_spy and self.instrumented:
         self.live_spy_callback("[p] {}".format(e.signal_name))
-      (_e, _state) = self.init_stack(e) # search for META_INIT
+      (_e, _state) = self.peel_meta(e) # search for META_INIT
       if _state:
         self.regions['p']._post_fifo(_e)
       pprint("enter p")
@@ -851,13 +1068,13 @@ As of line 9:
           META_INIT <function p_p11_r2_region at 0x7f5d25d4b1e0> ->
              META_INIT <function p_p11_s22 at 0x7f5d25d4b510> ->
 
-The ``init_stack`` method looks like this:
+The ``peel_meta`` method looks like this:
 
 .. code-block:: python
   :emphasize-lines: 5
   :linenos:
 
-  def init_stack(self, e):
+  def peel_meta(self, e):
     result = (None, None)
     if len(self.queue) >= 1 and \
       self.queue[0].signal == signals.META_INIT:
@@ -886,7 +1103,7 @@ Next consider line 10-11 of the ``p`` listing:
     if(e.signal == signals.ENTRY_SIGNAL):
       if self.live_spy and self.instrumented:
         self.live_spy_callback("[p] {}".format(e.signal_name))
-      (_e, _state) = self.init_stack(e) # search for META_INIT
+      (_e, _state) = self.peel_meta(e) # search for META_INIT
       if _state:
         self.regions['p']._post_fifo(_e)
       pprint("enter p")
@@ -894,7 +1111,7 @@ Next consider line 10-11 of the ``p`` listing:
       status = return_status.HANDLED
    # ..
 
-After ``init_stack`` peals off the first onion layer of our ``META_INIT`` event,
+After ``peel_meta`` peels off the first onion layer of our ``META_INIT`` event,
 we place its inner contents into the ``p`` subregion's FIFO using the ``_post_fifo`` method.
 
 Any posting event with a ``_`` prepended to it, by convention does not drive the
@@ -938,7 +1155,7 @@ Looking back to ``p``, on line 13 we see how META_INIT is driven into the intern
     if(e.signal == signals.ENTRY_SIGNAL):
       if self.live_spy and self.instrumented:
         self.live_spy_callback("[p] {}".format(e.signal_name))
-      (_e, _state) = self.init_stack(e) # search for META_INIT
+      (_e, _state) = self.peel_meta(e) # search for META_INIT
       if _state:
         self.regions['p']._post_fifo(_e)
       pprint("enter p")
@@ -984,7 +1201,7 @@ the ``p_r1_region`` injectee function:
     status = return_status.UNHANDLED
     # ...
     elif(e.signal == signals.INIT_SIGNAL):
-      (_e, _state) = r.init_stack(e) # search for META_INIT
+      (_e, _state) = r.peel_meta(e) # search for META_INIT
       # if _state is a child of this state then transition to it
       if _state is None or not r.has_a_child(p_r1_region, _state):
         status = r.trans(p_p11)
@@ -994,7 +1211,7 @@ the ``p_r1_region`` injectee function:
           r.post_fifo(_e)
    # ...
 
-On line 6 we see another layer is pealed off the ``META_INIT`` event.  If the
+On line 6 we see another layer is peeled off the ``META_INIT`` event.  If the
 ``_state`` information isn't present or the target state is not a child of the
 ``p_r1_region`` state then we fall back to our default initialization; if line 8
 returns true, the ``_e`` event is thrown in the garbage and the default behavior
@@ -1039,7 +1256,7 @@ So let's look at that ``p_p11`` injector.
     if(e.signal == signals.ENTRY_SIGNAL):
       pprint("enter p_p11")
       scribble(e.signal_name)
-      (_e, _state) = r.init_stack(e) # search for META_INIT
+      (_e, _state) = r.peel_meta(e) # search for META_INIT
       if _state:
         _post_fifo(_e, outmost=outmost)
       post_lifo(Event(signal=signals.enter_region))
@@ -1047,8 +1264,8 @@ So let's look at that ``p_p11`` injector.
   # ...
 
 We see the same pattern we saw in the ``p`` injector.  If there is an
-``META_INIT`` event waiting in the queue, it is pealed.  If there is ``_state``
-information in the pealing, remaining part of the event is place into the fifo
+``META_INIT`` event waiting in the queue, it is peeled.  If there is ``_state``
+information in the peeling, remaining part of the event is place into the fifo
 of the ``p_p11`` region, then that region's state handlers are sent an
 ``enter_region`` event.
 
@@ -1098,7 +1315,7 @@ at the ``p_p11_r2_region`` injectee function:
     status = return_status.UNHANDLED
     # ... 
     elif(e.signal == signals.INIT_SIGNAL):
-      (_e, _state) = rr.init_stack(e) # search for META_INIT
+      (_e, _state) = rr.peel_meta(e) # search for META_INIT
       # if _state is a child of this state then transition to it
       if _state is None or not rr.has_a_child(p_p11_r2_region, _state):
         status = rr.trans(p_p11_s21)
@@ -1280,7 +1497,7 @@ and behaves in accordance to its default INIT_SIGNAL behavior:
      # ...
      elif(e.signal == signals.INIT_SIGNAL):
        status = return_status.HANDLED
-       (_e, _state) = r.init_stack(e) # search for META_INIT
+       (_e, _state) = r.peel_meta(e) # search for META_INIT
        if _state is None or not r.has_a_child(p_r2_region, _state):
          status = r.trans(p_s21)
        else:
