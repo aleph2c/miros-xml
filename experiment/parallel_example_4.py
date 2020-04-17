@@ -1559,6 +1559,7 @@ def p_p12_p11_s21(rrr, e):
     status = return_status.HANDLED
   elif(e.signal == signals.G1):
     onion = rrr.outmost.build_onion(t=p_p22_s11, s=p_p12_p11_s21, sig=e)
+    lca = rrr.outmost.lca(t=p_p22_s11, s=p_p12_p11_s21)
     import pdb; pdb.set_trace()
 
     _e = rrr.outermost.meta_trans(t=p_p22_s11, s=p_p12_p11_s21, sig=e)
