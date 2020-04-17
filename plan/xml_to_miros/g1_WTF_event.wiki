@@ -1,0 +1,102 @@
+[[subgoals.parallel_example_4|back]]
+*G1 WTF Event*
+= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.g1_WTF_event|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.g1_WTF_event|subgoals]])
+    To make and document a working G1 WTF event
+
+  *What is the problem?*
+
+    It was too difficult to document what was happening using the parallel 4
+    example.  The diagram was too big, and the dynamics were too complex to
+    tease out the required meta_trans method needed to make a G1 event work.
+
+    This sub project is to make a small, yet complicated-enough version of the
+    experiment to make sense of the G1 event.
+
+  *Discoveries:* ([[notes.g1_WTF_event|notes]])
+
+    * The meta events need to be pre-packed with enough information that the
+      graphs doesn't have to know about itself in more than one place.  A search
+      is expensive.
+
+= Orient =
+  *Symptoms:* [[symptoms.g1_WTF_event|symptoms]]
+
+== Questions ==
+  *Assumptions (at first invisible)*
+    To find your assumptions, look for two peices of evidence that contradict
+    each other. (may have to wait a couple of loops)
+
+    * The graph search should be minimized, and auto-cached where every
+      possible.
+
+  *Questions for G1 WFT Event:*
+  === Pre trouble-shooting questions ===
+    * [ ] Do you have enough information?
+    * [ ] Is your information organized?
+    * [X] Can you draw a diagram of the components and their interactions?
+    * [ ] Do you need to write some code to make it easier to see?
+    * [ ] Can you think of anyway to speed up your feedback cycle?
+
+    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
+          work somewhere else?  Yes: Repair, No: Pioneering.
+
+  === Repair (Complexity increases exponentially) ===
+    * [ ] Can you test the individual components to reduce complexity?
+    * [ ] Can you exchange components?
+    * [ ] Can you reduce the number of interactions?
+    * [ ] Are you continuing event though you know that something you have previously
+          tested isn't working?
+    * [ ] Has a thing you have previously tested fooled you into thinking it works,
+          when it doesn't work? (Never assume something is right before you have
+          checked it twice)
+
+  == Pioneering ==
+    * [ ] Has someone else solved this before (search)? Can you turn this into a
+          repair?
+    * [ ] Do you have something to baseline from?
+    * [ ] Looking under the problem, are you focused on the right goals?  Are you
+          stuck on solving a hard problem, when there is an easy problem?
+    * [ ] Do you understand how your existing system works?  If not, can you draw
+          diagrams and describe how it works before you continue?
+    * [ ] What don't you know that you need to know?
+
+  == Custom Questions (if there is a problem): (>=5) ==
+    * [ ] How can I have a state function find the region in which it is called?
+    * [ ] How can I do a better job of getting the post_fifo... in the state
+          functions?
+    * [ ] How can I do a better job of getting the token_match, scribble in the
+          injectors?
+    * [ ] How can I make the log appear in the right order, or how do I think
+          about it differently so things are easier to debug?
+    * [ ] How do I think about where the post_fifo... is being called?  Your
+          thinking is currently muddled here.
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+
+  [[#Questions]]
+  *Idea/Hypotheses for G1 WTF Event: >=5*
+  * [ ] Create a working G1 WFT event
+  * [ ] Describe the G1 approach in the docs
+  * [ ] Build a G0 into the G1 program
+  * [ ] Integrate changes to g1.py back into parallel_4.py
+  * [ ] Update the docs with your new approach
+
+  *Chosen Research-Goal/Hypothesis*
+
+== Plan ([[plan.g1_WTF_event|plan]]) ==
+  * [ ] Update the tmux.yaml file to make it easier to get back here
+  * [ ] Re-run the G1 program
+  * [ ] Print the meta event at the G1 handler
+  * [ ] Update your payload_string function with the new format
+  * [ ] Draw the result onto the diagram
+  * [ ] Draw the process of G1 using the numbers in bubbles approach
+  * [ ] Add diagram to docs, with words describing what is going on
+
+= Act =
+  
+
