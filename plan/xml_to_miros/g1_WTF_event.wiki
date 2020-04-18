@@ -71,8 +71,8 @@
           injectors?
     * [ ] How can I make the log appear in the right order, or how do I think
           about it differently so things are easier to debug?
-    * [ ] How do I think about where the post_fifo... is being called?  Your
-          thinking is currently muddled here.
+    * [ ] How do I think about where the post_fifo... is being called?  Thinking
+          is currently muddled here.
 
 = Decide =
   [[#Questions]]
@@ -94,11 +94,11 @@
 == Plan ([[plan.g1_WTF_event|plan]]) ==
   * [X] Update the tmux.yaml file to make it easier to get back here
   * [X] Re-run the G1 program
-  * [ ] Print the meta event at the G1 handler
-  * [ ] Update your payload_string function with the new format
-  * [ ] Draw the result onto the diagram
-  * [ ] Draw the process of G1 using the numbers in bubbles approach
-  * [ ] Add diagram to docs, with words describing what is going on
+  * [X] Print the meta event at the G1 handler
+  * [X] Update your payload_string function with the new format
+  * [X] Draw the result onto the diagram
+  * [X] Draw the process of G1 using the numbers in bubbles approach
+  * [X] Add diagram to docs, with words describing what is going on
 
 = Act =
   
