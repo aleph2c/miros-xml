@@ -80,8 +80,11 @@
 
   [[#Questions]]
   *Idea/Hypotheses for G1 WTF Event: >=5*
-  * [ ] Create a working G1 WFT event
+  * [X] Create a working G1 WFT event
   * [ ] Describe the G1 approach in the docs
+  * [ ] State functions know about what region they belong to.
+  * [ ] State functions can cleanly get their post_fifo...
+  * [ ] State functions can cleanly get 
   * [ ] Build a G0 into the G1 program
   * [ ] Integrate changes to g1.py back into parallel_4.py
   * [ ] Update the docs with your new approach
@@ -89,8 +92,8 @@
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.g1_WTF_event|plan]]) ==
-  * [ ] Update the tmux.yaml file to make it easier to get back here
-  * [ ] Re-run the G1 program
+  * [X] Update the tmux.yaml file to make it easier to get back here
+  * [X] Re-run the G1 program
   * [ ] Print the meta event at the G1 handler
   * [ ] Update your payload_string function with the new format
   * [ ] Draw the result onto the diagram

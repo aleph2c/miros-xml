@@ -352,6 +352,9 @@ events into the queues of all of the regions connected to those calls.
 ``post_fifo`` and ``post_lifo`` place events and drive those events through
 their connected orthogonal components.
 
+If we started the above chart in the outer_state and sent it an ``E0`` we would
+end up in the ``[['p_p11_s12', '...'], ['...']]`` states.
+
 The code that makes the programmable init work isn't on the diagram, but it
 looks like this:
 
@@ -367,8 +370,61 @@ looks like this:
       if not _e is None:
         rr.post_fifo(_e)
 
-If we started the above chart in the outer_state and sent it an ``E0`` we would
-end up in the ``[['p_p11_s12', '...'], ['...']]`` states.
+----
+
+Let's focus on something a bit more difficult, the ``G1`` WTF event (click to
+enlarge):
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_6.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_6.pdf
+    :align: center
+
+From the top Harel diagram, we see that if the system is in ``p_p11_s12`` and we
+receive a ``G1`` we should transition into ``p_s22``.  But what happens to
+region 1 of ``p``?  Well, we want it to be non-reactive, unless it is
+explicitely reactivated by ``to_p``.
+
+To summarize:
+
+.. code-block:: bash
+  
+  [['p_p11_s12', 'p_p11_s21'], 'p_s21'] <- G1 \
+    == ['p_r1_under_hidden_region', 'p_s22']
+
+Here is how it works:
+
+1. G1 is received by the ``p_p11_s12`` and generates a meta-event containing
+   multiple ``EXIT_META_SIGNAL`` and ``EXIT_INIT_SIGNAL`` layers.  We have
+   adjusted the ``META_SIGNAL_PAYLOAD`` to include a history of what the
+   previous state and the previous events were.  This will be important for the
+   code that changes the meta-event's direction in the chart, see 4.
+2. The first ``EXIT_META_SIGNAL`` event is caught by the ``p_p11_r1_region``. It
+   uses the ``outer`` in the ``r.outer.post_fifo`` call, which will ensure the
+   meta-event is passed to the parent orthogonal components.
+3. Here we see the first injector, ``p_p11``, catching the next
+   ``EXIT_META_SIGNAL`` event.  It performs the same actions as we say in step 2,
+   it passes the remaining meta-event outward.
+4. The ``p`` injector catches the ``INIT_META_SIGNAL`` and peels a layer off of
+   the meta-event.  It posts the remaining meta-event back into its regions
+   using a ``_post_fifo``; the items are placed on all of the region queues, but
+   they are not driven through each HSM.
+5. The ``p`` injector then calls the ``meta_bounce_across`` method which looks
+   at the history of the event.  If the last meta event signal name is different
+   from the current event signal name, then we know that we need to bounce the
+   event using the "across" strategy. But what do we do about our own region?
+   See 6.
+6. Here we see what it means when a WTF event crosses a parallel boundary;
+   leaving a region.  We the left region to become inert.  Only a
+   ``enter_region`` event can pull it out of being inert.
+7. To activate the ``INIT_META_SIGNAL`` event that is still waiting in the
+   ``p_r2`` queues, we need to first place a ``force_region_init`` into its
+   lifo, then drive all events through the connected HSMs.  We see the result of
+   this in the ``p_r2_over_hidden_region`` to ``p_r2_region`` transition.
+8. Back in step 4 we saw that the ``p`` injector put something into the queues
+   of all of its attached regions.  In step 7, this item was removed from the
+   ``p_r1`` region machine, but it is still in the ``p_r2`` machine.  The
+   ``INIT_SIGNAL`` handler of the ``p_r2_region`` function peels off the last
+   layer of the meta-event and uses its information to transition to ``p_s22``.
 
 .. _recipes-context-and-terminology:
 
