@@ -4,16 +4,42 @@
 == Evidence ([[evidence.g1_WTF_event|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.g1_WTF_event|subgoals]])
-    To make and document a working G1 WTF event
+
+    * [ ] State functions know about what region they belong to.
+    * [ ] State functions can cleanly get their post_fifo...
+    * [ ] State functions can cleanly get 
+    * [ ] Build a G0 into the G1 program
+    * [ ] Integrate changes to g1.py back into parallel_4.py
+    * [ ] Update the docs with your new approach
 
   *What is the problem?*
 
-    It was too difficult to document what was happening using the parallel 4
-    example.  The diagram was too big, and the dynamics were too complex to
-    tease out the required meta_trans method needed to make a G1 event work.
+    A state function need to access it region's regions object.
 
-    This sub project is to make a small, yet complicated-enough version of the
-    experiment to make sense of the G1 event.
+    An injector state function needs to access the state functions of an inner
+    regions object.  Any other state function needs to access the methods of the
+    regions object that is driving event into its level.
+
+    1:p_p11 (injector) -> regions['p_p11'] -> p_p11_s12
+    2:p_p11_s12 -> regions['p_p11'] -> p_p11_s12 level
+
+    Now we have these ideas:
+    * outmost
+    * outer (we have gotten used to this)
+
+    We are missing something to describe machine hierarchy:
+    * adam, foundation, outmost
+    * parent, level_down, outer
+    * sibling, level_same, same
+    * child, level_up, inner -- for injectors
+
+    For now we will go with the (outmost, outer, same, inner) group of
+    descriptors.
+
+    Currently you don't have a link to same, or inner.
+
+    same should be set up by the link method
+    inner is setup by convention, using the function's name
 
   *Discoveries:* ([[notes.g1_WTF_event|notes]])
 
@@ -36,7 +62,7 @@
   === Pre trouble-shooting questions ===
     * [ ] Do you have enough information?
     * [ ] Is your information organized?
-    * [X] Can you draw a diagram of the components and their interactions?
+    * [ ] Can you draw a diagram of the components and their interactions?
     * [ ] Do you need to write some code to make it easier to see?
     * [ ] Can you think of anyway to speed up your feedback cycle?
 
@@ -74,6 +100,11 @@
     * [ ] How do I think about where the post_fifo... is being called?  Thinking
           is currently muddled here.
 
+  == Right now ==
+    * [ ] what regions does the r in the first argument of the state function
+          reference right now?  Why don't you know this off the top of your
+          head?
+
 = Decide =
   [[#Questions]]
   *Research Needed For?:*
@@ -92,13 +123,29 @@
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.g1_WTF_event|plan]]) ==
-  * [X] Update the tmux.yaml file to make it easier to get back here
-  * [X] Re-run the G1 program
-  * [X] Print the meta event at the G1 handler
-  * [X] Update your payload_string function with the new format
-  * [X] Draw the result onto the diagram
-  * [X] Draw the process of G1 using the numbers in bubbles approach
-  * [X] Add diagram to docs, with words describing what is going on
+  State know about what region they belong to.
+  * [ ] Update the link method to create the same attribute for a region.  This
+        same attribute will link to the machine driving events into the
+        currently attached statechart.  2:p_p11_s12 -> regions['p_p11'] ->
+        p_p11_s12's level.
+  * [ ] Adjust the state function wrappers to dynamically assign the inner
+        attribute to point to the correct regions object for the injectors.  If
+        a state function doesn't have an inner regions object, this inner
+        attribute will be set to None.
+  * [ ] Move the f_to_s and s_to_s functions out of the payload_string function
+        so that hey can be used elsewhere.
+  * [ ] Adjust instrumentation wrappers adding additional side effects.  The
+        wrappers will be named state and orthogonal_state, and they will provide
+        an inner attribute, if the state is an inject, the current_function_name
+        and the previous instrumentation feature.  By changing the names of
+        these decorators, were are also naming the type of the state function so
+        the code is easier to read.
+  * [ ] Adjust the Region object to have a same attribute.  The same attribute
+        is for sending events to regions at the same level in the hierarchical
+        orthogonal components map.
+  * [ ] Update the Region object documentation to describe the meaning of
+        outmost, outer, same, inner.
+  * [ ] Update your documents and draws to describe this change to your design.
 
 = Act =
   
