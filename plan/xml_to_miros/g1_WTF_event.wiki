@@ -90,15 +90,8 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions (if there is a problem): (>=5) ==
-    * [ ] How can I have a state function find the region in which it is called?
-    * [ ] How can I do a better job of getting the post_fifo... in the state
-          functions?
-    * [ ] How can I do a better job of getting the token_match, scribble in the
-          injectors?
     * [ ] How can I make the log appear in the right order, or how do I think
           about it differently so things are easier to debug?
-    * [ ] How do I think about where the post_fifo... is being called?  Thinking
-          is currently muddled here.
 
   == Right now ==
     * [ ] what regions does the r in the first argument of the state function
@@ -124,26 +117,26 @@
 
 == Plan ([[plan.g1_WTF_event|plan]]) ==
   State know about what region they belong to.
-  * [ ] Update the link method to create the same attribute for a region.  This
+  * [X] Update the link method to create the same attribute for a region.  This
         same attribute will link to the machine driving events into the
         currently attached statechart.  2:p_p11_s12 -> regions['p_p11'] ->
         p_p11_s12's level.
-  * [ ] Adjust the state function wrappers to dynamically assign the inner
+  * [X] Adjust the state function wrappers to dynamically assign the inner
         attribute to point to the correct regions object for the injectors.  If
         a state function doesn't have an inner regions object, this inner
         attribute will be set to None.
-  * [ ] Move the f_to_s and s_to_s functions out of the payload_string function
+  * [X] Move the f_to_s and s_to_s functions out of the payload_string function
         so that hey can be used elsewhere.
-  * [ ] Adjust instrumentation wrappers adding additional side effects.  The
+  * [X] Adjust instrumentation wrappers adding additional side effects.  The
         wrappers will be named state and orthogonal_state, and they will provide
         an inner attribute, if the state is an inject, the current_function_name
         and the previous instrumentation feature.  By changing the names of
         these decorators, were are also naming the type of the state function so
         the code is easier to read.
-  * [ ] Adjust the Region object to have a same attribute.  The same attribute
+  * [X] Adjust the Region object to have a same attribute.  The same attribute
         is for sending events to regions at the same level in the hierarchical
         orthogonal components map.
-  * [ ] Update the Region object documentation to describe the meaning of
+  * [X] Update the Region object documentation to describe the meaning of
         outmost, outer, same, inner.
   * [ ] Update your documents and draws to describe this change to your design.
 

@@ -53,7 +53,7 @@ def payload_string(e):
   else:
     while(True):
       previous_signal_name = s_to_s(e.payload.previous_signal)
-      result += "{}[n]::{}:{} [hn-1]::{}:{} ->\n".format(
+      result += "{}[n]::{}:{} [n-1]::{}:{} ->\n".format(
         tabs,
         e.signal_name,
         f_to_s(e.payload.state),
@@ -720,7 +720,7 @@ class XmlChart(InstrumentedActiveObject):
     self.post_fifo(e)
 
   @lru_cache(maxsize=64)
-  def meta_init(self, t, sig, s=None):
+  def meta_init(self, s, t, sig):
     '''Build target and meta event for the state.  The meta event will be a
     recursive INIT_META_SIGNAL event for a given WTF signal and return a target for
     it's first pass off.
@@ -800,28 +800,38 @@ class XmlChart(InstrumentedActiveObject):
     target_state, region_holding_state, region = find_fns(t)
     onion_states += [target_state, region_holding_state]
 
-    #inner_region = False
     while region and hasattr(region, 'outer'):
       target_state, region_holding_state, region = \
         find_fns(region_holding_state)
       if s is not None and region_holding_state == s:
-        #inner_region = True
         break
       if target_state:
         onion_states += [target_state, region_holding_state]
 
+    # Wrap up the onion meta event from the inside out.
+    # History items at the last layer of the outer part of the
+    # INIT_META_SIGNAL need to reference an even more outer part
+    # of the onion, the source of the meta_init call.
     event = None
-    layers = onion_states[:]
-    for inner_target in layers:
+    init_onion = onion_states[:]
+    for index, entry_target in enumerate(init_onion):
+      previous_signal = signals.INIT_META_SIGNAL
+      if index == len(init_onion) - 1:
+        previous_signal = sig
+        previous_state = s
+      else:
+        previous_state =  init_onion[index + 1]
+
       event = Event(
         signal=signals.INIT_META_SIGNAL,
         payload=META_SIGNAL_PAYLOAD(
           event=event,
-          state=inner_target,
-          previous_state=None,
-          previous_signal=sig
+          state=entry_target,
+          previous_state=previous_state,
+          previous_signal=previous_signal,
         )
       )
+
     return event
 
   def build_onion(self, t, sig, s=None):
@@ -943,10 +953,9 @@ class XmlChart(InstrumentedActiveObject):
         t=target,
         sig=sig)[:-1]
 
-    # Wrap up the onion meta event from the inside
-    # out.  History items at the last layer of the outer
-    # part of the INIT_META_SIGNAL need to reference an even outer
-    # part of the onion, the meta exit details.
+    # Wrap up the onion meta event from the inside out.  History items at the
+    # last layer of the outer part of the INIT_META_SIGNAL need to reference an
+    # even more outer part of the onion, the meta exit details.
     event = None
     for index, entry_target in enumerate(entry_onion):
       previous_signal = signals.INIT_META_SIGNAL
@@ -1443,6 +1452,7 @@ def p(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("[p] {}".format(e.signal_name))
     (_e, _state) = self.meta_peel(e)  # search for INIT_META_SIGNAL
+    print('b')
     if _state:
       self.inner._post_fifo(_e)
     pprint("enter p")
@@ -1501,6 +1511,12 @@ def outer_state(self, e):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     status = self.trans(p)
+  elif(self.token_match(e.signal_name, 'E0')):
+    _e = self.meta_init(s=outer_state, t=p_p11_s12, sig=e.signal)
+    print(payload_string(_e))
+    _e, _state = _e.payload.event, _e.payload.state
+    self.post_fifo(_e)
+    status = self.trans(_state)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit outer_state")
     status = return_status.HANDLED
@@ -1525,18 +1541,18 @@ if __name__ == '__main__':
   example.report("\nstarting regression\n")
 
   if regression:
-    def build_test(s, expected_result, old_result, duration=0.2):
+    def build_test(sig, expected_result, old_result, duration=0.2):
       '''test function, so it can be slow'''
-      example.post_fifo(Event(signal=s))
-      if s == 'G1':
+      example.post_fifo(Event(signal=sig))
+      if sig == 'G1':
         time.sleep(0.2)
         active_states = example.active_states()[:]
-        string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), s, str(active_states))
+        string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
         print(string1)
       time.sleep(duration)
       active_states = example.active_states()[:]
-      string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), s, str(active_states))
-      string2 = "\n{} <- {} == {}\n".format(str(old_result), s, str(active_states))
+      string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
+      string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
       print(string1)
       example.report(string2)
       if active_states != expected_result:
@@ -1545,7 +1561,7 @@ if __name__ == '__main__':
         function_name = '__main__'
         line_number   = fdata.line_number
         print("Assert error from {}:{}".format(function_name, line_number))
-        print("From: {}->{}".format(s, old_result))
+        print("From: {}->{}".format(sig, old_result))
         print("Expecting: {}".format(expected_result))
         print("Observed:  {}".format(active_states))
         #exit(0)
@@ -1558,24 +1574,32 @@ if __name__ == '__main__':
     old_results = example.active_states()[:]
 
     old_results = build_test(
-      s='to_p',
+      sig='to_p',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
       duration=0.2
     )
 
     old_results = build_test(
-      s='e1',
+      sig='E0',
       expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      s='G1',
-      expected_result=['p_r1_under_hidden_region', 'p_s22'],
       old_result= old_results,
       duration=1000.2
     )
+
+
+    #old_results = build_test(
+    #  s='e1',
+    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+    #  old_result= old_results,
+    #  duration=0.2
+    #)
+
+    #old_results = build_test(
+    #  s='G1',
+    #  expected_result=['p_r1_under_hidden_region', 'p_s22'],
+    #  old_result= old_results,
+    #  duration=1000.2
+    #)
 
 

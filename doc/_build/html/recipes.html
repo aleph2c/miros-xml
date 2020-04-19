@@ -77,10 +77,7 @@
 Python statechart and turn that statechart into a working program:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p>We will take the good parts of the SCXML standard.  I write <em>good parts</em>
-because the standard was not managed properly, it contains a lot of
-features that only serve one industrial group and I’m not going to work for
-them for free.</p></li>
+<li><p>We will take the good parts of the SCXML standard.</p></li>
 <li><p>The XML parser will be Python-centric, I do not want to write a new
 programming language which uses Python as its assembly (even though I can
 see why the SCXML would want to be language agnostic).</p></li>
@@ -90,8 +87,7 @@ this project is concentrated).</p></li>
 </ul>
 </div></blockquote>
 <p>The majority of this document is written to describe how to implement parallel
-regions using the event processor which I wrote in the miros project (based on
-the work by Dr. Miro Samek).</p>
+regions using the miros event processor.</p>
 <div class="section" id="problem-the-tale-of-two-architectural-explosion-chambers">
 <span id="recipes-summary"></span><h2><a class="toc-backref" href="#id4">Problem - The Tale of Two Architectural Explosion Chambers</a><a class="headerlink" href="#problem-the-tale-of-two-architectural-explosion-chambers" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
@@ -140,20 +136,21 @@ blue arrows on the diagram below).</p>
 one or more parallel regions.  I called these events, WTF events because I have
 no clue how to implement such a transition while the parallel regions are being
 mapped as a HSMs within and HSMs.</p>
-<p>So in a nutshell, this project is about having cake and eating it too.  I will
-recursively map Miro Samek’s orthogonal component pattern in such a way that it
-can implement the parallel region requirement of the Harel way of making
-statecharts, and I want to support (and possibly define) the WTF events.</p>
+<p>So in a nutshell, this project is about having my cake and eating it too.  I will
+recursively map Miro Samek’s orthogonal component pattern to make hierarchies of
+HSMs (HHSMs).  The HHSMs will provide the features needed to create parallel
+regions.  The resulting framework will support WTF events.</p>
 </div>
 <div class="section" id="class-and-hsm-relationships">
 <span id="recipes-class-relationships"></span><h2><a class="toc-backref" href="#id5">Class and HSM Relationships</a><a class="headerlink" href="#class-and-hsm-relationships" title="Permalink to this headline">¶</a></h2>
-<p>Here is an example of a statechart diagram written using the Harel Formalism:</p>
+<p>Here is an example of a statechart diagram written using the Harel way of
+drawing statecharts:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="align-center" src="_images/xml_chart_4.svg" /></a>
 <p>The state machines separated from one another with dashed lines are said to be
 running in parallel regions.  This means any event seen by the whole machine
 will be seen by each region and both regions are expected to run concurrently as
 if they were running on their own computer.  A statechart which supports the
-parallel region pattern can have one or more active states at a time.  The event
+parallel region pattern can have one or more active state at a time.  The event
 processing algorithm used by miros does not support the parallel regions
 pattern.</p>
 <p>But miros <em>does</em> support the ability to place an HSM within another HSM.  This
@@ -164,7 +161,7 @@ pattern.</p>
 <p>The goal of this documentation is to show how to map the orthogonal component
 pattern onto the parallel region pattern.  This way a user can use the existing
 miros infrastructure to gain the incredible complexity packing and
-ease-of-description offered by the parallel region drawing style.</p>
+ease-of-description offered by David Harel’s parallel-region-drawing-style.</p>
 <hr class="docutils" />
 <p>From a very high level the code is structured like this:</p>
 <a class="reference external image-reference" href="_static/class_relationships.pdf"><img alt="_images/class_relationships.svg" class="align-center" src="_images/class_relationships.svg" /></a>
@@ -179,62 +176,79 @@ instrumentation features.</p>
 <p>There will be one Region object for every region in a diagram which supports the
 dashed line notation:</p>
 <a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="align-center" src="_images/region.svg" /></a>
-<p>A Region is just an HsmWithQueues with some additional methods.  The Region will
-be attached to a state machine who’s inner part is identical to that in the
-parallel region diagram, but with three additional outer states and event
-handlers.  These outer structures will be invisible to the user, and will
-provide the means to control the orthogonal component so that its inner state
-machine will behave as if it was a parallel state in a different framework
-(Matlab/Rational Rose).  I will talk more about these outer structures later,
-but for now know that they are just there to map one technique onto another.</p>
-<p>Parallel regions occur within a state.  In this program, the state with parallel
-regions, has a Regions object to do this work for it.</p>
+<p>A Region is just an HsmWithQueues with some additional methods; it’s just an
+HSM.  The Region will be attached to a state machine who’s inner part is
+identical to that in the parallel region diagram, but with three additional
+outer states and event handlers.  These outer structures will be invisible to
+the user, and will provide the means to control the orthogonal component so that
+its inner state machine will behave as if it was a parallel state in a different
+framework.  I will talk more about these outer structures later, but for now
+know that they are just there to map one technique onto another.</p>
+<p>Parallel regions occur within a state.  A state function that needs to connect
+to inner and embedded HSMs will use the Regions object to do this work.</p>
 <hr class="docutils" />
+<p>The Regions object is constructed within the XmlChart class.  A Regions object
+can construct and own many different region objects.</p>
 <p>The Regions class can inject and drive events into all of the Region objects it
 controls.</p>
 <a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="align-center" src="_images/regions.svg" /></a>
-<p>The Regions object is constructed within the XmlChart class.</p>
-<p>In the case that some substate of a parallel region has another set of parallel
-regions (see p_p11 in the above example), the state function managing this
-transition “will have” a Regions object.  A function which sends events to a
-different set of regions or region is called an <strong>injector</strong>.</p>
-<p>In miros states are described using functions.  But in the parallel regions pattern,
-a function can have two or more concurrent state machines.  So a function might
-need to access the event driving ability of a Regions object.  In the diagram
-above we show that if a state function has parallel regions, it “has a” Regions
-object.</p>
+<p>But a Regions object does not understand the graphical context in which it is
+placed. Only the state functions have topological information about how they
+relate to one another.</p>
+<p>So it is the state functions that will need to drive events into the appropriate
+layer of HSMs in our hierarchical HSM.  This will be done using the Regions
+object and the outer statechart object.  Both the Regions objects and the outer
+statechart object, XmlChart, have <code class="docutils literal notranslate"><span class="pre">post_fifo</span></code>, <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> and a host of
+other event control and driving mechanisms.  Since the Regions class and the
+XmlChart class use the same names for the methods that do this work, you can say
+they are polymorphic; they have the same interface.  A state function will need
+to aim these methods at different levels of the hierarchical HSM.  To simplify
+this, a convention was established:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">outmost</span></code>: The outer most statechart object. (green line)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">outer</span></code>: HSMs one layer out in the parallel regions diagram. (magenta line)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">same</span></code>: HSMs within the same parallel region. (orange line)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inner</span></code>: HSMs mapping to an inner parallel region of the state. (red line)</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">outmost</span></code>, <code class="docutils literal notranslate"><span class="pre">outer</span></code> and <code class="docutils literal notranslate"><span class="pre">same</span></code> attributes will be linked to a Region
+object at its moment of creation by the Regions object.  The <code class="docutils literal notranslate"><span class="pre">inner</span></code> attribute
+is set dynamically because the <code class="docutils literal notranslate"><span class="pre">inner</span></code>
+attribute is not something that will apply to an entire region object. The
+region object will contain many different states in the region and only the
+injector will need a connection to the inner region.  To see what I mean, look
+at <code class="docutils literal notranslate"><span class="pre">&lt;&lt;x&gt;&gt;_region_state_1</span></code>, it will not have the same <code class="docutils literal notranslate"><span class="pre">inner</span></code> relation that
+<code class="docutils literal notranslate"><span class="pre">p_state_function</span></code> will have to the parallel regions contained within
+<code class="docutils literal notranslate"><span class="pre">p_state_function</span></code>.</p>
 <p>But a function can’t really own anything in OO theory.  If you read the code you
-will see that state functions that need to control another parallel region, call
-out and get the methods required to post and drive events to that region.  It
-accesses the methods of the Regions object managing that part of the graph, its
-as if it has that Regions object.</p>
-<p>You can see this <em>faux</em> relationship connecting the “p state function” to the
-Regions class.  To provide context about the meaning of the “p state function” I
-show its region object statechart on the far left of the above diagram.</p>
+will see <code class="docutils literal notranslate"><span class="pre">inner</span></code> attribute is assigned dynamically by a decorator.</p>
 <hr class="docutils" />
 <p>State functions have Regions objects which have Region objects which have state
 functions.  This is all very confusing.  Seeing how things inter-relate in a
 graph would be nice, but this is not supported with idiomatic UML.</p>
 <p>So we will break the rules and describe their topological relationship like so:</p>
 <a class="reference external image-reference" href="_static/regions_in_regions.pdf"><img alt="_images/regions_in_regions.svg" class="align-center" src="_images/regions_in_regions.svg" /></a>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The people who would take issue with me doing this have retired.</p>
-</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">r.outer.post_fifo(...)</span></code>: post to all HSMs one level up in the hierarchy (magenta line)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r.same.post_fifo(...)</span></code>: post to all HSMs at the same level of the hierarchy (orange line)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r.inner.post_fifo(...)</span></code>: post to all inner HSMs in the state. (red line)</p></li>
+</ul>
 <p>Place your eyes on the outer most Regions object.  It has multiple region
 objects.  Its top most region object drives a partially drawn HSM.  Within this
 HSM is an <strong>injector</strong>, or a state function that has parallel regions within it.
 This <strong>injector</strong> function is called p_p11.</p>
-<p>The p_p11 injector function needs to control the collection of region objects,
-so it has a Regions object.  By convention the Regions object is given the same
-name as the injector which needs its tools.</p>
+<p>The p_p11 injector function needs to control the collection of inner region
+objects, so it makes <code class="docutils literal notranslate"><span class="pre">r.inner.post_fifo(...)</span></code> calls to do this.  By convention
+the Regions object is given the same name as the injector which needs its
+methods.</p>
 <p>Now look within the regions being managed within the p_p11 Regions object.  If a
 state machine inside of one of its orthogonal components needs to use the
-<code class="docutils literal notranslate"><span class="pre">post_fifo</span></code>, it will be posting and driving events through all of its sibling
+<code class="docutils literal notranslate"><span class="pre">r.same.post_fifo(...)</span></code>, it will be posting and driving events through all of its sibling
 orthogonal components.</p>
 <p>There will be times when a state function needs to call to drive events through
 its super-region or parent region components.  To do this it uses the
 <code class="docutils literal notranslate"><span class="pre">r.outer.post_fifo(...)</span></code> syntax.</p>
+<p>Not included on the above diagram is a posting to the outer statechart, this
+would be done as <code class="docutils literal notranslate"><span class="pre">r.outmost.post_fifo(...)</span></code>.</p>
 <hr class="docutils" />
 <a class="reference external image-reference" href="_static/XmlChart.pdf"><img alt="_images/XmlChart.svg" class="align-center" src="_images/XmlChart.svg" /></a>
 <p>The XmlChart class is a statechart which has a bunch of Regions objects, which
@@ -242,9 +256,7 @@ in turn manage groups of orthogonal components (Region objects).  I have
 discussed the inner dynamics already so I will focus now on how Regions
 objects are organized within the XmlChart class: they are in a data dictionary.
 This dictionary has key names that match the <strong>injector</strong> functions that own
-them.  There are some instances where a state function will have a Regions
-object even though it does not have internal parallel regions. This will be
-talked about in the WTF events section.</p>
+them.</p>
 <p>Each state function will receive a handle to its Region object and an event.
 All Region objects will have an attribute that points to the outmost chart, the
 XmlChart object.  It is through this reference that the Regions objects are
