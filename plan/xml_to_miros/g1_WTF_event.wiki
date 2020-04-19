@@ -138,7 +138,7 @@
         orthogonal components map.
   * [X] Update the Region object documentation to describe the meaning of
         outmost, outer, same, inner.
-  * [ ] Update your documents and draws to describe this change to your design.
+  * [X] Update your documents and draws to describe this change to your design.
 
 = Act =
   
