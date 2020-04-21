@@ -337,7 +337,7 @@
       /><text x="5" font-size="13px" y="52.1406" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >G1 as e /</text
       ><text x="5" font-size="13px" y="67.1875" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  t, _e = rr.outmost.meta_trans(</text
+      >  t, _e = r.same.meta_trans(</text
       ><text x="5" font-size="13px" y="82.2344" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >    t=p_s21,</text
       ><text x="5" font-size="13px" y="97.2812" clip-path="url(#clipPath10)" font-family="sans-serif" stroke="none" xml:space="preserve"
@@ -382,7 +382,7 @@
       /><text x="5" font-size="13px" y="52.1406" clip-path="url(#clipPath13)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >EXIT_META_SIGNAL as e /</text
       ><text x="5" font-size="13px" y="67.1875" clip-path="url(#clipPath13)" font-family="sans-serif" stroke="none" xml:space="preserve"
-      >  (_e, _state) = r.meta_peel(e)</text
+      >  (_e, _state) = e.payload.event, e.payload.state</text
       ><text x="5" font-size="13px" y="82.2344" clip-path="url(#clipPath13)" font-family="sans-serif" stroke="none" xml:space="preserve"
       >  if r.has_a_child(p_p11_r1_region, _state):</text
       ><text x="5" font-size="13px" y="97.2812" clip-path="url(#clipPath13)" font-family="sans-serif" stroke="none" xml:space="preserve"

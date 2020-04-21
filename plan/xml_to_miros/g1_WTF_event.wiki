@@ -104,11 +104,6 @@
 
   [[#Questions]]
   *Idea/Hypotheses for G1 WTF Event: >=5*
-  * [X] Create a working G1 WFT event
-  * [ ] Describe the G1 approach in the docs
-  * [ ] State functions know about what region they belong to.
-  * [ ] State functions can cleanly get their post_fifo...
-  * [ ] State functions can cleanly get 
   * [ ] Build a G0 into the G1 program
   * [ ] Integrate changes to g1.py back into parallel_4.py
   * [ ] Update the docs with your new approach
@@ -117,28 +112,6 @@
 
 == Plan ([[plan.g1_WTF_event|plan]]) ==
   State know about what region they belong to.
-  * [X] Update the link method to create the same attribute for a region.  This
-        same attribute will link to the machine driving events into the
-        currently attached statechart.  2:p_p11_s12 -> regions['p_p11'] ->
-        p_p11_s12's level.
-  * [X] Adjust the state function wrappers to dynamically assign the inner
-        attribute to point to the correct regions object for the injectors.  If
-        a state function doesn't have an inner regions object, this inner
-        attribute will be set to None.
-  * [X] Move the f_to_s and s_to_s functions out of the payload_string function
-        so that hey can be used elsewhere.
-  * [X] Adjust instrumentation wrappers adding additional side effects.  The
-        wrappers will be named state and orthogonal_state, and they will provide
-        an inner attribute, if the state is an inject, the current_function_name
-        and the previous instrumentation feature.  By changing the names of
-        these decorators, were are also naming the type of the state function so
-        the code is easier to read.
-  * [X] Adjust the Region object to have a same attribute.  The same attribute
-        is for sending events to regions at the same level in the hierarchical
-        orthogonal components map.
-  * [X] Update the Region object documentation to describe the meaning of
-        outmost, outer, same, inner.
-  * [X] Update your documents and draws to describe this change to your design.
 
 = Act =
   

@@ -673,7 +673,7 @@ layer=2
 --
 
 EXIT_META_SIGNAL as e /
-  (_e, _state) = r.meta_peel(e)
+  (_e, _state) = e.payload.event, e.payload.state
   if r.has_a_child(p_p11_r1_region, _state):
     r.outer.post_fifo(_e)
 
@@ -827,7 +827,7 @@ layer=3</panel_attributes>
 --
 
 G1 as e /
-  t, _e = rr.outmost.meta_trans(
+  t, _e = r.same.meta_trans(
     t=p_s21,
     s = p_p11_s12, sig=e)
   post_fifo(_e)
