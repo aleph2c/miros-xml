@@ -354,6 +354,20 @@ class Region(HsmWithQueues):
       result = self.queue.popleft()
     return result
 
+  def _post_fifo(self, e):
+    super().post_fifo(e)
+
+  def _post_lifo(self, e):
+    super().post_lifo(e)
+
+  #def post_fifo(self, e):
+  #  self._post_fifo(e)
+  #  self.complete_circuit()
+
+  #def post_lifo(self, e):
+  #  self._post_lifo(e)
+  #  self.complete_circuit()
+
 
 class InstrumentedActiveObject(ActiveObject):
   def __init__(self, name, log_file):
@@ -930,6 +944,7 @@ class XmlChart(InstrumentedActiveObject):
         find_fns(region_holding_state)
       if s is not None and region_holding_state == s:
         #inner_region = True
+        onion_states += [target_state, s]
         break
       if target_state:
         onion_states += [target_state, region_holding_state]
@@ -983,6 +998,7 @@ class XmlChart(InstrumentedActiveObject):
     source = s
     target = t
     lca = self.lca(source, target)
+    #print("lca: ", lca)
 
     exit_onion1 = self.build_onion(
         t=source,
@@ -994,19 +1010,39 @@ class XmlChart(InstrumentedActiveObject):
     entry_onion1 = self.build_onion(
         s=lca,
         t=target,
-        sig=sig)
+        sig=sig)[0:-1]
+
+
+    # remove any references to the region, since the bounce skips
+    # the entry of the injector that would strip this off of our event
+    #entry_onion2 = entry_onion1[0:-2]
+    #entry_onion2 += [entry_onion1[-1]]
+
     entry_onion = entry_onion1[:]
+
+    #print("")
+    #print(exit_onion1)
+    #print(entry_onion1)
+
+    # TODO: we will have to verify this with a non-tran bounce
+    if entry_onion[0] == exit_onion[0]:
+      bounce_type = signals.BOUNCE_SAME_META_SIGNAL
+    else:
+      bounce_type = signals.BOUNCE_ACROSS_META_SIGNAL
 
     # Wrap up the onion meta event from the inside out.  History items at the
     # last layer of the outer part of the INIT_META_SIGNAL need to reference an
     # even more outer part of the onion, the meta exit details.
     event = None
     for index, entry_target in enumerate(entry_onion):
+
+      signal_name = signals.INIT_META_SIGNAL if entry_target != lca else bounce_type
+
       if index == len(entry_onion) - 1:
         previous_state = exit_onion[0]
         previous_signal = signals.EXIT_META_SIGNAL
         event = Event(
-          signal=signals.BOUNCE_META_SIGNAL,
+          signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
             event=event,
             state=entry_target,
@@ -1018,7 +1054,7 @@ class XmlChart(InstrumentedActiveObject):
         previous_state = entry_onion[index + 1]
         previous_signal = signals.INIT_META_SIGNAL
         event = Event(
-          signal=signals.INIT_META_SIGNAL,
+          signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
             event=event,
             state=entry_target,
@@ -1032,15 +1068,17 @@ class XmlChart(InstrumentedActiveObject):
     # we need to write in the event that caused this meta event
     # and from what state it was created.
     for index, exit_target in enumerate(exit_onion):
+      signal_name = signals.EXIT_META_SIGNAL if exit_target != lca else bounce_type
+
       previous_signal = signals.EXIT_META_SIGNAL
-      if index == len(entry_onion) - 1:
+      if index == len(exit_onion) - 1:
         previous_state = source
         previous_signal = sig
       else:
-        previous_state = entry_onion[index + 1]
+        previous_state = exit_onion[index + 1]
 
       event = Event(
-        signal=signals.EXIT_META_SIGNAL,
+        signal=signal_name,
         payload=META_SIGNAL_PAYLOAD(
           event=event,
           state=exit_target,
@@ -1049,6 +1087,8 @@ class XmlChart(InstrumentedActiveObject):
         )
       )
 
+    #print(ps(event))
+    #print("")
     return (t, event)
 
   @lru_cache(maxsize=32)
@@ -1114,22 +1154,31 @@ def p_r1_region(r, e):
     pprint("enter p_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = r.meta_peel(e)  # search for INIT_META_SIGNAL
+    # search for INIT_META_SIGNAL
+    (_e, _state) = r.meta_peel(e)
+
+    # If the target state is this state, just strip this layer of
+    # the meta event and use the next one (this was done to make the
+    # meta events consistent and easy to read and usable by different
+    # types of WTF events.
+    if _state == p_r1_region:
+      (_e, _state) = _e.payload.event, _e.payload.state
+
     # if _state is a child of this state then transition to it
     if _state is None or not r.has_a_child(p_r1_region, _state):
       status = r.trans(p_p11)
     else:
-      #pprint(payload_string(_e))
-      #print("p_r1_region init {}".format(_state))
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.EXIT_META_SIGNAL):
+    (_e, _state) = e.payload.event, e.payload.state
+    if r.has_a_child(p_r1_region, _state):
+      r.outer.post_fifo(_e)
+    status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META_SIGNAL):
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_r1_region")
@@ -1183,9 +1232,13 @@ def p_p11(r, e):
     r.inner.post_fifo(e)
     status = return_status.HANDLED
 
+  # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p11, _state):
+      # The next state is going to be our region handler skip it and post this
+      # region handler would have posted to the outer HSM
+      (_e, _state) = _e.payload.event, _e.payload.state
       r.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.exit_region:
@@ -1227,7 +1280,16 @@ def p_p11_r1_region(r, e):
     pprint("enter p_p11_r1_region")
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
-    (_e, _state) = r.meta_peel(e)  # search for INIT_META_SIGNAL
+    # search for INIT_META_SIGNAL
+    (_e, _state) = r.meta_peel(e)
+
+    # If the target state is this state, just strip this layer of
+    # the meta event and use the next one (this was done to make the
+    # meta events consistent and easy to read and usable by different
+    # types of WTF events.
+    if _state == p_r2_region:
+      (_e, _state) = _e.payload.event, _e.payload.state
+
     # if _state is a child of this state then transition to it
     if _state is None or not r.has_a_child(p_p11_r1_region, _state):
       status = r.trans(p_p11_s11)
@@ -1238,6 +1300,7 @@ def p_p11_r1_region(r, e):
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p11_r1_region, _state):
+      #print(ps(_e))
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1298,6 +1361,7 @@ def p_p11_s12(r, e):
       t=p_s22,
       sig=e.signal_name
     )
+    #print(r.outmost.rqs())
     r.same.post_fifo(_e)
     status = return_status.HANDLED
 
@@ -1424,16 +1488,30 @@ def p_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     status = return_status.HANDLED
-    (_e, _state) = r.meta_peel(e)  # search for INIT_META_SIGNAL
-    print(_state)
-    #print(_state)
+    # search for INIT_META_SIGNAL
+    (_e, _state) = r.meta_peel(e)
+
+    # If the target state is this state, just strip this layer of
+    # the meta event and use the next one (this was done to make the
+    # meta events consistent and easy to read and usable by different
+    # types of WTF events.
+    if _state == p_r2_region:
+      (_e, _state) = _e.payload.event, _e.payload.state
+
     if _state is None or not r.has_a_child(p_r2_region, _state):
       status = r.trans(p_s21)
     else:
       status = r.trans(_state)
-      #print("p_r2_region init {}".format(_state))
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.EXIT_META_SIGNAL):
+    status = return_status.HANDLED
+    (_e, _state) = e.payload.event, e.payload.state
+    if r.has_a_child(p_r2_region, _state):
+      r.outer._post_fifo(_e)
+      #print(r.outmost.rqs())
+  elif(e.signal == signals.to_p_s22):
+    status = r.trans(p_s22)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_r2_region")
     status = return_status.HANDLED
@@ -1489,6 +1567,14 @@ def p_s22(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_s22")
     status = return_status.HANDLED
+  elif(e.signal == signals.G0):
+    t, _e = r.outmost.meta_trans(
+      s=p_s22,
+      t=p_p11_s12,
+      sig=e.signal_name
+    )
+    r.same.post_fifo(_e)
+    status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_over_hidden_region
     status = return_status.SUPER
@@ -1529,6 +1615,7 @@ def p(self, e):
       self.token_match(e.signal_name, "e2") or
       self.token_match(e.signal_name, "G1") or
       self.token_match(e.signal_name, "G0") or
+      self.token_match(e.signal_name, "to_p_s22") or
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name)
        )):
     self.scribble("[p] {}".format(e.signal_name))
@@ -1541,36 +1628,42 @@ def p(self, e):
     self.inner.post_fifo(Event(signal=signals.exit_region))
     #status = self.trans(some_other_state)
   elif(e.signal == signals.EXIT_META_SIGNAL):
-    # if the state is in this region continue meta exit
+    # There is a good chance that:
+    # 1) One of your injectors or regions is missing a EXIT_META_SIGNAL
+    #    handler.
+    # 2) When your injects posts the stripped META event it is posting
+    #    using the "outer" attribute instead of the "same" attribute
+    raise("You should never land here, read comments above raise code")
     (_e, _state) = e.payload.event, e.payload.state
-    #print(payload_string(_e))
-    if self.has_a_child(p, _state):
-      self.post_fifo(_e)
+    self.post_fifo(_e)
     status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_META_SIGNAL:
+  elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
     self.scribble("[p] {}".format(e.signal_name))
     _e, _state = e.payload.event, e.payload.state
 
-    # This is like a meta_init
-    self.scribble
+    # Break the code up so we can see what is going on.
     self.inner._post_fifo(_e)
-    if e.payload.event.signal != e.payload.previous_signal:
-      for region in self.inner._regions:
-        if region.has_state(e.payload.previous_state):
-          self.scribble("[---LOOK---] {}".format(
-            "popping event in region {}".format(region.name)
-          ))
-          region.pop_event()
-          self.scribble("[---LOOK---] {}".format(
-            "posting_lifo exit_region in region {}".format(region.name)
-          ))
-          region.post_lifo(Event(signal=signals.exit_region))
-        else:
-          self.scribble("[---LOOK---] {}".format(
-            "posting_lifo enter_region in region {}".format(region.name)
-          ))
-          region.post_lifo(Event(signal=signals.enter_region))
-      print(self.rqs())
+    for region in self.inner._regions:
+      if region.has_state(e.payload.previous_state):
+        # I though region was a Regions object
+        self.scribble("[---LOOK---] {}".format(
+          "popping event in region {}".format(region.name)
+        ))
+        region.pop_event()
+        self.scribble("[---LOOK---] {}".format(
+          "posting_lifo exit_region in region {}".format(region.name)
+        ))
+        region._post_lifo(Event(signal=signals.exit_region))
+      else:
+        self.scribble("[---LOOK---] {}".format(
+          "posting_lifo enter_region in region {}".format(region.name)
+        ))
+        region._post_lifo(Event(signal=signals.enter_region))
+        self.scribble(self.rqs())
+    # reflect on what is in the queues
+    # print(self.rqs())
+    # drive the items through the queues
+    [region.complete_circuit() for region in self.inner._regions]
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     self.scribble("[p] {}".format('exit_region'))
@@ -1660,6 +1753,22 @@ if __name__ == '__main__':
       #assert active_states == expected_result
       return active_states
 
+    def build_reflect(sig, expected_result, old_result, duration=0.2):
+      '''test function, so it can be slow'''
+      example.post_fifo(Event(signal=sig))
+      #if sig == 'G1':
+      #  active_states = example.active_states()[:]
+      #  string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
+      #  print(string1)
+      time.sleep(duration)
+      active_states = example.active_states()[:]
+      string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
+      string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
+      print(string1)
+      example.report(string2)
+      #assert active_states == expected_result
+      return active_states
+
     active_states = example.active_states()
     print("{:>39}{:>5} <-> {:<80}".format("start", "", str(active_states)))
 
@@ -1683,14 +1792,21 @@ if __name__ == '__main__':
       sig='G1',
       expected_result=['p_r1_under_hidden_region', 'p_s22'],
       old_result= old_results,
-      duration=1000.2
+      duration=0.2
     )
 
-    #old_results = build_test(
-    #  sig='G0',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
+    old_results = build_reflect(
+      sig='to_p_s22',
+      expected_result=['p_r1_under_hidden_region', 'p_s22'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_reflect(
+      sig='G0',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
 
 
