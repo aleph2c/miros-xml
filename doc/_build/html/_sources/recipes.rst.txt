@@ -40,61 +40,49 @@ Problem - The Tale of Two Architectural Explosion Chambers
   I wrote this document to help me think through my problems and to try and find a
   straightforward way to implement the <p> parallel tag using miros.
 
-State machine theory used to be plagued with a problem known as state space
-explosion: The number of states needed in a finite state machine (FSM) would
-explode in number, as a system's requirements reached even a moderate level of
-complexity.  A good engineering formalism (or way of modeling your problem)
-should compress complexity within the model, not make your model more complex
-than the real system it is intended to mirror.  So the FSM technique could only
-be applied to simple systems, with the state space explosion problem becoming
-the promised apocalypse for that system's maintenance developer.
+State machine theory used to plague designers with a problem known as state
+space explosion: The number of states needed in a finite state machine (FSM)
+would explode in number, as a system's requirements reached even a moderate
+level of complexity.  Any useful engineering formalism (or way of modelling your
+problem) should compress complexity within the model, not make your model more
+complex than the real system.  A design using an FSM would map requirements
+versus complexity in a concave way.  It could only be applied to simple systems;
+with the state space explosion becoming a promised apocalypse for that system's
+maintenance developers.
+
+.. image:: _static/bomb_disposal.jpg
+    :target: https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/
+    :align: center
 
 David Harel neatly solved this issue by inventing a better formalism.  He
 invented hierarchical state machines and parallel regions.  His way of drawing
 diagrams would ensnare tremendous amounts of complexity, packing it into small
-and intuitive diagrams.  Then he wrote it up in a way that was so easy to
-understand that his paper was rejected by his reviewers because they were
-convinced that they had seen his ideas before.
+and intuitive diagrams.  With his approach, the graph of mapping requirements to
+a design's complexity would be linear or even sigmoidal in nature.
 
 When state machines are running in parallel regions they are running at the same
 time: both regions react to the events which are sent to the chart.  This is
 easy for a theorist to envision, but it is much harder for the practitioner to
 implement.  Regions can exist within regions, and each region represents a
 parallel execution of code, with access to common outer memory and a need to
-react to events managed by other parts of the program.  Typically multi-threaded
-programs build a loop and run forever.  This is not the case with a program
-manifesting a Harel diagram, the regions map onto concurrent processes, but if
-you exit the region its concurrent processes should collapse onto the outer
-concurrent process.  It is like applying topology to your system forks.
+react to events managed by other parts of the program.  It is like applying
+topology to your system forks.
 
-Miro Samek wanted to address the need to contain state explosion, but in
-a more computationally efficient way.  He invented the  `orthogonal component
+Miro Samek wanted to address the need to contain state explosion too, but in a
+way which could be put onto very small processors with limited resources.  So he invented the  `orthogonal component
 pattern
 <https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_:
-an HSM running within another HSM.  It is a little harder to draw than a
-parallel region, but it can pack complexity in the same way.  But Miro Samek's
-approach didn't catch on.  The statechart community still expects the parallel
-region to exist.  From an implementation perspective Miro Samek's approach is
-much faster and far easier to implement, but David Harel's paper was just too
-convincing.
+an HSM running within another HSM.
 
-So why not just use Miro Samek's approach?  Because I want to have access to the
-`WTF <https://www.youtube.com/watch?v=NDWgtB_MD24>`_ family of events (see the
-blue arrows on the diagram below).
+Miro Samek's approach is very much appropriate for the environment he built it
+for, but it is not nearly as expressive as the parallel region, as we will see
+in the next section.  But from an implementation perspective Miro
+Samek's approach is much faster and far easier to implement than David Harel's
+approach.
 
-.. image:: _static/xml_chart_4.svg
-    :target: _static/xml_chart_4.pdf
-    :align: center
-
-A WTF event is an event that causes a transition from, or to, or from and to,
-one or more parallel regions.  I called these events, WTF events because I have
-no clue how to implement such a transition while the parallel regions are being
-mapped as a HSMs within and HSMs.
-
-So in a nutshell, this project is about having my cake and eating it too.  I will
-recursively map Miro Samek's orthogonal component pattern to make hierarchies of
-HSMs (HHSMs).  The HHSMs will provide the features needed to create parallel
-regions.  The resulting framework will support WTF events.
+This project is about having my cake and eating it too.  I will recursively map
+Miro Samek's orthogonal component pattern to make hierarchies of HSMs (HHSMs).
+The HHSMs will provide the features needed to create David Harel's parallel regions.
 
 .. _recipes-class-relationships:
 
@@ -159,12 +147,12 @@ HSM.  The Region will be attached to a state machine who's inner part is
 identical to that in the parallel region diagram, but with three additional
 outer states and event handlers.  These outer structures will be invisible to
 the user, and will provide the means to control the orthogonal component so that
-its inner state machine will behave as if it was a parallel state in a different
-framework.  I will talk more about these outer structures later, but for now
-know that they are just there to map one technique onto another.
+its inner state machine will behave as if it was a parallel state.  I will talk
+more about these outer structures later, but for now know that they are just
+there to map one technique onto another.
 
 Parallel regions occur within a state.  A state function that needs to connect
-to inner and embedded HSMs will use the Regions object to do this work.
+to inner, embedded HSMs will use the Regions object to do this work.
 
 ----
 
@@ -208,7 +196,7 @@ at ``<<x>>_region_state_1``, it will not have the same ``inner`` relation that
 ``p_state_function``.
 
 But a function can't really own anything in OO theory.  If you read the code you
-will see ``inner`` attribute is assigned dynamically by a decorator.
+will see that the ``inner`` attribute is assigned dynamically by a decorator.
 
 ----
 
@@ -402,40 +390,26 @@ To summarize:
   [['p_p11_s12', 'p_p11_s21'], 'p_s21'] <- G1 \
     == ['p_r1_under_hidden_region', 'p_s22']
 
-Here is how it works:
+----
 
-1. G1 is received by the ``p_p11_s12`` and generates a meta-event containing
-   multiple ``EXIT_META_SIGNAL`` and ``EXIT_INIT_SIGNAL`` layers.  We have
-   adjusted the ``META_SIGNAL_PAYLOAD`` to include a history of what the
-   previous state and the previous events were.  This will be important for the
-   code that changes the meta-event's direction in the chart, see 4.
-2. The first ``EXIT_META_SIGNAL`` event is caught by the ``p_p11_r1_region``. It
-   uses the ``outer`` in the ``r.outer.post_fifo`` call, which will ensure the
-   meta-event is passed to the parent orthogonal components.
-3. Here we see the first injector, ``p_p11``, catching the next
-   ``EXIT_META_SIGNAL`` event.  It performs the same actions as we say in step 2,
-   it passes the remaining meta-event outward.
-4. The ``p`` injector catches the ``INIT_META_SIGNAL`` and peels a layer off of
-   the meta-event.  It posts the remaining meta-event back into its regions
-   using a ``_post_fifo``; the items are placed on all of the region queues, but
-   they are not driven through each HSM.
-5. The ``p`` injector then calls the ``meta_bounce_across`` method which looks
-   at the history of the event.  If the last meta event signal name is different
-   from the current event signal name, then we know that we need to bounce the
-   event using the "across" strategy. But what do we do about our own region?
-   See 6.
-6. Here we see what it means when a WTF event crosses a parallel boundary;
-   leaving a region.  We the left region to become inert.  Only a
-   ``enter_region`` event can pull it out of being inert.
-7. To activate the ``INIT_META_SIGNAL`` event that is still waiting in the
-   ``p_r2`` queues, we need to first place a ``force_region_init`` into its
-   lifo, then drive all events through the connected HSMs.  We see the result of
-   this in the ``p_r2_over_hidden_region`` to ``p_r2_region`` transition.
-8. Back in step 4 we saw that the ``p`` injector put something into the queues
-   of all of its attached regions.  In step 7, this item was removed from the
-   ``p_r1`` region machine, but it is still in the ``p_r2`` machine.  The
-   ``INIT_SIGNAL`` handler of the ``p_r2_region`` function peels off the last
-   layer of the meta-event and uses its information to transition to ``p_s22``.
+Let's focus on something a bit less difficult, the ``G0`` WTF event (click to
+enlarge):
+
+.. image:: _static/parallel_region_to_orthogonal_component_mapping_7.svg
+    :target: _static/parallel_region_to_orthogonal_component_mapping_7.pdf
+    :align: center
+
+From the top Harel diagram, we see that if the system is in ``p_p22`` and we
+receive a ``G0`` we should transition into ``p_p11_s12``.  But what happens to
+region 1 of ``p``?  Well, we want it to be non-reactive, unless it is
+explicitely reactivated by ``to_p``.
+
+To summarize:
+
+.. code-block:: bash
+
+  [['p_p11_s12', 'p_p11_s21'], 'p_s21'] <- G1 \
+    == [['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region']
 
 .. _recipes-context-and-terminology:
 
