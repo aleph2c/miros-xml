@@ -1216,8 +1216,8 @@ def p_p11(r, e):
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11")
-    r.scribble(e.signal_name)
-    (_e, _state) = r.meta_peel(e)  # search for INIT_META_SIGNAL
+    # search for INIT_META_SIGNAL
+    (_e, _state) = r.meta_peel(e)
     if _state:
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
@@ -1300,7 +1300,6 @@ def p_p11_r1_region(r, e):
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p11_r1_region, _state):
-      #print(ps(_e))
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1361,7 +1360,6 @@ def p_p11_s12(r, e):
       t=p_s22,
       sig=e.signal_name
     )
-    #print(r.outmost.rqs())
     r.same.post_fifo(_e)
     status = return_status.HANDLED
 
@@ -1573,6 +1571,7 @@ def p_s22(r, e):
       t=p_p11_s12,
       sig=e.signal_name
     )
+    print(ps(_e))
     r.same.post_fifo(_e)
     status = return_status.HANDLED
   else:
@@ -1640,29 +1639,13 @@ def p(self, e):
   elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
     self.scribble("[p] {}".format(e.signal_name))
     _e, _state = e.payload.event, e.payload.state
-
-    # Break the code up so we can see what is going on.
     self.inner._post_fifo(_e)
     for region in self.inner._regions:
       if region.has_state(e.payload.previous_state):
-        # I though region was a Regions object
-        self.scribble("[---LOOK---] {}".format(
-          "popping event in region {}".format(region.name)
-        ))
         region.pop_event()
-        self.scribble("[---LOOK---] {}".format(
-          "posting_lifo exit_region in region {}".format(region.name)
-        ))
         region._post_lifo(Event(signal=signals.exit_region))
       else:
-        self.scribble("[---LOOK---] {}".format(
-          "posting_lifo enter_region in region {}".format(region.name)
-        ))
-        region._post_lifo(Event(signal=signals.enter_region))
-        self.scribble(self.rqs())
-    # reflect on what is in the queues
-    # print(self.rqs())
-    # drive the items through the queues
+        region.post_lifo(Event(signal=signals.enter_region))
     [region.complete_circuit() for region in self.inner._regions]
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -1795,16 +1778,16 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    old_results = build_reflect(
+    old_results = build_test(
       sig='to_p_s22',
       expected_result=['p_r1_under_hidden_region', 'p_s22'],
       old_result= old_results,
       duration=0.2
     )
 
-    old_results = build_reflect(
+    old_results = build_test(
       sig='G0',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region'],
       old_result= old_results,
       duration=0.2
     )
