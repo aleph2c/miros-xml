@@ -5,42 +5,17 @@
 
   *What defines Success?:* ([[subgoals.g1_WTF_event|subgoals]])
 
-    * [ ] State functions know about what region they belong to.
-    * [ ] State functions can cleanly get their post_fifo...
-    * [ ] State functions can cleanly get 
-    * [ ] Build a G0 into the G1 program
-    * [ ] Integrate changes to g1.py back into parallel_4.py
-    * [ ] Update the docs with your new approach
+    Get G0, G1, E0 all to use the same pathways
 
   *What is the problem?*
 
-    A state function need to access it region's regions object.
+    I can get any one event to, but I need there to be two functions:
+      meta_init, meta_trans that work for everything
 
-    An injector state function needs to access the state functions of an inner
-    regions object.  Any other state function needs to access the methods of the
-    regions object that is driving event into its level.
-
-    1:p_p11 (injector) -> regions['p_p11'] -> p_p11_s12
-    2:p_p11_s12 -> regions['p_p11'] -> p_p11_s12 level
-
-    Now we have these ideas:
-    * outmost
-    * outer (we have gotten used to this)
-
-    We are missing something to describe machine hierarchy:
-    * adam, foundation, outmost
-    * parent, level_down, outer
-    * sibling, level_same, same
-    * child, level_up, inner -- for injectors
-
-    For now we will go with the (outmost, outer, same, inner) group of
-    descriptors.
-
-    Currently you don't have a link to same, or inner.
-
-    same should be set up by the link method
-    inner is setup by convention, using the function's name
-
+    The meta_init assumes a certain type of meta event (E0)
+    I adjusted the meta_trans to follow the pattern needed by E0 for G1
+    This breaks the G0 event (which needs the full pattern (assumption)
+    
   *Discoveries:* ([[notes.g1_WTF_event|notes]])
 
     * The meta events need to be pre-packed with enough information that the
@@ -59,44 +34,6 @@
       possible.
 
   *Questions for G1 WFT Event:*
-  === Pre trouble-shooting questions ===
-    * [ ] Do you have enough information?
-    * [ ] Is your information organized?
-    * [ ] Can you draw a diagram of the components and their interactions?
-    * [ ] Do you need to write some code to make it easier to see?
-    * [ ] Can you think of anyway to speed up your feedback cycle?
-
-    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
-          work somewhere else?  Yes: Repair, No: Pioneering.
-
-  === Repair (Complexity increases exponentially) ===
-    * [ ] Can you test the individual components to reduce complexity?
-    * [ ] Can you exchange components?
-    * [ ] Can you reduce the number of interactions?
-    * [ ] Are you continuing event though you know that something you have previously
-          tested isn't working?
-    * [ ] Has a thing you have previously tested fooled you into thinking it works,
-          when it doesn't work? (Never assume something is right before you have
-          checked it twice)
-
-  == Pioneering ==
-    * [ ] Has someone else solved this before (search)? Can you turn this into a
-          repair?
-    * [ ] Do you have something to baseline from?
-    * [ ] Looking under the problem, are you focused on the right goals?  Are you
-          stuck on solving a hard problem, when there is an easy problem?
-    * [ ] Do you understand how your existing system works?  If not, can you draw
-          diagrams and describe how it works before you continue?
-    * [ ] What don't you know that you need to know?
-
-  == Custom Questions (if there is a problem): (>=5) ==
-    * [ ] How can I make the log appear in the right order, or how do I think
-          about it differently so things are easier to debug?
-
-  == Right now ==
-    * [ ] what regions does the r in the first argument of the state function
-          reference right now?  Why don't you know this off the top of your
-          head?
 
 = Decide =
   [[#Questions]]
@@ -104,9 +41,15 @@
 
   [[#Questions]]
   *Idea/Hypotheses for G1 WTF Event: >=5*
-  * [ ] Build a G0 into the G1 program
-  * [ ] Integrate changes to g1.py back into parallel_4.py
-  * [ ] Update the docs with your new approach
+  * [X] Create a small event to p_s22 and put it between the G1 and the G0 code
+        to speed up your tests
+  * [X] Adjust test code to not break, but just report what is happening for the
+        G1 and G0 events, we will need to work past a broken example to see what
+        the other example is doing.
+  * [X] Pull weird code out of meta_trans, add check in the INIT_SIGNAL handler
+        of the p_r1_region to catch in a meta event is pointing at it, if it is
+        peel off another event and proceed as before
+  * [X] Take another run at the G1 event once G0 is working
 
   *Chosen Research-Goal/Hypothesis*
 
