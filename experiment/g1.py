@@ -1137,7 +1137,6 @@ class XmlChart(InstrumentedActiveObject):
 def p_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
-
     status = r.trans(p_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r1_under_hidden_region")
@@ -1243,7 +1242,6 @@ def p_p11(r, e):
     status = return_status.HANDLED
   elif e.signal == signals.exit_region:
     r.scribble(Event(e.signal_name))
-    #post_lifo(Event(signal=signals.exit_region))
     status = r.trans(p_r1_under_hidden_region)
   elif e.signal == signals.EXIT_SIGNAL:
     r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -1264,9 +1262,6 @@ def p_p11_r1_under_hidden_region(r, e):
     pprint("enter p_p11_r1_under_hidden_region")
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p11_r1_under_hidden_region")
-    status = return_status.HANDLED
-  elif(e.signal == signals.REGION_NAME_SIGNAL):
-    r.temp.region = "p_p11"
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
