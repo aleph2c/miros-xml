@@ -5,22 +5,111 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Get F1 working cleanly
+    Ensure consistency across the program
 
   *What is the problem?*
 
-    The code had to be change quite a bit to make F1 work, now clean it up and
-    generalize your solution.
+    We have a meta_trans and meta_init that seem to be working.  We have added a
+    number of custom signal handlers, like BOUNCE_SAME_META_SIGNAL etc.  You 
+    might be tricking yourself into thinking that your code works because you
+    have placed handlers inconsistently through out the program.
+
+    Your goal is to:
+
+    * Place transition intelligence into the signal construction.  All calls to
+      graph searches will happen at the point of the signal construction and
+      that's it.
+    * Place limited intelligence into each handler; the various bounce receivers
+      always behave the same without actually understanding anything about the
+      graph.  The META_INIT_SIGNAL and others like it, are always placed in the
+      same spots of the graph and behave the same, without understanding any
+      global graph context.  They can use key works like 'same', 'inner',
+      'outer', but that's it, no calls to onion or lca/lci.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
-  
+
+    Future Goals:
+      * [ ] Need a mechanism to clear the graph's cache.  This will be needed
+            when an XML diagram is being used to over-write and inner part of a
+            program.
+
     Injectors:
-      * [ ] p
-      * [ ] p_p11
-      * [ ] p_p12
+      * [ ] p (active object)
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+
+    Region State Functions:
+
+      * [ ] p_p11_r1_region
+      * [ ] p_p12_p11_r1_region
+      * [ ] p_p11_r2_region
+      * [ ] p_p12_p11_r1_region
+      * [ ] p_p12_p11_r2_region
+      * [ ] p_p12_r1_region
+      * [ ] p_p12_r2_region
+      * [ ] p_p22_r1_region
+      * [ ] p_p22_r2_region
+      * [ ] p_r1_region
+      * [ ] p_r2_region
+
+    Active Object States:
+
+      * [ ] outer_state
+      * [ ] p (injector)
+      * [ ] some_other_state
+
+    Other Region States (not injectors or regions):
+
+      * [ ] p_p11_r1_final
+      * [ ] p_p11_r1_over_hidden_region
+      * [ ] p_p11_r1_under_hidden_region
+      * [ ] p_p11_r2_final
+      * [ ] p_p11_r2_over_hidden_region
+      * [ ] p_p11_r2_under_hidden_region
+      * [ ] p_p11_s11
+      * [ ] p_p11_s12
+      * [ ] p_p11_s21
+      * [ ] p_p11_s22
       * [ ] p_p12_p11
+      * [ ] p_p12_p11_r1_over_hidden_region
+      * [ ] p_p12_p11_r1_under_hidden_region
+      * [ ] p_p12_p11_r2_over_hidden_region
+      * [ ] p_p12_p11_r2_under_hidden_region
+      * [ ] p_p12_p11_s11
+      * [ ] p_p12_p11_s12
+      * [ ] p_p12_p11_s21
+      * [ ] p_p12_r1_final
+      * [ ] p_p12_r1_over_hidden_region
+      * [ ] p_p12_r1_under_hidden_region
+      * [ ] p_p12_r2_final
+      * [ ] p_p12_r2_over_hidden_region
+      * [ ] p_p12_r2_under_hidden_region
+      * [ ] p_p12_s12
+      * [ ] p_p12_s21
+      * [ ] p_p12_s22
       * [ ] p_p22
-  
+      * [ ] p_p22_r1_final
+      * [ ] p_p22_r1_over_hidden_region
+      * [ ] p_p22_r1_under_hidden_region
+      * [ ] p_p22_r2_final
+      * [ ] p_p22_r2_over_hidden_region
+      * [ ] p_p22_r2_under_hidden_region
+      * [ ] p_p22_s11
+      * [ ] p_p22_s12
+      * [ ] p_p22_s21
+      * [ ] p_p22_s22
+      * [ ] p_r1_final
+      * [ ] p_r1_over_hidden_region
+      * [ ] p_r1_region
+      * [ ] p_r1_under_hidden_region
+      * [ ] p_r2_final
+      * [ ] p_r2_over_hidden_region
+      * [ ] p_r2_region
+      * [ ] p_r2_under_hidden_region
+      * [ ] p_s21
+
     Construction notes:
       * Move in native code
       * Add regions to the XmlChart Constructor
@@ -118,11 +207,16 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] Diff the file and look for the work that has to be done
+  * [ ] Chase the F1 event around, identify ugly things
+  * [ ] Look at the logs and identify anything ugly
 
   *Chosen Research-Goal/Hypothesis*
-  * [ ] Diff the file 
-  * [ ] 
+  * [ ] meta_trans should return what state the p_s21 should transition to.
+  * [ ] for a same bounce meta_trans would be able to know what has to be
+        transitioned to right away
+  * [ ] Find an injector you think is done, compare the other injectors to it
+  * [ ] Fina a region you think is done, compare "
+  * [ ] Fina vanilla state you think is done, compare "
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 
