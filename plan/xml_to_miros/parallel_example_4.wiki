@@ -5,64 +5,101 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Need to understand META_INIT and META_EXIT (write them up)
+    Get F1 working cleanly
 
+  *What is the problem?*
 
-    *paused*
-    Giving a starting condition which included p_s21, a working G1 event:
-
-    * [ ] G1 will have to push p_r1 in p_r1_under_hidden_region
-    * [ ] G1 will cause a transition to
-          the two desires substates of r2 on the graph
-
-    Move through the nine lives quickly:
-    * [X] setup
-    * [X] investigate F2 Meta exit
-    * [X] determine if it has enough to accomplish goal 1
-    * [ ] 
-    * [ ] 
-    * [ ] 
-    * [ ] 
-    * [ ] 
-    * [ ] 
-
-*What is the problem?*
-
-
-  You are forgetting what the new events do and why they exist.  Your docs are
-  too long winded; *make them more like cheat sheets than proper documentation*.
-
-  Once the right pictures describe what is going on, things should get a lot
-  easy.
+    The code had to be change quite a bit to make F1 work, now clean it up and
+    generalize your solution.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+  
+    Injectors:
+      * [ ] p
+      * [ ] p_p11
+      * [ ] p_p12
+      * [ ] p_p12_p11
+      * [ ] p_p22
+  
+    Construction notes:
+      * Move in native code
+      * Add regions to the XmlChart Constructor
+      * Follow under hidden, region, over hidden recipe
+        * [ ] add INIT_SIGNAL code
+        * [ ] add EXIT_META_SIGNAL
+        * [ ] add INIT_META_SIGNAL hook
+      * Find your injectors 
+        * [ ] add special entry code
+        * [ ] add special EXIT_META_SIGNAL code
+        * [ ] add injection code
+        * [ ] add exit region handler
+    
+    Found that if an injector EXIT posted exit_region to inners, some events
+    didn't work.
+
+    Region notes:
+
+      elif(e.signal == signals.INIT_SIGNAL):
+        # search for INIT_META_SIGNAL
+        (_e, _state) = r.meta_peel(e)
+
+        # If the target state is this state, just strip this layer of
+        # the meta event and use the next one (this was done to make the
+        # meta events consistent and easy to read and usable by different
+        # types of WTF events.
+        if _state == <region_state>:
+          (_e, _state) = _e.payload.event, _e.payload.state
+
+        # if _state is a child of this state then transition to it
+        if _state is None or not r.has_a_child(<region_state>, _state):
+          status = r.trans(<default_init_state>)
+        else:
+          status = r.trans(_state)
+          if _e is not None:
+            r.post_fifo(_e)
+      elif(e.signal == signals.EXIT_META_SIGNAL):
+        (_e, _state) = e.payload.event, e.payload.state
+        if r.has_a_child(<region_state>, _state):
+          r.outer.post_fifo(_e)
+        status = return_status.HANDLED
+      elif(e.signal == signals.exit_region):
+        status = r.trans(<region>_under_hidden_region)
+      elif(e.signal == signals.INIT_META_SIGNAL):
+        status = return_status.HANDLED
+      elif(e.signal == signals.EXIT_SIGNAL):
+        pprint("exit <region_state>")
+        status = return_status.HANDLED
+      else:
+        r.temp.fun = p_r1_under_hidden_region
+        status = return_status.SUPER
+      return status
+
+    Injector notes:
+
+      if(e.signal == signals.ENTRY_SIGNAL):
+        pprint("enter <injector_state>")
+        # search for INIT_META_SIGNAL
+        (_e, _state) = r.meta_peel(e)
+        if _state:
+          r.inner._post_fifo(_e)
+        r.inner.post_lifo(Event(signal=signals.enter_region))
+        status = return_status.HANDLED
+      elif e.signal == signals.EXIT_META_SIGNAL:
+        (_e, _state) = e.payload.event, e.payload.state
+        if r.has_a_child(<injector_state>, _state):
+          # The next state is going to be our region handler skip it and post this
+          # region handler would have posted to the outer HSM
+          (_e, _state) = _e.payload.event, _e.payload.state
+          r.outer.post_lifo(_e)
+        status = return_status.HANDLED
+      elif e.signal == signals.exit_region:
+        r.scribble(Event(e.signal_name))
+        #post_lifo(Event(signal=signals.exit_region))
+        status = r.trans(<region_state_name>_hidden_region)
 
     The use of the rr.fns dict has made it harder to troubleshoot problems
     because I can not grep and search for the functions I want to search for
     directly.  Try to make your code grep-able.
-
-    Having regions with the same names as functions is extremely confusing.  It
-    would be good to name the regions as regions and the functions as functions.
-
-    [hint]
-    p_r2_region is getting the meta trans event, but with the wrong internal
-    payload.  Or, it hasn't been sent the right payload yet, but the driving
-    process has shut off before it is done.
-
-    [hint]
-    In p_p11_s22 the rr.outer.post_fifo(_e) is calling a different method than
-    in p_s21 r.outer.post_fifo(_e).
-
-    [de-aggregation]
-    I had many problems, pulled out the easy ones first them removed them.  It
-    took a long time to identify that this was happening though.
-
-    [isolation/simplification]
-    On the last remaining harder problem, removed half of the feature and only
-    focused on the part that wasn't working.  Do more of this in the future.
-
-  *Bread Crumbs:*
-
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
@@ -72,29 +109,20 @@
 
   *Assumptions*
 
-    I assumed that the self.temp.fun and self.state.fun of an HSM would be set
-    to the function name of the state function while it was handling its
-    INIT_SIGNAL.  This isn't true.  I'm not sure if this is a bug, or just how
-    the event processor works. [found during the F1 investigation]
-
-  *Mistakes*
-
-    A force_region_exit must happen after a META_EXIT.  I made this mistake
-    because I forgot the signal existed, I remembered there was some such way of
-    initializing the orthogonal component because I forgot about the details,
-    and just used the first thing I could think about.  More docs would help
-    here, but I don't now what to write yet.
-
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
-  * [ ] 
+  * [ ] Look at the code first before you begin the port.  Then envision a plan
+        of attack.
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
+  * [ ] Diff the file and look for the work that has to be done
 
   *Chosen Research-Goal/Hypothesis*
+  * [ ] Diff the file 
+  * [ ] 
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 

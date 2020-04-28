@@ -126,7 +126,7 @@ for, but it is not nearly as expressive as the parallel region, as we will see
 in the next section.  But from an implementation perspective Miro
 Samek’s approach is much faster and far easier to implement than David Harel’s
 approach.</p>
-<p>This project is about having my cake and eating it too.  I will recursively map
+<p>This project is about having cake and eating it too.  I will recursively map
 Miro Samek’s orthogonal component pattern to make hierarchies of HSMs (HHSMs).
 The HHSMs will provide the features needed to create David Harel’s parallel regions.</p>
 </div>
@@ -346,9 +346,9 @@ explicitely reactivated by <code class="docutils literal notranslate"><span clas
 enlarge):</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_7.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_7.svg" class="align-center" src="_images/parallel_region_to_orthogonal_component_mapping_7.svg" /></a>
 <p>From the top Harel diagram, we see that if the system is in <code class="docutils literal notranslate"><span class="pre">p_p22</span></code> and we
-receive a <code class="docutils literal notranslate"><span class="pre">G0</span></code> we should transition into <code class="docutils literal notranslate"><span class="pre">p_p11_s12</span></code>.  But what happens to
-region 1 of <code class="docutils literal notranslate"><span class="pre">p</span></code>?  Well, we want it to be non-reactive, unless it is
-explicitely reactivated by <code class="docutils literal notranslate"><span class="pre">to_p</span></code>.</p>
+receive a <code class="docutils literal notranslate"><span class="pre">G0</span></code> we should transition into <code class="docutils literal notranslate"><span class="pre">p_p11_s12</span></code>.  Like the previous
+example we want a region to become non-reactive, but in this case it’s region 2
+of <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p>
 <p>To summarize:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[[</span><span class="s1">&#39;p_p11_s12&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_s21&#39;</span><span class="o">]</span> &lt;- G1 <span class="se">\</span>
   <span class="o">==</span> <span class="o">[[</span><span class="s1">&#39;p_p11_s12&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_r2_under_hidden_region&#39;</span><span class="o">]</span>

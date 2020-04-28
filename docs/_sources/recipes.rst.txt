@@ -80,7 +80,7 @@ in the next section.  But from an implementation perspective Miro
 Samek's approach is much faster and far easier to implement than David Harel's
 approach.
 
-This project is about having my cake and eating it too.  I will recursively map
+This project is about having cake and eating it too.  I will recursively map
 Miro Samek's orthogonal component pattern to make hierarchies of HSMs (HHSMs).
 The HHSMs will provide the features needed to create David Harel's parallel regions.
 
@@ -400,9 +400,9 @@ enlarge):
     :align: center
 
 From the top Harel diagram, we see that if the system is in ``p_p22`` and we
-receive a ``G0`` we should transition into ``p_p11_s12``.  But what happens to
-region 1 of ``p``?  Well, we want it to be non-reactive, unless it is
-explicitely reactivated by ``to_p``.
+receive a ``G0`` we should transition into ``p_p11_s12``.  Like the previous
+example we want a region to become non-reactive, but in this case it's region 2
+of ``p``.
 
 To summarize:
 
