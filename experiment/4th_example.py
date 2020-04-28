@@ -1268,6 +1268,8 @@ def p_r1_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -1275,8 +1277,6 @@ def p_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
@@ -1286,8 +1286,6 @@ def p_r1_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_r1_region")
     status = return_status.HANDLED
@@ -1414,6 +1412,8 @@ def p_p11_r1_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -1421,22 +1421,16 @@ def p_p11_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p11_r1_region, _state):
-      # The next state is going to be our region handler skip it and post this
-      # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
       r.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p11_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p11_r1_region")
     #r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -1552,6 +1546,8 @@ def p_p11_r2_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -1559,16 +1555,12 @@ def p_p11_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p11_r2_region, _state):
       r.outer.post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p11_r2_under_hidden_region)
@@ -1788,9 +1780,9 @@ def p_p12_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
@@ -1799,8 +1791,6 @@ def p_p12_r1_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_r1_region")
     status = return_status.HANDLED
@@ -1909,6 +1899,8 @@ def p_p12_p11_r1_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -1916,23 +1908,17 @@ def p_p12_p11_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.has_a_child(p_p12_p11_r1_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r1_region")
-    status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_p11_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
+  elif(e.signal == signals.EXIT_SIGNAL):
+    pprint("exit p_p12_p11_r1_region")
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r1_under_hidden_region
@@ -2025,6 +2011,8 @@ def p_p12_p11_r2_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -2032,8 +2020,6 @@ def p_p12_p11_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
@@ -2045,8 +2031,6 @@ def p_p12_p11_r2_region(r, e):
     status = r.trans(p_p12_p11_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_r2_region")
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r2_under_hidden_region
@@ -2171,6 +2155,8 @@ def p_p12_r2_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -2178,8 +2164,6 @@ def p_p12_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
@@ -2191,8 +2175,6 @@ def p_p12_r2_region(r, e):
     status = r.trans(p_p12_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_r2_region")
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r2_under_hidden_region
@@ -2309,6 +2291,8 @@ def p_r2_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -2316,8 +2300,6 @@ def p_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
@@ -2325,12 +2307,10 @@ def p_r2_region(r, e):
     if r.has_a_child(p_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r2_region")
-    status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_r2_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
+  elif(e.signal == signals.EXIT_SIGNAL):
+    pprint("exit p_r2_region")
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_under_hidden_region
@@ -2474,8 +2454,6 @@ def p_p22_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   # can we get rid of exit_region?
@@ -2598,6 +2576,8 @@ def p_p22_r2_region(r, e):
       status = r.trans(_state)
       if _e is not None:
         r.post_fifo(_e)
+  elif(e.signal == signals.INIT_META_SIGNAL):
+    status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
@@ -2605,8 +2585,6 @@ def p_p22_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-      else:
-        region._post_fifo(Event(signal=signals.Ignore))
     r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
@@ -2618,8 +2596,6 @@ def p_p22_r2_region(r, e):
     status = r.trans(p_p22_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p22_r2_region")
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r2_under_hidden_region

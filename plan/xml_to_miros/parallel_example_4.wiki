@@ -29,9 +29,17 @@
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
     Future Goals:
+      * [ ] Remove references to function and region name from any handlers
+      * [ ] Add a filter function which will accept a list of string which will
+            work with the token_match, to let or stop events from being injected
+            into an inner parallel region.
+      * [ ] Integrate meta_init into meta_trans
       * [ ] Need a mechanism to clear the graph's cache.  This will be needed
             when an XML diagram is being used to over-write and inner part of a
             program.
+
+    To check for program consistency you will have ensure the shape of all of
+    these functions are the same:
 
     Injectors:
       * [ ] p (active object)
@@ -41,7 +49,6 @@
       * [ ] p_p22 (Region)
 
     Region State Functions:
-
       * [ ] p_p11_r1_region
       * [ ] p_p12_p11_r1_region
       * [ ] p_p11_r2_region
@@ -54,14 +61,36 @@
       * [ ] p_r1_region
       * [ ] p_r2_region
 
-    Active Object States:
+    Under Region State Functions:
+      * [ ] p_p11_r1_under_hidden_region
+      * [ ] p_p11_r2_under_hidden_region
+      * [ ] p_p12_p11_r1_under_hidden_region
+      * [ ] p_p12_p11_r2_under_hidden_region
+      * [ ] p_p12_r1_under_hidden_region
+      * [ ] p_p12_r2_under_hidden_region
+      * [ ] p_p22_r1_under_hidden_region
+      * [ ] p_p22_r2_under_hidden_region
+      * [ ] p_r1_under_hidden_region
+      * [ ] p_r2_under_hidden_region
 
+    Over Region State Functions:
+      * [ ] p_p11_r1_over_hidden_region
+      * [ ] p_p11_r2_over_hidden_region
+      * [ ] p_p12_p11_r1_over_hidden_region
+      * [ ] p_p12_p11_r2_over_hidden_region
+      * [ ] p_p12_r1_over_hidden_region
+      * [ ] p_p12_r2_over_hidden_region
+      * [ ] p_p22_r1_over_hidden_region
+      * [ ] p_p22_r2_over_hidden_region
+      * [ ] p_r1_over_hidden_region
+      * [ ] p_r2_over_hidden_region
+    
+    Active Object States:
       * [ ] outer_state
       * [ ] p (injector)
       * [ ] some_other_state
 
     Other Region States (not injectors or regions):
-
       * [ ] p_p11_r1_final
       * [ ] p_p11_r1_over_hidden_region
       * [ ] p_p11_r1_under_hidden_region
@@ -89,7 +118,6 @@
       * [ ] p_p12_s12
       * [ ] p_p12_s21
       * [ ] p_p12_s22
-      * [ ] p_p22
       * [ ] p_p22_r1_final
       * [ ] p_p22_r1_over_hidden_region
       * [ ] p_p22_r1_under_hidden_region
@@ -110,81 +138,7 @@
       * [ ] p_r2_under_hidden_region
       * [ ] p_s21
 
-    Construction notes:
-      * Move in native code
-      * Add regions to the XmlChart Constructor
-      * Follow under hidden, region, over hidden recipe
-        * [ ] add INIT_SIGNAL code
-        * [ ] add EXIT_META_SIGNAL
-        * [ ] add INIT_META_SIGNAL hook
-      * Find your injectors 
-        * [ ] add special entry code
-        * [ ] add special EXIT_META_SIGNAL code
-        * [ ] add injection code
-        * [ ] add exit region handler
-    
-    Found that if an injector EXIT posted exit_region to inners, some events
-    didn't work.
-
     Region notes:
-
-      elif(e.signal == signals.INIT_SIGNAL):
-        # search for INIT_META_SIGNAL
-        (_e, _state) = r.meta_peel(e)
-
-        # If the target state is this state, just strip this layer of
-        # the meta event and use the next one (this was done to make the
-        # meta events consistent and easy to read and usable by different
-        # types of WTF events.
-        if _state == <region_state>:
-          (_e, _state) = _e.payload.event, _e.payload.state
-
-        # if _state is a child of this state then transition to it
-        if _state is None or not r.has_a_child(<region_state>, _state):
-          status = r.trans(<default_init_state>)
-        else:
-          status = r.trans(_state)
-          if _e is not None:
-            r.post_fifo(_e)
-      elif(e.signal == signals.EXIT_META_SIGNAL):
-        (_e, _state) = e.payload.event, e.payload.state
-        if r.has_a_child(<region_state>, _state):
-          r.outer.post_fifo(_e)
-        status = return_status.HANDLED
-      elif(e.signal == signals.exit_region):
-        status = r.trans(<region>_under_hidden_region)
-      elif(e.signal == signals.INIT_META_SIGNAL):
-        status = return_status.HANDLED
-      elif(e.signal == signals.EXIT_SIGNAL):
-        pprint("exit <region_state>")
-        status = return_status.HANDLED
-      else:
-        r.temp.fun = p_r1_under_hidden_region
-        status = return_status.SUPER
-      return status
-
-    Injector notes:
-
-      if(e.signal == signals.ENTRY_SIGNAL):
-        pprint("enter <injector_state>")
-        # search for INIT_META_SIGNAL
-        (_e, _state) = r.meta_peel(e)
-        if _state:
-          r.inner._post_fifo(_e)
-        r.inner.post_lifo(Event(signal=signals.enter_region))
-        status = return_status.HANDLED
-      elif e.signal == signals.EXIT_META_SIGNAL:
-        (_e, _state) = e.payload.event, e.payload.state
-        if r.has_a_child(<injector_state>, _state):
-          # The next state is going to be our region handler skip it and post this
-          # region handler would have posted to the outer HSM
-          (_e, _state) = _e.payload.event, _e.payload.state
-          r.outer.post_lifo(_e)
-        status = return_status.HANDLED
-      elif e.signal == signals.exit_region:
-        r.scribble(Event(e.signal_name))
-        #post_lifo(Event(signal=signals.exit_region))
-        status = r.trans(<region_state_name>_hidden_region)
 
     The use of the rr.fns dict has made it harder to troubleshoot problems
     because I can not grep and search for the functions I want to search for
@@ -207,16 +161,8 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] Chase the F1 event around, identify ugly things
-  * [ ] Look at the logs and identify anything ugly
 
   *Chosen Research-Goal/Hypothesis*
-  * [ ] meta_trans should return what state the p_s21 should transition to.
-  * [ ] for a same bounce meta_trans would be able to know what has to be
-        transitioned to right away
-  * [ ] Find an injector you think is done, compare the other injectors to it
-  * [ ] Fina a region you think is done, compare "
-  * [ ] Fina vanilla state you think is done, compare "
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 
