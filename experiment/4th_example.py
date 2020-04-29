@@ -275,19 +275,35 @@ class Region(HsmWithQueues):
     return result
 
   @lru_cache(maxsize=32)
-  def has_a_child(self, fn_region_handler, fn_state_handler):
+  def within(self, bound, query):
+    '''For a given bound state function determine if it has a query state
+    function which is the same as it or which is a child of it in this HSM.
+
+    **Note**:
+       Since the state functions can be decorated, this method compares the
+       names of the functions and note their addresses.
+
+    **Args**:
+       | ``bound`` (fn): the state function in which to search
+       | ``query`` (fn): the state function to search for
+
+
+    **Returns**:
+       (bool): True | False
+
+    '''
     old_temp = self.temp.fun
     old_fun = self.state.fun
     state_name = self.state_name
     state_fn = self.state_fn
 
-    current_state = fn_region_handler
-    self.temp.fun = fn_state_handler
+    current_state = bound
+    self.temp.fun = query
 
     result = False
     super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
     while(True):
-      if(self.temp.fun == current_state):
+      if(self.temp.fun.__name__ == current_state.__name__):
         result = True
         r = return_status.IGNORED
       else:
@@ -303,6 +319,20 @@ class Region(HsmWithQueues):
 
   @lru_cache(maxsize=32)
   def has_state(self, state):
+    '''Determine if this region has a state.
+
+    **Note**:
+       Since the state functions can be decorated, this method compares the
+       names of the functions and note their addresses.
+
+    **Args**:
+       | ``query`` (fn): a state function
+
+
+    **Returns**:
+       (bool): True | False
+
+    '''
     result = False
 
     old_temp = self.temp.fun
@@ -313,7 +343,7 @@ class Region(HsmWithQueues):
     self.temp.fun = state
     super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
     while(True):
-      if(self.temp.fun == self.fns['region_state_function']):
+      if(self.temp.fun.__name__ == self.fns['region_state_function'].__name__):
         result = True
         r = return_status.IGNORED
       else:
@@ -1206,7 +1236,7 @@ class XmlChart(InstrumentedActiveObject):
     return _lci
 
   @lru_cache(maxsize=32)
-  def has_a_child(self, fn_region_handler, fn_state_handler):
+  def within(self, fn_region_handler, fn_state_handler):
     old_temp = self.temp.fun
     old_fun = self.state.fun
 
@@ -1258,14 +1288,21 @@ def p_r1_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_r1_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p11)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -1281,7 +1318,7 @@ def p_r1_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_r1_region, _state):
+    if r.within(p_r1_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1351,7 +1388,7 @@ def p_p11(r, e):
     status = r.trans(p_p12)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p11, _state):
+    if r.within(p_p11, _state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
@@ -1402,14 +1439,21 @@ def p_p11_r1_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p11_r1_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p11_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p11_s11)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -1425,7 +1469,7 @@ def p_p11_r1_region(r, e):
     status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p11_r1_region, _state):
+    if r.within(p_p11_r1_region, _state):
       (_e, _state) = _e.payload.event, _e.payload.state
       r.outer.post_lifo(_e)
     status = return_status.HANDLED
@@ -1540,7 +1584,7 @@ def p_p11_r2_region(r, e):
       (_e, _state) = _e.payload.event, _e.payload.state
 
     # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p11_r2_region, _state):
+    if _state is None or not r.within(p_p11_r2_region, _state):
       status = r.trans(p_p11_s21)
     else:
       status = r.trans(_state)
@@ -1559,7 +1603,7 @@ def p_p11_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p11_r2_region, _state):
+    if r.within(p_p11_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1697,7 +1741,7 @@ def p_p12(r, e):
   # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12, _state):
+    if r.within(p_p12, _state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
@@ -1763,14 +1807,21 @@ def p_p12_r1_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p12_r1_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p12_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p12_p11)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
@@ -1786,7 +1837,7 @@ def p_p12_r1_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12_r1_region, _state):
+    if r.within(p_p12_r1_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1839,7 +1890,7 @@ def p_p12_p11(r, e):
     status = r.trans(p_p12_s12)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12_p11, _state):
+    if r.within(p_p12_p11, _state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
@@ -1889,14 +1940,21 @@ def p_p12_p11_r1_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p12_p11_r1_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p12_p11_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p12_p11_s11)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -1912,7 +1970,7 @@ def p_p12_p11_r1_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12_p11_r1_region, _state):
+    if r.within(p_p12_p11_r1_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2001,14 +2059,21 @@ def p_p12_p11_r2_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p12_p11_r2_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p11_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p12_p11_s21)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -2024,7 +2089,7 @@ def p_p12_p11_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12_p11_r2_region, _state):
+    if r.within(p_p12_p11_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2145,14 +2210,21 @@ def p_p12_r2_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p12_r2_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p11_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p12_s21)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -2168,7 +2240,7 @@ def p_p12_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p12_r2_region, _state):
+    if r.within(p_p12_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2281,14 +2353,21 @@ def p_r2_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_r2_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_r2_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_s21)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -2304,7 +2383,7 @@ def p_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_r2_region, _state):
+    if r.within(p_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2437,14 +2516,21 @@ def p_p22_r1_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p22_r1_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p22_r1_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p22_s11)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
@@ -2566,14 +2652,21 @@ def p_p22_r2_region(r, e):
     # the meta event and use the next one (this was done to make the
     # meta events consistent and easy to read and usable by different
     # types of WTF events.
-    if _state == p_p22_r2_region:
+
+    # We can't compare the function directly because they can be arbitrarily
+    # decorated by the user, so their addresses may not be the same, but their
+    # names will be the same
+    if _state and _state.__name__ == r.state_name:
       (_e, _state) = _e.payload.event, _e.payload.state
 
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.has_a_child(p_p22_r2_region, _state):
+    # if _state is None or is referencing another region then follow are default
+    # init behavior
+    if _state is None or not r.within(bound=r.state_fn, query=_state):
       status = r.trans(p_p22_s21)
     else:
+      # if _state is this state or a child of this state, transition to it
       status = r.trans(_state)
+      # if there is more to our meta event, post it into the chart
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
@@ -2589,7 +2682,7 @@ def p_p22_r2_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.has_a_child(p_p22_r2_region, _state):
+    if r.within(p_p22_r2_region, _state):
       r.outer.post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):

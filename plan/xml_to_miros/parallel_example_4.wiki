@@ -5,31 +5,26 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Ensure consistency across the program
+    Remove references to function names and region names from any handler.
 
   *What is the problem?*
 
-    We have a meta_trans and meta_init that seem to be working.  We have added a
-    number of custom signal handlers, like BOUNCE_SAME_META_SIGNAL etc.  You 
-    might be tricking yourself into thinking that your code works because you
-    have placed handlers inconsistently through out the program.
-
-    Your goal is to:
-
-    * Place transition intelligence into the signal construction.  All calls to
-      graph searches will happen at the point of the signal construction and
-      that's it.
-    * Place limited intelligence into each handler; the various bounce receivers
-      always behave the same without actually understanding anything about the
-      graph.  The META_INIT_SIGNAL and others like it, are always placed in the
-      same spots of the graph and behave the same, without understanding any
-      global graph context.  They can use key works like 'same', 'inner',
-      'outer', but that's it, no calls to onion or lca/lci.
-
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+
+    Since the state functions are decoratored, it is very tricky to compare the
+    using the '==' operator.  Technically speaking, a decorated function and its
+    naked version are not equivalent.  To avoid what could be a very nasty and
+    hard to track bug, compare the string names of function not the functions
+    directly.
 
     Future Goals:
       * [ ] Remove references to function and region name from any handlers
+      * [ ] Remove references to outmost for final_signal_name handling, use
+            same, inner or outer attributes instead. (figure out which is
+            appropriate)
+      * [ ] Understand how the logging system works for working WTF events.
+      * [ ] Find a way to make E2 handling consistent with the other WTF events
+            in the system. (see p_p12)
       * [ ] Add a filter function which will accept a list of string which will
             work with the token_match, to let or stop events from being injected
             into an inner parallel region.
@@ -158,11 +153,29 @@
   *Research Needed For?:*
   * [ ] Look at the code first before you begin the port.  Then envision a plan
         of attack.
+  * [ ] Look for names, add plan to remove names
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
 
   *Chosen Research-Goal/Hypothesis*
+  * [ ] Remove function names from EXIT_META_SIGNAL for all injectors
+      * [ ] p (active object)
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+  * [X] Remove function names from INIT_SIGNAL handlers of the regions
+      * [X] p_p11_r1_region
+      * [X] p_p11_r2_region
+      * [X] p_p12_p11_r1_region
+      * [X] p_p12_p11_r2_region
+      * [X] p_p12_r1_region
+      * [X] p_p12_r2_region
+      * [X] p_p22_r1_region
+      * [X] p_p22_r2_region
+      * [X] p_r1_region
+      * [X] p_r2_region
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 
