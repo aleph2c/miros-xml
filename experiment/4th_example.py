@@ -1386,15 +1386,15 @@ def p_p11(r, e):
     status = r.trans(p_p12)
   elif r.token_match(e.signal_name, "C0"):
     status = r.trans(p_p12)
+  elif r.token_match(e.signal_name, "G0"):
+    status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.within(p_p11, _state):
+    if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
       r.outer.post_lifo(_e)
-    status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "G0"):
     status = return_status.HANDLED
   elif e.signal == signals.exit_region:
     r.scribble(Event(e.signal_name))
@@ -1741,7 +1741,7 @@ def p_p12(r, e):
   # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.within(p_p12, _state):
+    if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
@@ -1890,7 +1890,7 @@ def p_p12_p11(r, e):
     status = r.trans(p_p12_s12)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-    if r.within(p_p12_p11, _state):
+    if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       (_e, _state) = _e.payload.event, _e.payload.state
@@ -2473,13 +2473,21 @@ def p_p22(r, e):
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
     r.scribble(e.signal_name)
     status = r.trans(p_r2_final)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p_p22")
+  elif e.signal == signals.EXIT_META_SIGNAL:
+    (_e, _state) = e.payload.event, e.payload.state
+    if r.within(bound=r.state_fn, query=_state):
+      # The next state is going to be our region handler skip it and post this
+      # region handler would have posted to the outer HSM
+      (_e, _state) = _e.payload.event, _e.payload.state
+      r.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
     status = r.trans(p_r2_under_hidden_region)
+  elif(e.signal == signals.EXIT_SIGNAL):
+    r.inner.post_lifo(Event(signal=signals.exit_region))
+    pprint("exit p_p22")
+    status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_over_hidden_region
     status = return_status.SUPER
@@ -2881,19 +2889,6 @@ def p(self, e):
     self.inner._post_lifo(Event(signal=signals.force_region_init))
     self.inner.post_fifo(_e)
     status = return_status.HANDLED
-  #elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    #self.scribble("[p] {}".format(e.signal_name))
-    #_e, _state = e.payload.event, e.payload.state
-    #self.inner._post_fifo(_e)
-    #for region in self.inner._regions:
-    #  if region.has_state(e.payload.previous_state):
-    #    region.post_lifo(Event(signal=signals.enter_region))
-    #  else:
-    #    region.pop_event()
-    #    region._post_lifo(Event(signal=signals.exit_region))
-    #print(self.rqs())
-    #[region.complete_circuit() for region in self.inner._regions]
-  # status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "E1")):
     self.scribble("[p] {}".format(e.signal_name))
     _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
@@ -2913,10 +2908,6 @@ def p(self, e):
     status = self.trans(some_other_state)
   elif(self.token_match(e.signal_name, "A1")):
     status = self.trans(p)
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    self.regions['p']._post_lifo(Event(signal=signals.force_region_exit))
-    self.regions['p']._complete_circuit()
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p")
     self.scribble("[p] {}".format('exit_region'))

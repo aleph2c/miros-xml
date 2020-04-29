@@ -159,12 +159,12 @@
   *Idea/Hypotheses for Parallel Example 4: >=5*
 
   *Chosen Research-Goal/Hypothesis*
-  * [ ] Remove function names from EXIT_META_SIGNAL for all injectors
-      * [ ] p (active object)
-      * [ ] p_p11 (Region)
-      * [ ] p_p12 (Region)
-      * [ ] p_p12_p11 (Region)
-      * [ ] p_p22 (Region)
+  * [X] Remove function names from EXIT_META_SIGNAL for all injectors
+      * [X] p (active object)
+      * [X] p_p11 (Region)
+      * [X] p_p12 (Region)
+      * [X] p_p12_p11 (Region)
+      * [X] p_p22 (Region)
   * [X] Remove function names from INIT_SIGNAL handlers of the regions
       * [X] p_p11_r1_region
       * [X] p_p11_r2_region
