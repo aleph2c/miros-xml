@@ -937,7 +937,7 @@ def p_p11(r, e):
        token_match(e.signal_name, "e2") or
        token_match(e.signal_name, "e4") or
        token_match(e.signal_name, "A") or
-       token_match(e.signal_name, "F1") or
+       #token_match(e.signal_name, "F1") or
        token_match(e.signal_name, "G3")
        ):
     scribble(e.signal_name)
@@ -1802,7 +1802,7 @@ def p_s21(r, e):
   elif(r.token_match(e.signal_name, "C0")):
     status = r.trans(p_p22)
   elif(r.token_match(e.signal_name, "F1")):
-    _e = r.outmost.meta_trans2(t=p_p22_s11, s=p_s21, sig=e.signal_name)
+    _e = r.outmost.meta_trans2(t=p_p22_s21, s=p_s21, sig=e.signal_name)
     r.post_lifo(Event(signal=signals.force_region_init))
     #pprint(payload_string(_e)) 
     r.outer.post_lifo(_e)
@@ -2453,47 +2453,47 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    old_results = build_test(
-      s='E0',
-      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21' ],
-      old_result=old_results,
-      duration=0.2
-    )
-
     #old_results = build_test(
-    #  s='F2',
-    #  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+    #  s='E0',
+    #  expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21' ],
     #  old_result=old_results,
     #  duration=0.2
     #)
 
-    old_results = build_test(
-      s='to_s',
-      expected_result=['some_other_state'],
-      old_result=old_results,
-      duration=0.2
-    )
+    ##old_results = build_test(
+    ##  s='F2',
+    ##  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+    ##  old_result=old_results,
+    ##  duration=0.2
+    ##)
 
-    old_results = build_test(
-      s='F0',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result=old_results,
-      duration=0.2
-    )
+    #old_results = build_test(
+    #  s='to_s',
+    #  expected_result=['some_other_state'],
+    #  old_result=old_results,
+    #  duration=0.2
+    #)
 
-    old_results = build_test(
-      s='A1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result=old_results,
-      duration=0.2
-    )
+    #old_results = build_test(
+    #  s='F0',
+    #  expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+    #  old_result=old_results,
+    #  duration=0.2
+    #)
 
-    old_results = build_test(
-      s='G0',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
-      old_result=old_results,
-      duration=0.2
-    )
+    #old_results = build_test(
+    #  s='A1',
+    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+    #  old_result=old_results,
+    #  duration=0.2
+    #)
+
+    #old_results = build_test(
+    #  s='G0',
+    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
+    #  old_result=old_results,
+    #  duration=0.2
+    #)
 
   else:
     # remove the following from regression

@@ -5,11 +5,32 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Remove references to function names and region names from any handler.
+    A simplified 4th_example.py with a double F1.
+    Eventually, I would like a I1 event working.
 
   *What is the problem?*
 
+    I fooled myself into thinking the F1 event was working before.  I included a
+    BOUNCE_SAME_META_SIGNAL event within it.  This event was not needed, no
+    bounce or complicated mechanism was required.  But the code is full of
+    over-complicated mechanisms.
+
+    * The complicated code is not needed right now, but it might be needed for
+      I1
+    * The code is overly complicated
+
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+
+    G coming from an inner region may be different from a G coming from a state.
+    This might warrent the creation of a new letter in your topological
+    lettering.  The difficult you face now is that you think you are porting one
+    solution, but you are actually pioneering another method.
+
+    Tools:
+    ps(_e)
+    r.outmost.rqs()
+
+    *Warning*
 
     Since the state functions are decoratored, it is very tricky to compare the
     using the '==' operator.  Technically speaking, a decorated function and its
@@ -17,8 +38,11 @@
     hard to track bug, compare the string names of function not the functions
     directly.
 
-    Future Goals:
-      * [ ] Remove references to function and region name from any handlers
+    *Future Goals*:
+
+      If you are tired, pick an easy goal, if you are fresh pick a hard goal
+
+      *Easy Goals:*
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
             appropriate)
@@ -28,13 +52,18 @@
       * [ ] Add a filter function which will accept a list of string which will
             work with the token_match, to let or stop events from being injected
             into an inner parallel region.
+      * [ ] Integrate build_onion into meta_init
       * [ ] Integrate meta_init into meta_trans
+
+      *Harder Goals:*
+      * [ ] Refactor the logging system to be intuitive.
       * [ ] Need a mechanism to clear the graph's cache.  This will be needed
             when an XML diagram is being used to over-write and inner part of a
             program.
+      * [ ] Construct new topological graph, with and without duplicate WTF
+            events.
 
-    To check for program consistency you will have ensure the shape of all of
-    these functions are the same:
+    Pre-made check lists for consistency work:
 
     Injectors:
       * [ ] p (active object)
@@ -79,7 +108,7 @@
       * [ ] p_p22_r2_over_hidden_region
       * [ ] p_r1_over_hidden_region
       * [ ] p_r2_over_hidden_region
-    
+
     Active Object States:
       * [ ] outer_state
       * [ ] p (injector)
@@ -142,41 +171,57 @@
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
 
-== Questions ==
-  *Questions for Parallel Example 4: >= 5*
+  *Assumptions (at first invisible)*
+    To find your assumptions, look for two peices of evidence that contradict
+    each other. (may have to wait a couple of loops)
 
-  *Assumptions*
+  *Questions for :*
+
+  === Pre trouble-shooting questions ===
+    * [ ] Do you have enough information?
+    * [ ] Is your information organized?
+    * [ ] Can you draw a diagram of the components and their interactions?
+    * [ ] Do you need to write some code to make it easier to see?
+    * [ ] Can you think of anyway to speed up your feedback cycle?
+
+    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
+          work somewhere else?  Yes: Repair, No: Pioneering.
+
+  === Repair (Complexity increases exponentially) ===
+    * [ ] Can you test the individual components to reduce complexity?
+    * [ ] Can you exchange components?
+    * [ ] Can you reduce the number of interactions?
+    * [ ] Are you continuing event though you know that something you have previously
+          tested isn't working?
+    * [ ] Has a thing you have previously tested fooled you into thinking it works,
+          when it doesn't work? (Never assume something is right before you have
+          checked it twice)
+
+  == Pioneering ==
+    * [ ] Has someone else solved this before (search)? Can you turn this into a
+          repair?
+    * [ ] Do you have something to baseline from?
+    * [ ] Looking under the problem, are you focused on the right goals?  Are you
+          stuck on solving a hard problem, when there is an easy problem?
+    * [ ] Do you understand how your existing system works?  If not, can you draw
+          diagrams and describe how it works before you continue?
+    * [ ] What don't you know that you need to know?
+
+  == Custom Questions: (>=5) ==
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
-  * [ ] Look at the code first before you begin the port.  Then envision a plan
-        of attack.
-  * [ ] Look for names, add plan to remove names
+
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
+  * [ ] check in your code and them simplify it
 
   *Chosen Research-Goal/Hypothesis*
-  * [X] Remove function names from EXIT_META_SIGNAL for all injectors
-      * [X] p (active object)
-      * [X] p_p11 (Region)
-      * [X] p_p12 (Region)
-      * [X] p_p12_p11 (Region)
-      * [X] p_p22 (Region)
-  * [X] Remove function names from INIT_SIGNAL handlers of the regions
-      * [X] p_p11_r1_region
-      * [X] p_p11_r2_region
-      * [X] p_p12_p11_r1_region
-      * [X] p_p12_p11_r2_region
-      * [X] p_p12_r1_region
-      * [X] p_p12_r2_region
-      * [X] p_p22_r1_region
-      * [X] p_p22_r2_region
-      * [X] p_r1_region
-      * [X] p_r2_region
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
+  
 
 = Act =

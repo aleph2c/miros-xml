@@ -1,6 +1,7 @@
 *XML to Miros*
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
+ [[parallel_example_4|link]]
 
  *Standards are wonderful, everyone should have one!*
  

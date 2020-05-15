@@ -15,7 +15,7 @@
     The meta_init assumes a certain type of meta event (E0)
     I adjusted the meta_trans to follow the pattern needed by E0 for G1
     This breaks the G0 event (which needs the full pattern (assumption)
-    
+
   *Discoveries:* ([[notes.g1_WTF_event|notes]])
 
     * The meta events need to be pre-packed with enough information that the
