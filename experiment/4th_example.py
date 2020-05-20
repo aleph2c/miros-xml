@@ -134,8 +134,7 @@ def payload_string(e):
 ps = payload_string
 
 def pprint(value):
-  pass
-  #print(value)
+  print(value)
 
 def state(fn):
   '''Statechart state function wrapper, provides instrumentation and

@@ -5,7 +5,17 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
+    Have a working I1 event.
+
   *What is the problem?*
+
+    The I1 event should not exit p_r1_region and enter p_r1_region.  It has gone
+    out too far.
+
+    Double-check other bounce signals to see if they too are going out too far.
+
+    Double-check other WTF events using print statements, verify there
+    entry/exit pathing is what you expect.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
