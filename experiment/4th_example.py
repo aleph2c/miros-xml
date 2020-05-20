@@ -3023,13 +3023,6 @@ def p(self, e):
     self.inner._post_lifo(Event(signal=signals.force_region_init))
     self.inner.post_fifo(_e)
     status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "E1")):
-    self.scribble("[p] {}".format(e.signal_name))
-    _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
-    self.scribble(payload_string(_e))
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.inner.post_fifo(_e)
-    status = return_status.HANDLED
   # final token match
   elif(type(self.regions) == dict and self.token_match(e.signal_name,
     self.regions['p'].final_signal_name)):
@@ -3369,6 +3362,7 @@ if __name__ == '__main__':
       old_result = old_results,
       duration=0.2
     )
+
     #example.active_states()
 
     #old_results = build_test(
