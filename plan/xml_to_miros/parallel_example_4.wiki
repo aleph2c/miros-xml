@@ -5,38 +5,25 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    A simplified 4th_example.py with a double F1.
-    Eventually, I would like a I1 event working.
-
   *What is the problem?*
-
-    I fooled myself into thinking the F1 event was working before.  I included a
-    BOUNCE_SAME_META_SIGNAL event within it.  This event was not needed, no
-    bounce or complicated mechanism was required.  But the code is full of
-    over-complicated mechanisms.
-
-    * The complicated code is not needed right now, but it might be needed for
-      I1
-    * The code is overly complicated
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
-    G coming from an inner region may be different from a G coming from a state.
-    This might warrent the creation of a new letter in your topological
-    lettering.  The difficult you face now is that you think you are porting one
-    solution, but you are actually pioneering another method.
-
-    Tools:
-    ps(_e)
-    r.outmost.rqs()
-
-    *Warning*
+    *Warnings*
 
     Since the state functions are decoratored, it is very tricky to compare the
     using the '==' operator.  Technically speaking, a decorated function and its
     naked version are not equivalent.  To avoid what could be a very nasty and
     hard to track bug, compare the string names of function not the functions
     directly.
+
+    Do not use post_fifo or post_lifo within mini-steps.  Instead use _post_fifo
+    and _post_lifo and let the driver push all of the intermediate events
+    through the chart.
+
+    The use of the rr.fns dict has made it harder to troubleshoot problems
+    because I can not grep and search for the functions I want to search for
+    directly.  Try to make your code grep-able.
 
     *Future Goals*:
 
@@ -46,6 +33,7 @@
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
             appropriate)
+      * [ ] Write up trouble shooting method for tracking WTF event
       * [ ] Understand how the logging system works for working WTF events.
       * [ ] Find a way to make E2 handling consistent with the other WTF events
             in the system. (see p_p12)
@@ -67,9 +55,9 @@
 
     Injectors:
       * [ ] p (active object)
-      * [ ] p_p11 (Region)
-      * [ ] p_p12 (Region)
-      * [ ] p_p12_p11 (Region)
+      * [X] p_p11 (Region)
+      * [X] p_p12 (Region)
+      * [X] p_p12_p11 (Region)
       * [ ] p_p22 (Region)
 
     Region State Functions:
@@ -164,9 +152,6 @@
 
     Region notes:
 
-    The use of the rr.fns dict has made it harder to troubleshoot problems
-    because I can not grep and search for the functions I want to search for
-    directly.  Try to make your code grep-able.
 
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
@@ -208,20 +193,18 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions: (>=5) ==
+    * [ ] Can you brute force it?
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
 
-
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] check in your code and them simplify it
 
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
-  
 
 = Act =

@@ -20,7 +20,7 @@ def pp(item):
   xprint.pprint(item)
 
 META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
-  ['event', 'state',  'previous_state', 'previous_signal'])
+  ['n', 'event', 'state', 'previous_state', 'previous_signal'])
 
 FrameData = namedtuple('FrameData', [
   'filename',
@@ -44,6 +44,42 @@ def s_to_s(event_or_signal_number):
   else:
     signal_name = event_or_signal_number.signal_name
   return signal_name
+
+def investigate(r, e, _e=None):
+  '''Used for WTF investigations
+
+    **Note**:
+       Steps (takes about 10 minutes to set this up):
+       1. print(ps(_e)) to see where the meta event is suppose to go
+       2. place markers at each step, track in notes
+       3. place an investigate call at each step
+
+    **Args**:
+       | ``r`` (Region): region
+       | ``e`` (Event): initial event
+       | ``_e=None`` (Event): subsequent event
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+        # place this on every marker, the look at the logs
+        investigate(r, e, _e)
+
+  '''
+  if hasattr(e, 'payload') and hasattr(e.payload, 'n'):
+    n = e.payload.n
+  else:
+    if hasattr(_e, 'payload') and hasattr(_e.payload, 'n'):
+      n = _e.payload.n
+    else:
+      n = 0
+  r.scribble("{}: {}".format(n, r.outmost.active_states()))
+  r.scribble("{}: {}".format(n, ps(e)))
+  if _e is not None:
+    r.scribble("{}: {}".format(n, ps(_e)))
+  r.scribble("{}: {}".format(n, r.outmost.rqs()))
+
 
 def payload_string(e):
   '''Reflect upon an event
@@ -78,10 +114,12 @@ def payload_string(e):
   else:
     while(True):
       previous_signal_name = s_to_s(e.payload.previous_signal)
-      result += "{}[n]::{}:{} [n-1]::{}:{} ->\n".format(
+      result += "{}[n={}]::{}:{} [n={}]::{}:{} ->\n".format(
         tabs,
+        e.payload.n,
         e.signal_name,
         f_to_s(e.payload.state),
+        e.payload.n - 1,
         previous_signal_name,
         f_to_s(e.payload.previous_state),
       )
@@ -96,12 +134,13 @@ def payload_string(e):
 ps = payload_string
 
 def pprint(value):
-  #pass
-  print(value)
+  pass
+  #print(value)
 
 def state(fn):
   '''Statechart state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute'''
+
   @wraps(fn)
   def _state(chart, *args):
     fn_as_s = fn.__name__
@@ -670,6 +709,7 @@ class XmlChart(InstrumentedActiveObject):
     .add('p_p22_r1', outer=outer)\
     .add('p_p22_r2', outer=outer).link()
 
+
     self.current_function_name = None  # dynamically assigned
 
   def regions_queues_string(self):
@@ -690,6 +730,11 @@ class XmlChart(InstrumentedActiveObject):
     fdata = FrameData(*inspect.getframeinfo(previous_frame))
     function_name = fdata.function_name
     line_number   = fdata.line_number
+    if function_name == 'investigate':
+      previous_frame = inspect.currentframe().f_back.f_back
+      fdata = FrameData(*inspect.getframeinfo(previous_frame))
+      function_name = fdata.function_name
+      line_number   = fdata.line_number
 
     width = 78
     result = ""
@@ -703,7 +748,7 @@ class XmlChart(InstrumentedActiveObject):
       for region_index, region in enumerate(regions._regions):
         region_summary = ""
         _len = len(region.queue)
-        region_summary = "{}, ql={}:".format(region.name, _len)
+        region_summary = "{}:{}, ql={}:".format(region.name, region.state_name, _len)
         region_summary = region_summary + " {}" if _len == 0 else region_summary
         result += "{}\n".format(region_summary)
         for index, e in enumerate(region.queue):
@@ -785,13 +830,19 @@ class XmlChart(InstrumentedActiveObject):
 
   def active_states(self):
 
-    parallel_state_names = self.regions.keys()
+    # parallel state names
+    psn = self.regions.keys()
+
+    result = []
+    for n, regions in self.regions.items():
+      for _region in regions._regions:
+        result.append({_region.name: _region.state_name})
 
     def recursive_get_states(name):
       states = []
-      if name in parallel_state_names:
+      if name in psn:
         for region in self.regions[name]._regions:
-          if region.state_name in parallel_state_names:
+          if region.state_name in psn:
             _states = recursive_get_states(region.state_name)
             states.append(_states)
           else:
@@ -802,6 +853,32 @@ class XmlChart(InstrumentedActiveObject):
 
     states = recursive_get_states(self.state_name)
     return states
+
+  def _active_states(self):
+    '''Used to see all active states at once.
+
+
+    **Note**:
+
+
+    **Args**:
+
+
+    **Returns**:
+       (type): 
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+       # example code goes here
+
+    '''
+    result = []
+    for n, regions in self.regions.items():
+      for _region in regions._regions:
+        result.append({_region.name: _region.state_name})
+    return result
 
   def _post_lifo(self, e, outmost=None):
     self.post_lifo(e)
@@ -907,6 +984,7 @@ class XmlChart(InstrumentedActiveObject):
     # of the onion, the source of the meta_init call.
     event = None
     init_onion = onion_states[:]
+    number = len(init_onion)
     for index, entry_target in enumerate(init_onion):
       previous_signal = signals.INIT_META_SIGNAL
       if index == len(init_onion) - 1:
@@ -918,12 +996,14 @@ class XmlChart(InstrumentedActiveObject):
       event = Event(
         signal=signals.INIT_META_SIGNAL,
         payload=META_SIGNAL_PAYLOAD(
+          n=number,
           event=event,
           state=entry_target,
           previous_state=previous_state,
           previous_signal=previous_signal,
         )
       )
+      number -= 1
 
     r.inner = inner
     r.current_function_name = current_function_name
@@ -1134,6 +1214,7 @@ class XmlChart(InstrumentedActiveObject):
     # last layer of the outer part of the INIT_META_SIGNAL need to reference an
     # even more outer part of the onion, the meta exit details.
     event = None
+    number = len(entry_onion) + len(exit_onion)
     for index, entry_target in enumerate(entry_onion):
 
       #signal_name = signals.INIT_META_SIGNAL if entry_target != lca else bounce_type
@@ -1150,6 +1231,7 @@ class XmlChart(InstrumentedActiveObject):
         event = Event(
           signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
+            n=number,
             event=event,
             state=entry_target,
             previous_state=previous_state,
@@ -1162,19 +1244,29 @@ class XmlChart(InstrumentedActiveObject):
         event = Event(
           signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
+            n=number,
             event=event,
             state=entry_target,
             previous_state=previous_state,
             previous_signal=previous_signal,
           )
         )
+      number -= 1
 
-    if entry_onion[-1] == exit_onion[-1]:
+    if entry_onion[-1] == exit_onion[0]:
       bounce_type = signals.BOUNCE_SAME_META_SIGNAL
-      _state = entry_onion[-2]
+      if len(exit_onion) == 1:
+        _state = entry_onion[-2]
+      else:
+        _state = None
+        #_state = eval(
+        #  re.sub(r'region', 'under_hidden_region', (f_to_s(exit_onion[-1])))
+        #)
+
     else:
       bounce_type = signals.BOUNCE_ACROSS_META_SIGNAL
       _state = None
+
 
     # Wrapping the EXIT_META_SIGNAL details around the META INIT part
     # on the onion meta event.  When we are at the outer layer
@@ -1194,26 +1286,30 @@ class XmlChart(InstrumentedActiveObject):
         event = Event(
           signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
+            n=number,
             event=event,
             state=exit_target,
             previous_state=previous_state,
             previous_signal=previous_signal,
           )
         )
+        number -= 1
     else:
       previous_state = source
       previous_signal = sig
       event = Event(
         signal=bounce_type,
         payload=META_SIGNAL_PAYLOAD(
+          n=number,
           event=event,
           state=exit_onion[0],
           previous_state=previous_state,
           previous_signal=previous_signal,
         )
       )
+      number -= 1
 
-    if _state:
+    if _state and len(exit_onion) == 1:
       event = event.payload.event.payload.event
 
     r.inner = inner
@@ -1307,23 +1403,20 @@ def p_r1_region(r, e):
       status = r.trans(_state)
       # if there is more to our meta event, post it into the chart
       if _e is not None:
-        r.post_fifo(_e)
+        r._post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
-    r.scribble(r.outmost.rqs())
     for region in r.same._regions:
       if r == region and r.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_r1_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_r1_under_hidden_region)
@@ -1393,15 +1486,19 @@ def p_p11(r, e):
     status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
+
     if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
-      (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer.post_lifo(_e)
+      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+        (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      else:
+        r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "F1")):
     _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
-    r.scribble(ps(_e))
     r.same._post_fifo(_e)
     if _state:
       status = r.trans(_state)
@@ -1467,7 +1564,7 @@ def p_p11_r1_region(r, e):
       status = r.trans(_state)
       # if there is more to our meta event, post it into the chart
       if _e is not None:
-        r.post_fifo(_e)
+        r._post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
@@ -1477,13 +1574,12 @@ def p_p11_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p11_r1_region, _state):
       (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer.post_lifo(_e)
+      r.outer._post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p11_r1_under_hidden_region)
@@ -1611,12 +1707,11 @@ def p_p11_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p11_r2_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p11_r2_under_hidden_region)
@@ -1677,7 +1772,6 @@ def p_p11_s22(r, e):
   #  status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "F2")):
     _state, _e = r.meta_trans(r, t=p_p12_p11_s12, s=p_p11_s22, sig=e.signal_name)
-    print('F2 {}'.format(_state.__name__))
     r.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
@@ -1744,7 +1838,8 @@ def p_p12(r, e):
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
        r.token_match(e.signal_name, "G1") or
-       r.token_match(e.signal_name, "G3")
+       r.token_match(e.signal_name, "G3") or
+       r.token_match(e.signal_name, "I1")
        ):
     r.scribble(e.signal_name)
     r.inner.post_fifo(e)
@@ -1753,11 +1848,16 @@ def p_p12(r, e):
   # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
+
     if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
-      (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer.post_lifo(_e)
+      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+        (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      else:
+        r.same._post_lifo(_e)
     status = return_status.HANDLED
   # final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
@@ -1771,12 +1871,10 @@ def p_p12(r, e):
     # this force_region_init might be a problem
     r.inner._post_lifo(Event(signal=signals.force_region_init))
     r.inner.post_fifo(_e)
-    #r.scribble(r.outmost.rqs())
     status = return_status.HANDLED
   # exit signals
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
-    #post_lifo(Event(signal=signals.exit_region))
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -1837,20 +1935,18 @@ def p_p12_r1_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r.scribble(e.signal_name)
     _state, _e = e.payload.state, e.payload.event
     for region in r.same._regions:
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p12_r1_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_r1_under_hidden_region)
@@ -1893,7 +1989,8 @@ def p_p12_p11(r, e):
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "G1")):
+  elif(r.token_match(e.signal_name, "G1") or
+       r.token_match(e.signal_name, "I1")):
     r.scribble(e.signal_name)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
@@ -1902,11 +1999,16 @@ def p_p12_p11(r, e):
     status = r.trans(p_p12_s12)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
+
     if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
-      (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer.post_lifo(_e)
+      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+        (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      else:
+        r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
     status = r.trans(p_p12_s12)
@@ -1914,8 +2016,8 @@ def p_p12_p11(r, e):
     r.scribble(e.signal_name)
     status = r.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11")
     r.inner.post_lifo(Event(signal=signals.exit_region))
+    pprint("exit p_p12_p11")
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r1_over_hidden_region
@@ -1978,12 +2080,11 @@ def p_p12_p11_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p12_p11_r1_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_p11_r1_under_hidden_region)
@@ -2052,6 +2153,11 @@ def p_p12_p11_r2_under_hidden_region(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_r2_under_hidden_region")
     status = return_status.HANDLED
+  elif(e.signal == signals.EXIT_META_SIGNAL):
+    (_e, _state) = e.payload.event, e.payload.state
+    if r.within(p_p12_p11_r2_region, _state):
+      r.outer._post_fifo(_e)
+    status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
     status = return_status.SUPER
@@ -2097,12 +2203,11 @@ def p_p12_p11_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p12_p11_r2_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_p11_r2_under_hidden_region)
@@ -2143,11 +2248,26 @@ def p_p12_p11_s21(r, e):
       t=p_p22_s11,
       sig=e.signal_name
     )
-    r.same.post_fifo(_e)
+    r.same._post_fifo(_e)
     if _state:
       status = r.trans(_state)
     else:
       status = return_status.UNHANDLED
+
+  elif(e.signal == signals.I1):
+    _state, _e = r.outmost.meta_trans(
+      r,
+      s=p_p12_p11_s21,
+      t=p_p11_s12,
+      sig=e.signal_name
+    )
+    r.same._post_fifo(_e)
+
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.HANDLED
+
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_s21")
     status = return_status.HANDLED
@@ -2241,19 +2361,18 @@ def p_p12_r2_region(r, e):
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
     status = return_status.HANDLED
-  #elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-  #  r.scribble(e.signal_name)
-  #  _state, _e = e.payload.state, e.payload.event
-  #  for region in r.same._regions:
-  #    if region.has_state(e.payload.previous_state):
-  #      region._post_fifo(_e)
-  #      region._post_lifo(Event(signal=signals.enter_region))
-  #  r.same._complete_circuit()
-  #  status = return_status.HANDLED
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r.scribble(e.signal_name)
+    _state, _e = e.payload.state, e.payload.event
+    for region in r.same._regions:
+      if region.has_state(e.payload.previous_state):
+        region._post_fifo(_e)
+        region._post_lifo(Event(signal=signals.enter_region))
+    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p12_r2_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p12_r2_under_hidden_region)
@@ -2391,12 +2510,11 @@ def p_r2_region(r, e):
       if r == region and r.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_r2_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_r2_under_hidden_region)
@@ -2487,11 +2605,16 @@ def p_p22(r, e):
     status = r.trans(p_r2_final)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
+
     if r.within(bound=r.state_fn, query=_state):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
-      (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer.post_lifo(_e)
+      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+        (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      else:
+        r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
@@ -2560,7 +2683,6 @@ def p_p22_r1_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   # can we get rid of exit_region?
   elif(e.signal == signals.exit_region):
@@ -2698,12 +2820,11 @@ def p_p22_r2_region(r, e):
       if region.has_state(e.payload.previous_state):
         region._post_fifo(_e)
         region._post_lifo(Event(signal=signals.enter_region))
-    r.same._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     if r.within(p_p22_r2_region, _state):
-      r.outer.post_fifo(_e)
+      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     status = r.trans(p_p22_r2_under_hidden_region)
@@ -2870,6 +2991,7 @@ def p(self, e):
       self.token_match(e.signal_name, "F2") or
       self.token_match(e.signal_name, "G0") or
       self.token_match(e.signal_name, "G1") or
+      self.token_match(e.signal_name, "I1") or
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
@@ -2983,7 +3105,7 @@ if __name__ == '__main__':
         #import pdb; pdb.set_trace()
         example.active_states()
         #time.sleep(1000)
-        #exit(0)
+        exit(0)
       #assert active_states == expected_result
       return active_states
 
@@ -3042,9 +3164,6 @@ if __name__ == '__main__':
       p,
     ])
     result2 = example.build_onion(t=p_p11, s=p_p12, sig='TEST')
-    pp(result1)
-    pp(result2)
-    print(example.lci(s=p_p11, t=p_p12))
 
     #result2 = example.build_onion(s=p_p11_s11, t=p, sig='TEST')
     #assert(result2 == [p, p_r1_region, p_p11, p_p11_r1_region, p_p11_s11])
@@ -3230,12 +3349,27 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    #old_results = build_test(
-    #  sig='to_p_s22',
-    #  expected_result=['p_r1_under_hidden_region', 'p_s22'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
+    old_results = build_test(
+      sig='A1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='G0',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='I1',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region'],
+      old_result = old_results,
+      duration=0.2
+    )
+    #example.active_states()
 
     #old_results = build_test(
     #  sig='G0',
