@@ -5,21 +5,30 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Have a working I1 event.
+    Add the WFT events whos sources are deep in an HHSM and whos targets are
+    states managed by the outer statechart and its thread.  (D0, H1, H0)
 
   *What is the problem?*
 
-    The I1 event should not exit p_r1_region and enter p_r1_region.  It has gone
-    out too far.
-
-    Double-check other bounce signals to see if they too are going out too far.
-
-    Double-check other WTF events using print statements, verify there
-    entry/exit pathing is what you expect.
+    Currently a failure occurs in the lca call within the meta_trans method
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
-    *Warnings*
+    *How To:*
+
+    To track a meta event (1-4 takes about 10 minutes to set up):
+      1. place a print(ps(_e)) at it's source
+      2. write out a list in this document, one line for each line of the above
+         output... associate each line with a Vim marker, {a, b, c, ... }
+      3. for each line in this listing go to the corresponding location in the
+         code and add an 'investigate(r, e, _e)'.  Assign the proper marker
+      4. add a time delay after the broken test in the outer program so that you
+         can break into the statechart thread and the program will continue to
+         run.
+      5. for each step look at the log and look poke around in the investigate
+         location of the marked spot.
+
+    *Warnings:*
 
     Since the state functions are decoratored, it is very tricky to compare the
     using the '==' operator.  Technically speaking, a decorated function and its
@@ -40,13 +49,12 @@
       If you are tired, pick an easy goal, if you are fresh pick a hard goal
 
       *Easy Goals:*
+      * [ ] Refactor the meta_trans method
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
             appropriate)
       * [ ] Write up trouble shooting method for tracking WTF event
       * [ ] Understand how the logging system works for working WTF events.
-      * [ ] Find a way to make E2 handling consistent with the other WTF events
-            in the system. (see p_p12)
       * [ ] Add a filter function which will accept a list of string which will
             work with the token_match, to let or stop events from being injected
             into an inner parallel region.
@@ -54,6 +62,9 @@
       * [ ] Integrate meta_init into meta_trans
 
       *Harder Goals:*
+      * [ ] Move the meta_init, meta_trans and all of surrounding minor event
+            drivers into one API.  The idea here is to make the interface
+            extremely easy to use.
       * [ ] Refactor the logging system to be intuitive.
       * [ ] Need a mechanism to clear the graph's cache.  This will be needed
             when an XML diagram is being used to over-write and inner part of a
@@ -65,9 +76,9 @@
 
     Injectors:
       * [ ] p (active object)
-      * [X] p_p11 (Region)
-      * [X] p_p12 (Region)
-      * [X] p_p12_p11 (Region)
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
       * [ ] p_p22 (Region)
 
     Region State Functions:
@@ -209,6 +220,7 @@
 
   [[#Questions]]
   *Research Needed For?:*
+    * step through the lca and find out why it fails
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
@@ -216,5 +228,7 @@
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
+  * setup testing environment so you can probe this problem
+  * step through the lca and find out why it fails
 
 = Act =

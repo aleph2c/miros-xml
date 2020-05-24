@@ -164,7 +164,7 @@ lt=-&gt;</panel_attributes>
     </coordinates>
     <panel_attributes>C0
 lt=-&gt;
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>10.0;20.0;100.0;20.0</additional_attributes>
   </element>
   <element>
@@ -747,7 +747,7 @@ lt=-&gt;</panel_attributes>
     <panel_attributes>B1
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>10.0;20.0;760.0;20.0</additional_attributes>
   </element>
   <element>
@@ -971,7 +971,7 @@ lt=-&gt;</panel_attributes>
     <panel_attributes>A0
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>40.0;80.0;10.0;80.0;10.0;10.0;40.0;10.0</additional_attributes>
   </element>
   <element>
@@ -1009,7 +1009,7 @@ valign=top
     <panel_attributes>C1
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>100.0;20.0;10.0;20.0</additional_attributes>
   </element>
   <element>
@@ -1048,7 +1048,7 @@ lt=-&gt;</panel_attributes>
     <panel_attributes>D1
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>10.0;20.0;70.0;20.0</additional_attributes>
   </element>
   <element>
@@ -1280,7 +1280,7 @@ fg=red</panel_attributes>
     <panel_attributes>G3
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>10.0;10.0;70.0;150.0</additional_attributes>
   </element>
   <element>
