@@ -5,12 +5,24 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    Add the WFT events whos sources are deep in an HHSM and whos targets are
-    states managed by the outer statechart and its thread.  (D0, H1, H0)
+    The D3 WTF to transition to p properly
 
   *What is the problem?*
 
-    Currently a failure occurs in the lca call within the meta_trans method
+    The meta event is too long, and it exits p before entering it again.  The
+    beginning and end states are correct, but they dynamics are wrong.
+
+    It is currently this:
+    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
+      [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
+        [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
+          [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
+            [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p ->    
+
+    I want this:
+    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
+      [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
+        [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p_p11 ->
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
@@ -29,6 +41,8 @@
          location of the marked spot.
 
     *Warnings:*
+    
+    The lazy, inners thing is causing me trouble now
 
     Since the state functions are decoratored, it is very tricky to compare the
     using the '==' operator.  Technically speaking, a decorated function and its
@@ -49,6 +63,8 @@
       If you are tired, pick an easy goal, if you are fresh pick a hard goal
 
       *Easy Goals:*
+      * [ ] Audit the entry/exit conditions for every WTF.  Create a bug listing
+            for anything that needs to be fixed.
       * [ ] Refactor the meta_trans method
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
@@ -62,6 +78,7 @@
       * [ ] Integrate meta_init into meta_trans
 
       *Harder Goals:*
+      * [ ] Turn meta_trans into an HSM
       * [ ] Move the meta_init, meta_trans and all of surrounding minor event
             drivers into one API.  The idea here is to make the interface
             extremely easy to use.
@@ -76,6 +93,15 @@
 
     Injectors:
       * [ ] p (active object)
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+
+    Outer Injectors:
+      * [ ] p (active object)
+
+    Inner Injectors:
       * [ ] p_p11 (Region)
       * [ ] p_p12 (Region)
       * [ ] p_p12_p11 (Region)
@@ -215,12 +241,24 @@
 
   == Custom Questions: (>=5) ==
     * [ ] Can you brute force it?
+    * [ ] Can you change the bounce and trans signals to make them consistently
+          named?
+    * [ ] Can you find a way to detect this kind of transition, without damaging
+          the existing WTF infrastructure?
+    * [ ] Did you generalize the outer_state function knowledge from your last
+          push?
+    
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
-    * step through the lca and find out why it fails
+    * [ ] Did you generalize the outer_state function knowledge from your last
+          push?
+    * 
+    * 
+    * 
+     
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
@@ -228,7 +266,5 @@
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
-  * setup testing environment so you can probe this problem
-  * step through the lca and find out why it fails
 
 = Act =

@@ -1,5 +1,6 @@
 
 import re
+import pdb
 import time
 import inspect
 import logging
@@ -15,7 +16,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'C1'
+event_to_investigate = 'D3'
 
 import pprint as xprint
 def pp(item):
@@ -172,12 +173,18 @@ def othogonal_state(fn):
   @wraps(fn)
   def _pspy_on(region, *args):
 
+    if type(region) == XmlChart:
+      return state(fn)(region, *args)
+
     # dynamically assign the inner attribute
     fn_as_s = f_to_s(fn)
-    if fn_as_s not in region.inners:
-      region.inners[fn_as_s] = None
-      if fn_as_s in region.outmost.regions:
-        region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
+    try:
+      if fn_as_s not in region.inners:
+        region.inners[fn_as_s] = None
+        if fn_as_s in region.outmost.regions:
+          region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
+    except:
+      import pdb; pdb.set_trace()
 
     # these can be trampled as a side effect of a search (meta_init, meta_trans)
     # so make sure you salt their results away when you use these functions
@@ -347,8 +354,14 @@ class Region(HsmWithQueues):
     state_name = self.state_name
     state_fn = self.state_fn
 
-    current_state = bound
-    self.temp.fun = query
+    if hasattr(bound, '__wrapped__'):
+      current_state = bound.__wrapped__
+    else:
+      current_state = bound
+    if hasattr(query, '__wrapped__'):
+      self.temp.fun = query.__wrapped__
+    else:
+      self.temp.fun = query
 
     result = False
     super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
@@ -722,6 +735,7 @@ class XmlChart(InstrumentedActiveObject):
 
 
     self.current_function_name = None  # dynamically assigned
+    self.outmost = self
 
   def regions_queues_string(self):
     '''Reflect upon all queues for all region objects in statechart
@@ -741,7 +755,7 @@ class XmlChart(InstrumentedActiveObject):
     fdata = FrameData(*inspect.getframeinfo(previous_frame))
     function_name = fdata.function_name
     line_number   = fdata.line_number
-    if function_name == 'investigate':
+    if function_name == 'proto_investigate':
       previous_frame = inspect.currentframe().f_back.f_back
       fdata = FrameData(*inspect.getframeinfo(previous_frame))
       function_name = fdata.function_name
@@ -1188,8 +1202,6 @@ class XmlChart(InstrumentedActiveObject):
 
     '''
 
-    if sig == 'D0':
-      import pdb; pdb.set_trace()
     inner = r.inner
     current_function_name = r.current_function_name
 
@@ -1216,24 +1228,30 @@ class XmlChart(InstrumentedActiveObject):
     exit_onion = strippped_onion[:]
     # exit_onion.reverse()
 
-    entry_onion1 = self.build_onion(
-        s=lca,
-        t=target,
-        sig=sig)[0:-1]
+    if not (self.within(outer_state, target)):
+      entry_onion1 = self.build_onion(
+          s=lca,
+          t=target,
+          sig=sig)[0:-1]
 
-    entry_onion = entry_onion1[:]
+      entry_onion = entry_onion1[:]
+    else:
+      entry_onion = []
 
     # Wrap up the onion meta event from the inside out.  History items at the
     # last layer of the outer part of the INIT_META_SIGNAL need to reference an
     # even more outer part of the onion, the meta exit details.
     event = None
 
-    if entry_onion[-1] == exit_onion[0]:
+    if entry_onion != [] and entry_onion[-1] == exit_onion[0]:
       bounce_type = signals.BOUNCE_SAME_META_SIGNAL
       if len(exit_onion) == 1:
         _state = entry_onion[-2]
       else:
         _state = None
+    elif(entry_onion == []):
+      bounce_type = signals.OUTER_TRANS_REQUIRED
+      _state = None
     else:
       bounce_type = signals.BOUNCE_ACROSS_META_SIGNAL
       _state = None
@@ -1243,45 +1261,62 @@ class XmlChart(InstrumentedActiveObject):
     else:
       number = len(entry_onion) + len(exit_onion)
 
-    for index, entry_target in enumerate(entry_onion):
-
-      #signal_name = signals.INIT_META_SIGNAL if entry_target != lca else bounce_type
-      signal_name = signals.INIT_META_SIGNAL
-
-      if index == len(entry_onion) - 1:
-        if (len(exit_onion) == 1 and
-          exit_onion[0] == entry_onion[-1]):
-            previous_state = source
-            previous_signal = sig
-        else:
-          previous_state = exit_onion[0]
-          previous_signal = signals.EXIT_META_SIGNAL
-        event = Event(
-          signal=signal_name,
-          payload=META_SIGNAL_PAYLOAD(
-            n=number,
-            event=event,
-            state=entry_target,
-            previous_state=previous_state,
-            previous_signal=previous_signal,
-            springer=sig,
-          )
+    if bounce_type == signals.OUTER_TRANS_REQUIRED:
+      number += 1
+      previous_state = exit_onion[0]
+      previous_signal = signals.EXIT_META_SIGNAL
+      event = Event(
+        signal=bounce_type,
+        payload=META_SIGNAL_PAYLOAD(
+          n=number,
+          event=event,
+          state=t,
+          previous_state=previous_state,
+          previous_signal=previous_signal,
+          springer=sig,
         )
-      else:
-        previous_state = entry_onion[index + 1]
-        previous_signal = signals.INIT_META_SIGNAL
-        event = Event(
-          signal=signal_name,
-          payload=META_SIGNAL_PAYLOAD(
-            n=number,
-            event=event,
-            state=entry_target,
-            previous_state=previous_state,
-            previous_signal=previous_signal,
-            springer=sig,
-          )
-        )
+      )
       number -= 1
+    else:
+      for index, entry_target in enumerate(entry_onion):
+
+        #signal_name = signals.INIT_META_SIGNAL if entry_target != lca else bounce_type
+        signal_name = signals.INIT_META_SIGNAL
+
+        if index == len(entry_onion) - 1:
+          if (len(exit_onion) == 1 and
+            exit_onion[0] == entry_onion[-1]):
+              previous_state = source
+              previous_signal = sig
+          else:
+            previous_state = exit_onion[0]
+            previous_signal = signals.EXIT_META_SIGNAL
+          event = Event(
+            signal=signal_name,
+            payload=META_SIGNAL_PAYLOAD(
+              n=number,
+              event=event,
+              state=entry_target,
+              previous_state=previous_state,
+              previous_signal=previous_signal,
+              springer=sig,
+            )
+          )
+        else:
+          previous_state = entry_onion[index + 1]
+          previous_signal = signals.INIT_META_SIGNAL
+          event = Event(
+            signal=signal_name,
+            payload=META_SIGNAL_PAYLOAD(
+              n=number,
+              event=event,
+              state=entry_target,
+              previous_state=previous_state,
+              previous_signal=previous_signal,
+              springer=sig,
+            )
+          )
+        number -= 1
 
     # Wrapping the EXIT_META_SIGNAL details around the META INIT part
     # on the onion meta event.  When we are at the outer layer
@@ -1335,6 +1370,8 @@ class XmlChart(InstrumentedActiveObject):
 
   @lru_cache(maxsize=32)
   def lca(self, _s, _t):
+    if (self.within(outer_state, _t)):
+      return outer_state
     s_onion = self.build_onion(_s, sig=None)[::-1]
     t_onion = self.build_onion(_t, sig=None)[::-1]
     _lca = list(set(s_onion).intersection(set(t_onion)))[-1]
@@ -1352,6 +1389,7 @@ class XmlChart(InstrumentedActiveObject):
 
   @lru_cache(maxsize=32)
   def within(self, fn_region_handler, fn_state_handler):
+
     old_temp = self.temp.fun
     old_fun = self.state.fun
 
@@ -1491,6 +1529,7 @@ def p_p11(r, e):
   elif(r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
+       r.token_match(e.signal_name, "D3") or
        r.token_match(e.signal_name, "G1") or
        r.token_match(e.signal_name, "G3")
        ):
@@ -1514,20 +1553,30 @@ def p_p11(r, e):
       status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "G0"):
     status = return_status.HANDLED
+  elif e.signal == signals.OUTER_TRANS_REQUIRED:
+    (_e, _state) = e.payload.event, e.payload.state
+    import pdb; pdb.set_trace()
+    investigate(r, e, _e)
+    status = r.trans(_state)
+    #import pdb; pdb.set_trace()
+    #status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
+    status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-
-    if r.within(bound=r.state_fn, query=_state):
+    #  print(r.within(bound=_state, query=r.state_fn))
+    #  print(r.within(bound=r.state_fn, query=_state))
+    if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
+      elif(_e.signal == signals.EXIT_META_SIGNAL):
+        r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
-    status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "F1")):
     _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
     investigate(r, e, _e)
@@ -1664,11 +1713,19 @@ def p_p11_s12(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p11_s12")
     status = return_status.HANDLED
+  elif r.token_match(e.signal_name, "D3"):
+    _state, _e = r.outmost.meta_trans(r, t=p, s=p_p11_s12, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same._post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
+  elif(r.token_match(e.signal_name, "e1")):
+    status = r.trans(p_p11_r1_final)
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p11_s12")
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
-    status = r.trans(p_p11_r1_final)
   else:
     r.temp.fun = p_p11_r1_over_hidden_region
     status = return_status.SUPER
@@ -1870,7 +1927,7 @@ def p_r1_final(r, e):
 def p_p12(r, e):
   status = return_status.UNHANDLED
 
-  # enter all regions
+  # Enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12")
     # search for INIT_META_SIGNAL
@@ -1880,7 +1937,7 @@ def p_p12(r, e):
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
-  # any event handled within there regions must be pushed from here
+  # Any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
@@ -1895,19 +1952,22 @@ def p_p12(r, e):
   # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-
     investigate(r, e, _e)
-    if r.within(bound=r.state_fn, query=_state):
+    if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
+      # used for reaching to the outer state
+      elif(_e.signal == signals.EXIT_META_SIGNAL):
+        r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
-  # final token match
+
+  # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
     r.scribble(e.signal_name)
     status = r.trans(p_r1_final)
@@ -1921,7 +1981,15 @@ def p_p12(r, e):
     r.inner._post_lifo(Event(signal=signals.force_region_init))
     r.inner.post_fifo(_e)
     status = return_status.HANDLED
-  # exit signals
+  elif r.token_match(e.signal_name, "H1"):
+    _state, _e = r.outmost.meta_trans(r, t=outer_state, s=p_p12, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same._post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
+  # Exit signals
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
     status = r.trans(p_r1_under_hidden_region)
@@ -2054,12 +2122,14 @@ def p_p12_p11(r, e):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
 
-    if r.within(bound=r.state_fn, query=_state):
+    if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
         (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      elif(_e.signal == signals.EXIT_META_SIGNAL):
         r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
@@ -2639,6 +2709,14 @@ def p_s21(r, e):
       status = r.trans(_state)
     else:
       status = return_status.UNHANDLED
+  elif r.token_match(e.signal_name, "H0"):
+    _state, _e = r.outmost.meta_trans(r, t=outer_state, s=p_s21, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same._post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_s21")
     status = return_status.HANDLED
@@ -2664,6 +2742,7 @@ def p_p22(r, e):
   elif(r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
+       r.token_match(e.signal_name, "D2") or
        r.token_match(e.signal_name, "E2")
        ):
     r.scribble(e.signal_name)
@@ -2677,12 +2756,14 @@ def p_p22(r, e):
     (_e, _state) = e.payload.event, e.payload.state
 
     investigate(r, e, _e)
-    if r.within(bound=r.state_fn, query=_state):
+    if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
         (_e, _state) = _e.payload.event, _e.payload.state
+        r.outer._post_lifo(_e)
+      elif(_e.signal == signals.EXIT_META_SIGNAL):
         r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
@@ -2937,6 +3018,14 @@ def p_p22_s21(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     status = r.trans(p_p22_s22)
+  elif r.token_match(e.signal_name, "D2"):
+    _state, _e = r.outmost.meta_trans(r, t=some_other_state, s=p_p22_s21, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same._post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p22_s21")
     status = return_status.HANDLED
@@ -3065,6 +3154,8 @@ def p(self, e):
       self.token_match(e.signal_name, "C0") or
       self.token_match(e.signal_name, "C1") or
       self.token_match(e.signal_name, "D0") or
+      self.token_match(e.signal_name, "D2") or
+      self.token_match(e.signal_name, "D3") or
       self.token_match(e.signal_name, "E2") or
       self.token_match(e.signal_name, "F1") or
       self.token_match(e.signal_name, "F2") or
@@ -3072,6 +3163,8 @@ def p(self, e):
       self.token_match(e.signal_name, "G1") or
       self.token_match(e.signal_name, "G3") or
       self.token_match(e.signal_name, "I1") or
+      self.token_match(e.signal_name, "H0") or
+      self.token_match(e.signal_name, "H1") or
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
@@ -3123,6 +3216,16 @@ def p(self, e):
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "D1")):
     status = self.trans(outer_state)
+  elif(e.signal == signals.EXIT_META_SIGNAL):
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(self, e, _e)
+    #if e.payload.springer == 'D2':
+    #  import pdb; pdb.set_trace()
+    if(_e.signal == signals.OUTER_TRANS_REQUIRED):
+      _state = _e.payload.state
+      status = self.trans(_state)
+    else:
+      status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p")
     self.scribble("[p] {}".format('exit_region'))
@@ -3206,6 +3309,9 @@ if __name__ == '__main__':
       #assert active_states == expected_result
       return active_states
 
+    assert(example.lca(_s=p_p12, _t=outer_state) == outer_state)
+    assert(example.lca(_s=p_p12, _t=some_other_state) == outer_state)
+
     result1 = example.build_onion(s=p, t=p_p11, sig='TEST')
     assert(result1 == [p_p11, p_r1_region, p])
     result2 = example.build_onion(s=p_p11, t=p, sig='TEST')
@@ -3245,9 +3351,6 @@ if __name__ == '__main__':
       p,
     ])
     result2 = example.build_onion(t=p_p11, s=p_p12, sig='TEST')
-
-    #result2 = example.build_onion(s=p_p11_s11, t=p, sig='TEST')
-    #assert(result2 == [p, p_r1_region, p_p11, p_p11_r1_region, p_p11_s11])
 
     active_states = example.active_states()
     print("{:>39}{:>5} <-> {:<80}".format("start", "", str(active_states)))
@@ -3458,7 +3561,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     old_results = build_test(
       sig='G3',
       expected_result=['p_r1_under_hidden_region', 'p_s21'],
@@ -3528,5 +3630,90 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='C0',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'],  ['p_p22_s11', 'p_p22_s21']],
+      old_result = old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='H1',
+      expected_result=['outer_state'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='H0',
+      expected_result=['outer_state'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='C0',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'],  ['p_p22_s11', 'p_p22_s21']],
+      old_result = old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='D2',
+      expected_result=['some_other_state'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='e4',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #old_results = build_test(
+    #  sig='D3',
+    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+    #  old_result= old_results,
+    #  duration=0.2
+    #)
+
     time.sleep(1000)
 
