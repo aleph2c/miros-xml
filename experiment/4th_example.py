@@ -3223,7 +3223,11 @@ def p(self, e):
     #  import pdb; pdb.set_trace()
     if(_e.signal == signals.OUTER_TRANS_REQUIRED):
       _state = _e.payload.state
-      status = self.trans(_state)
+      if _state != p:
+        status = self.trans(_state)
+      else:
+        self.inner.post_fifo(Event(signal=signals.exit_region))
+        self.inner.post_fifo(Event(signal=signals.enter_region))
     else:
       status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -3708,12 +3712,12 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    #old_results = build_test(
-    #  sig='D3',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
+    old_results = build_test(
+      sig='D3',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
 
     time.sleep(1000)
 
