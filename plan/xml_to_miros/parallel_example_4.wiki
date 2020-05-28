@@ -5,26 +5,36 @@
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
 
-    The D3 WTF to transition to p properly
+    To get D4 working and H1 working with the same injector code structure.
 
   *What is the problem?*
 
-    The meta event is too long, and it exits p before entering it again.  The
-    beginning and end states are correct, but they dynamics are wrong.
-
-    It is currently this:
-
-    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
-      [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
-        [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
-          [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
-            [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p ->    
-
-    I want this:
-
-    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
-      [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
-        [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p_p11 ->
+    It is not framed in, so:
+    * [X] Create initial condition
+    * [X] Create test
+    * [X] D4 pass in p
+    * [X] D4 pass in p_p12
+    * [X] D4 pass in p_p12_p11_s12
+    * [X] Change debug target to D4
+    * [X] mimic handler of D3 in p but for p_p12 for D4
+    Iterate until you find a solution:
+    * [X] diff solution against previous file
+    * [X] remove unneeded code
+    * [X] identify while handlers changed in what region and what injectors
+      * [X] all inner injectors need OUTER_TRANS_REQUIRED handler ref-W reg-a
+        * [X] p_p11 (Region)
+        * [X] p_p12 (Region)
+        * [X] p_p12_p11 (Region)
+        * [X] p_p22 (Region)
+      * [X] run regression test
+      * [X] all inner injectors need tweek to EXIT_META_SIGNAL handler ref-X reg-b
+        * [X] p_p11 (Region)
+        * [X] p_p12 (Region)
+        * [X] p_p12_p11 (Region)
+        * [X] p_p22 (Region)
+    * [X] transfer this solution to all regions and injectors
+    * [ ] run regression test
+    
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 

@@ -1477,21 +1477,21 @@ fg=red</panel_attributes>
     <panel_attributes>D3
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>370.0;150.0;370.0;10.0;10.0;10.0</additional_attributes>
   </element>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>736</x>
-      <y>320</y>
-      <w>240</w>
+      <x>744</x>
+      <y>304</y>
+      <w>232</w>
       <h>40</h>
     </coordinates>
     <panel_attributes>D4
 lt=-&gt;
 layer=3
 fg=blue</panel_attributes>
-    <additional_attributes>10.0;30.0;80.0;10.0;280.0;10.0</additional_attributes>
+    <additional_attributes>10.0;20.0;110.0;30.0;270.0;30.0</additional_attributes>
   </element>
 </diagram>

@@ -16,7 +16,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'D3'
+event_to_investigate = 'D4'
 
 import pprint as xprint
 def pp(item):
@@ -1228,7 +1228,7 @@ class XmlChart(InstrumentedActiveObject):
     exit_onion = strippped_onion[:]
     # exit_onion.reverse()
 
-    if not (self.within(outer_state, target)):
+    if not (self.within(outer_state, target)) and lca != target:
       entry_onion1 = self.build_onion(
           s=lca,
           t=target,
@@ -1554,12 +1554,14 @@ def p_p11(r, e):
   elif r.token_match(e.signal_name, "G0"):
     status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
+    status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
-    import pdb; pdb.set_trace()
     investigate(r, e, _e)
-    status = r.trans(_state)
-    #import pdb; pdb.set_trace()
-    #status = return_status.HANDLED
+    if _state == p_p12:
+      r.inner.post_fifo(Event(signal=signals.exit_region))
+      r.inner.post_fifo(Event(signal=signals.enter_region))
+    else:
+      status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
@@ -1943,6 +1945,7 @@ def p_p12(r, e):
        r.token_match(e.signal_name, "e4") or
        r.token_match(e.signal_name, "G1") or
        r.token_match(e.signal_name, "G3") or
+       r.token_match(e.signal_name, "D4") or
        r.token_match(e.signal_name, "I1")
        ):
     r.scribble(e.signal_name)
@@ -1966,7 +1969,15 @@ def p_p12(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
-
+  elif e.signal == signals.OUTER_TRANS_REQUIRED:
+    status = return_status.HANDLED
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(r, e, _e)
+    if _state == p_p12:
+      r.inner.post_fifo(Event(signal=signals.exit_region))
+      r.inner.post_fifo(Event(signal=signals.enter_region))
+    else:
+      status = r.trans(_state)
   # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
     r.scribble(e.signal_name)
@@ -2111,6 +2122,7 @@ def p_p12_p11(r, e):
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "G1") or
+       r.token_match(e.signal_name, "D4") or
        r.token_match(e.signal_name, "I1")):
     r.scribble(e.signal_name)
     r.inner.post_fifo(e)
@@ -2121,12 +2133,12 @@ def p_p12_p11(r, e):
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
       elif(_e.signal == signals.EXIT_META_SIGNAL):
@@ -2134,6 +2146,15 @@ def p_p12_p11(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
+  elif e.signal == signals.OUTER_TRANS_REQUIRED:
+    status = return_status.HANDLED
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(r, e, _e)
+    if _state == p_p12:
+      r.inner.post_fifo(Event(signal=signals.exit_region))
+      r.inner.post_fifo(Event(signal=signals.enter_region))
+    else:
+      status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
     status = r.trans(p_p12_s12)
   elif(e.signal == signals.exit_region):
@@ -2261,6 +2282,14 @@ def p_p12_p11_s12(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     pprint("enter p_p12_p11_s12")
     status = return_status.HANDLED
+  elif r.token_match(e.signal_name, "D4"):
+    _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11_s12, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same._post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit p_p12_p11_s12")
     status = return_status.HANDLED
@@ -2760,7 +2789,8 @@ def p_p22(r, e):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
       elif(_e.signal == signals.EXIT_META_SIGNAL):
@@ -2768,6 +2798,15 @@ def p_p22(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
+  elif e.signal == signals.OUTER_TRANS_REQUIRED:
+    status = return_status.HANDLED
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(r, e, _e)
+    if _state == p_p12:
+      r.inner.post_fifo(Event(signal=signals.exit_region))
+      r.inner.post_fifo(Event(signal=signals.enter_region))
+    else:
+      status = r.trans(_state)
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
     status = r.trans(p_r2_under_hidden_region)
@@ -3156,6 +3195,7 @@ def p(self, e):
       self.token_match(e.signal_name, "D0") or
       self.token_match(e.signal_name, "D2") or
       self.token_match(e.signal_name, "D3") or
+      self.token_match(e.signal_name, "D4") or
       self.token_match(e.signal_name, "E2") or
       self.token_match(e.signal_name, "F1") or
       self.token_match(e.signal_name, "F2") or
@@ -3715,6 +3755,27 @@ if __name__ == '__main__':
     old_results = build_test(
       sig='D3',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='to_p',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='F1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result=old_results,
+      duration=0.4
+    )
+
+    old_results = build_test(
+      sig='D4',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
       duration=0.2
     )
