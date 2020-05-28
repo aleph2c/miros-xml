@@ -13,6 +13,7 @@
     beginning and end states are correct, but they dynamics are wrong.
 
     It is currently this:
+
     [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
       [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
         [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
@@ -20,6 +21,7 @@
             [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p ->    
 
     I want this:
+
     [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::D3:p_p11_s12 ->
       [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
         [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p_p11 ->
