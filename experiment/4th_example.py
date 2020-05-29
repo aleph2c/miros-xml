@@ -16,7 +16,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'D4'
+event_to_investigate = 'H0'
 
 import pprint as xprint
 def pp(item):
@@ -1557,28 +1557,29 @@ def p_p11(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == p_p12:
+    if _state == r.state_fn:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
       status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
-    status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    #  print(r.within(bound=_state, query=r.state_fn))
-    #  print(r.within(bound=r.state_fn, query=_state))
+    # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+         ):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
       elif(_e.signal == signals.EXIT_META_SIGNAL):
         r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
+    status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "F1")):
     _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
     investigate(r, e, _e)
@@ -1956,14 +1957,16 @@ def p_p12(r, e):
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
+    # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+         ):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
-      # used for reaching to the outer state
       elif(_e.signal == signals.EXIT_META_SIGNAL):
         r.outer._post_lifo(_e)
       else:
@@ -1973,7 +1976,9 @@ def p_p12(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == p_p12:
+    #if e.payload.springer == 'D4':
+    #  import pdb; pdb.set_trace()
+    if _state == r.state_fn:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
@@ -2133,12 +2138,14 @@ def p_p12_p11(r, e):
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
+    # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED):
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+         ):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
       elif(_e.signal == signals.EXIT_META_SIGNAL):
@@ -2150,7 +2157,7 @@ def p_p12_p11(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == p_p12:
+    if _state == r.state_fn:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
@@ -2783,14 +2790,15 @@ def p_p22(r, e):
     status = r.trans(p_r2_final)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
-
     investigate(r, e, _e)
+    # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED):
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+         ):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
       elif(_e.signal == signals.EXIT_META_SIGNAL):
@@ -2802,11 +2810,12 @@ def p_p22(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == p_p12:
+    if _state == r.state_fn:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      status = r.trans(_state)
+      if r.within(bound=r.state_fn, query=_state):
+        status = r.trans(_state)
   elif(e.signal == signals.exit_region):
     r.scribble(e.signal_name)
     status = r.trans(p_r2_under_hidden_region)
@@ -3259,21 +3268,21 @@ def p(self, e):
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(self, e, _e)
-    #if e.payload.springer == 'D2':
-    #  import pdb; pdb.set_trace()
-    if(_e.signal == signals.OUTER_TRANS_REQUIRED):
-      _state = _e.payload.state
-      if _state != p:
-        status = self.trans(_state)
-      else:
-        self.inner.post_fifo(Event(signal=signals.exit_region))
-        self.inner.post_fifo(Event(signal=signals.enter_region))
+    self.post_lifo(_e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.OUTER_TRANS_REQUIRED):
+    status = return_status.HANDLED
+    _state = e.payload.state
+    investigate(self, e)
+    if _state != p:
+      status = self.trans(_state)
     else:
-      status = return_status.HANDLED
+      self.inner.post_fifo(Event(signal=signals.exit_region))
+      self.inner.post_fifo(Event(signal=signals.enter_region))
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p")
     self.scribble("[p] {}".format('exit_region'))
     self.inner.post_lifo(Event(signal=signals.exit_region))
+    pprint("exit p")
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     self.scribble("[p] {}".format('exit_region'))

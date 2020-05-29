@@ -1491,7 +1491,7 @@ fg=red</panel_attributes>
     <panel_attributes>D4
 lt=-&gt;
 layer=3
-fg=blue</panel_attributes>
+fg=red</panel_attributes>
     <additional_attributes>10.0;20.0;110.0;30.0;270.0;30.0</additional_attributes>
   </element>
 </diagram>

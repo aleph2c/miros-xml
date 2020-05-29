@@ -4,37 +4,10 @@
 == Evidence ([[evidence.parallel_example_4|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
-
-    To get D4 working and H1 working with the same injector code structure.
+    Add the F0, B0 WTF events
 
   *What is the problem?*
-
-    It is not framed in, so:
-    * [X] Create initial condition
-    * [X] Create test
-    * [X] D4 pass in p
-    * [X] D4 pass in p_p12
-    * [X] D4 pass in p_p12_p11_s12
-    * [X] Change debug target to D4
-    * [X] mimic handler of D3 in p but for p_p12 for D4
-    Iterate until you find a solution:
-    * [X] diff solution against previous file
-    * [X] remove unneeded code
-    * [X] identify while handlers changed in what region and what injectors
-      * [X] all inner injectors need OUTER_TRANS_REQUIRED handler ref-W reg-a
-        * [X] p_p11 (Region)
-        * [X] p_p12 (Region)
-        * [X] p_p12_p11 (Region)
-        * [X] p_p22 (Region)
-      * [X] run regression test
-      * [X] all inner injectors need tweek to EXIT_META_SIGNAL handler ref-X reg-b
-        * [X] p_p11 (Region)
-        * [X] p_p12 (Region)
-        * [X] p_p12_p11 (Region)
-        * [X] p_p22 (Region)
-    * [X] transfer this solution to all regions and injectors
-    * [ ] run regression test
-    
+    These features aren't implemented yet.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
 
@@ -53,14 +26,14 @@
          location of the marked spot.
 
     *Warnings:*
-    
-    The lazy, inners thing is causing me trouble now
+
+    The lazy-inners thing is causing me trouble now (can you make this go away?)
 
     Since the state functions are decoratored, it is very tricky to compare the
     using the '==' operator.  Technically speaking, a decorated function and its
     naked version are not equivalent.  To avoid what could be a very nasty and
     hard to track bug, compare the string names of function not the functions
-    directly.
+    directly. (You can use the __wrapped__ magic method!)
 
     Do not use post_fifo or post_lifo within mini-steps.  Instead use _post_fifo
     and _post_lifo and let the driver push all of the intermediate events
@@ -77,29 +50,28 @@
       *Easy Goals:*
       * [ ] Audit the entry/exit conditions for every WTF.  Create a bug listing
             for anything that needs to be fixed.
-      * [ ] Refactor the meta_trans method
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
             appropriate)
       * [ ] Write up trouble shooting method for tracking WTF event
-      * [ ] Understand how the logging system works for working WTF events.
-      * [ ] Add a filter function which will accept a list of string which will
-            work with the token_match, to let or stop events from being injected
-            into an inner parallel region.
       * [ ] Integrate build_onion into meta_init
       * [ ] Integrate meta_init into meta_trans
 
       *Harder Goals:*
+      * [ ] Add META_HOOKS
+      * [ ] Exclusive Transitions into a parallel state. (this will require a
+            change in the drawing techniques)
+      * [ ] Create a new, comprehensive topological map, refactor your existing
+            code until you can map all WTF events.  Include duplicate WTF
+            events.
       * [ ] Turn meta_trans into an HSM
+      * [ ] Adjust the log output to look like the print output
       * [ ] Move the meta_init, meta_trans and all of surrounding minor event
             drivers into one API.  The idea here is to make the interface
             extremely easy to use.
-      * [ ] Refactor the logging system to be intuitive.
       * [ ] Need a mechanism to clear the graph's cache.  This will be needed
             when an XML diagram is being used to over-write and inner part of a
             program.
-      * [ ] Construct new topological graph, with and without duplicate WTF
-            events.
 
     Pre-made check lists for consistency work:
 
@@ -211,12 +183,11 @@
 
     Region notes:
 
-
 = Orient =
   *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
 
   *Assumptions (at first invisible)*
-    To find your assumptions, look for two peices of evidence that contradict
+    To find your assumptions, look for two pieces of evidence that contradict
     each other. (may have to wait a couple of loops)
 
   *Questions for :*
@@ -259,18 +230,11 @@
           the existing WTF infrastructure?
     * [ ] Did you generalize the outer_state function knowledge from your last
           push?
-    
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
-    * [ ] Did you generalize the outer_state function knowledge from your last
-          push?
-    * 
-    * 
-    * 
-     
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
