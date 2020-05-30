@@ -1,0 +1,107 @@
+-------------------------------------------------------------------------------
+*Defect*   Removal of "import pdb" causes F1 test to fail in 4th_example.py
+*Date*     2020-05-30 07:28
+*Id*       b1d32
+*Severity* minor
+-------------------------------------------------------------------------------
+
+*Symptoms*
+
+If you comment out the "import pdb" F1 fails in 4th_example.py described by
+xml_chart.pdf
+
+-------------------------------------------------------------------------------
+*Reproduction Steps*
+
+1) comment out unneeded "import pdb" at the top of 4th_example.py
+2) run python 4th_example.py
+
+expected behavior:
+[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region']   A1 <-> [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+exit p_p11_s11
+exit p_p11_r1_over_hidden_region
+exit p_p11_r1_region
+exit p_p11_s21
+exit p_p11_r2_over_hidden_region
+exit p_p11_r2_region
+exit p_p11
+enter p_p12
+enter p_p12_r1_region
+enter p_p12_r1_over_hidden_region
+enter p_p12_p11
+enter p_p12_p11_r1_region
+enter p_p12_p11_r1_over_hidden_region
+enter p_p12_p11_s12
+enter p_p12_p11_r2_region
+enter p_p12_p11_r2_over_hidden_region
+enter p_p12_p11_s21
+enter p_p12_r2_region
+enter p_p12_r2_over_hidden_region
+enter p_p12_s21
+exit p_s21
+enter p_p22
+enter p_p22_r1_region
+enter p_p22_r1_over_hidden_region
+enter p_p22_s11
+enter p_p22_r2_region
+enter p_p22_r2_over_hidden_region
+enter p_p22_s21  
+
+observed behavior:
+[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region']   A1 <-> [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+exit p_p11_s11
+exit p_p11_r1_over_hidden_region
+exit p_p11_r1_region
+exit p_p11_s21
+exit p_p11_r2_over_hidden_region
+exit p_p11_r2_region
+exit p_p11
+enter p_p12
+enter p_p12_r1_region
+enter p_p12_r1_over_hidden_region
+enter p_p12_p11
+enter p_p12_p11_r1_region
+enter p_p12_p11_r1_over_hidden_region
+enter p_p12_p11_s12
+enter p_p12_p11_r2_region
+enter p_p12_p11_r2_over_hidden_region
+enter p_p12_p11_s21
+enter p_p12_r2_region
+enter p_p12_r2_over_hidden_region
+enter p_p12_s21
+exit p_p12_p11_s12
+exit p_p12_p11_r1_over_hidden_region
+exit p_p12_p11_r1_region
+exit p_p12_p11_s21
+exit p_p12_p11_r2_over_hidden_region
+exit p_p12_p11_r2_region
+exit p_p12_p11
+exit p_p12_r1_over_hidden_region
+exit p_p12_r1_region
+exit p_p12_s21
+exit p_p11_r2_over_hidden_region
+exit p_p12_r2_region
+exit p_p12
+exit p_r1_over_hidden_region
+exit p_r1_region
+enter p_r1_region
+enter p_r1_over_hidden_region
+enter p_p11
+enter p_p11_r1_region
+enter p_p11_r1_over_hidden_region
+enter p_p11_s11
+enter p_p11_r2_region
+enter p_p11_r2_over_hidden_region
+enter p_p11_s21
+exit p_s21
+exit p_r2_over_hidden_region
+exit p_r2_region
+  [['p_p11_s11', 'p_p11_s21'], 'p_s21']   F1 <-> [['p_p11_s11', 'p_p11_s21'], 'p_r2_under_hidden_region']
+Assert error from __main__:3589
+From: F1->[['p_p11_s11', 'p_p11_s21'], 'p_s21']
+Expecting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']]
+Observed:  [['p_p11_s11', 'p_p11_s21'], 'p_r2_under_hidden_region']
+Difference: [['p_p11_s11', 'p_p11_s21'], 'p_r2_under_hidden_region']
+Setting up watches.
+Watches established.
+-------------------------------------------------------------------------------

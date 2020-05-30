@@ -4,12 +4,95 @@
 == Evidence ([[evidence.parallel_example_4|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel_example_4|subgoals]])
-    Add the F0, B0 WTF events
+
+    Audit the entry/exit conditions for each transition:
 
   *What is the problem?*
-    These features aren't implemented yet.
+
+    Your tests only look at the beginning states and end states, you need to
+    look at the intermediate steps and confirm you haven't left any bugs in the
+    system:
+
+    Audit:
+      * [X] start
+      * [X] to_p
+      * [X] to_p
+      * [X] e4
+      * [X] e1
+      * [X] e2
+      * [X] C0
+      * [X] e4
+      * [X] e1
+      * [X] e2
+      * [X] to_p
+      * [X] e4
+      * [X] e1
+      * [X] to_o
+      * [X] E0
+      * [X] E1
+      * [X] E2
+      * [X] C0
+      * [X] E2
+      * [X] E0
+      * [X] C0
+      * [X] G1
+      * [X] A1
+      * [X] G0
+      * [X] A1
+      * [X] F1
+      * [X] A1
+      * [X] G0
+      * [X] I1
+      * [X] e1
+      * [X] G3
+      * [X] C0
+      * [X] C1
+      * [X] E0
+      * [X] A0
+      * [X] e1
+      * [X] B1
+      * [X] D1
+      * [X] to_p
+      * [X] D0
+      * [X] to_p
+      * [X] C0
+      * [X] H1
+      * [X] to_p
+      * [X] H0
+      * [X] to_p
+      * [X] C0
+      * [X] D2
+      * [X] to_p
+      * [X] e4
+      * [X] D3
+      * [X] to_p
+      * [X] F1
+      * [X] D4
+      * [X] to_s
+      * [X] F0
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+
+    With the current design, there can be no entry and exit conditions for the
+    regions.  If there are, then the I1 dynamics will not work.  The I1 is a
+    BOUNCE_SAME_META_SIGNAL.  It exits the region in which it is running in order to
+    re-engage with that regions INIT_META_SIGNAL handling.  This can be changed, but
+    the region entry/exit was just a bonus, it wasn't part of the original
+    specification, but if we include it, were are including a bug.  If I change
+    it, it will be a lot of effort exerted for something that doesn't matter that
+    much.  This applies to D3 as well.
+
+    To setup auto-testing:
+
+      1) Change the tmux display time to 4 seconds
+
+        ctrl-A :
+        set -g display-time 4000
+
+      2) In the terminal setup a watch command:
+
+        while inotifywait -e modify 4th_example; do python 4th_example.py && tmux display-message "SUCCESS" || tmux display-message "FAILURE"; done
+
 
     *How To:*
 
@@ -48,6 +131,7 @@
       If you are tired, pick an easy goal, if you are fresh pick a hard goal
 
       *Easy Goals:*
+      * [X] Add bug directory and bug reports
       * [ ] Audit the entry/exit conditions for every WTF.  Create a bug listing
             for anything that needs to be fixed.
       * [ ] Remove references to outmost for final_signal_name handling, use
@@ -58,7 +142,10 @@
       * [ ] Integrate meta_init into meta_trans
 
       *Harder Goals:*
+      * [ ] Why does removing pdb as import cause the F1 test to fail?
       * [ ] Add META_HOOKS
+      * [ ] Find a way to get rid of the timeout in the test.  The statechart
+            should able to tell you when it is done or not.
       * [ ] Exclusive Transitions into a parallel state. (this will require a
             change in the drawing techniques)
       * [ ] Create a new, comprehensive topological map, refactor your existing

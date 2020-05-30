@@ -1,9 +1,9 @@
-
 import re
 import pdb
 import time
 import inspect
 import logging
+import pprint as xprint
 from functools import wraps
 from functools import partial
 from functools import lru_cache
@@ -16,9 +16,8 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'H0'
+event_to_investigate = 'F0'
 
-import pprint as xprint
 def pp(item):
   xprint.pprint(item)
 
@@ -178,13 +177,10 @@ def othogonal_state(fn):
 
     # dynamically assign the inner attribute
     fn_as_s = f_to_s(fn)
-    try:
-      if fn_as_s not in region.inners:
-        region.inners[fn_as_s] = None
-        if fn_as_s in region.outmost.regions:
-          region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
-    except:
-      import pdb; pdb.set_trace()
+    if fn_as_s not in region.inners:
+      region.inners[fn_as_s] = None
+      if fn_as_s in region.outmost.regions:
+        region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
 
     # these can be trampled as a side effect of a search (meta_init, meta_trans)
     # so make sure you salt their results away when you use these functions
@@ -1557,11 +1553,12 @@ def p_p11(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == r.state_fn:
+    if _state.__name__ == r.state_fn.__name__:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      status = r.trans(_state)
+      if r.within(bound=r.state_fn, query=_state):
+        status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
@@ -1976,13 +1973,12 @@ def p_p12(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    #if e.payload.springer == 'D4':
-    #  import pdb; pdb.set_trace()
-    if _state == r.state_fn:
+    if _state.__name__ == r.state_fn.__name__:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      status = r.trans(_state)
+      if r.within(bound=r.state_fn, query=_state):
+        status = r.trans(_state)
   # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
     r.scribble(e.signal_name)
@@ -2157,11 +2153,12 @@ def p_p12_p11(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == r.state_fn:
+    if _state.__name__ == r.state_fn.__name__:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      status = r.trans(_state)
+      if r.within(bound=r.state_fn, query=_state):
+        status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
     status = r.trans(p_p12_s12)
   elif(e.signal == signals.exit_region):
@@ -2768,6 +2765,7 @@ def p_p22(r, e):
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     # search for INIT_META_SIGNAL
+    print("enter p_p22")
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
@@ -2810,7 +2808,7 @@ def p_p22(r, e):
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if _state == r.state_fn:
+    if _state.__name__ == r.state_fn.__name__:
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
@@ -3143,10 +3141,16 @@ def outer_state(self, e):
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "E0")):
-    pprint("enter outer_state")
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
     _e = self.meta_init(r=self, t=p_p11_s22, s=outer_state, sig=e.signal_name)
+    self.post_fifo(_e.payload.event)
+    #self.live_spy_callback(ps(_e))
+    #self.complete_circuit()
+    status = self.trans(_e.payload.state)
+  elif(self.token_match(e.signal_name, "B0")):
+    _e = self.meta_init(r=self, t=p_p22, s=outer_state, sig=e.signal_name)
+    investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
     #self.live_spy_callback(ps(_e))
     #self.complete_circuit()
@@ -3168,6 +3172,13 @@ def some_other_state(self, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     pprint("exit some_other_state")
     status = return_status.HANDLED
+  elif(self.token_match(e.signal_name, "F0")):
+    _e = self.meta_init(r=self, t=p_p22_s21, s=some_other_state, sig=e.signal_name)
+    investigate(self, e, _e)
+    self.post_fifo(_e.payload.event)
+    #self.live_spy_callback(ps(_e))
+    #self.complete_circuit()
+    status = self.trans(_e.payload.state)
   elif(e.signal == signals.F0):
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer_state".format(e.signal_name))
@@ -3316,8 +3327,6 @@ if __name__ == '__main__':
       #  string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
       #  print(string1)
       time.sleep(duration)
-      #if sig == 'F1':
-      #  import pdb; pdb.set_trace()
       active_states = example.active_states()[:]
       string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
       string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
@@ -3339,10 +3348,8 @@ if __name__ == '__main__':
         print("Expecting: {}".format(expected_result))
         print("Observed:  {}".format(active_states))
         print("Difference: {}".format(list_difference))
-        #import pdb; pdb.set_trace()
         example.active_states()
-        time.sleep(1000)
-        exit(0)
+        exit(1)
       #assert active_states == expected_result
       return active_states
 
@@ -3536,7 +3543,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     old_results = build_test(
       sig='E0',
       expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
@@ -3583,8 +3589,9 @@ if __name__ == '__main__':
       sig='F1',
       expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result=old_results,
-      duration=0.4
+      duration=0.2
     )
+
 
     old_results = build_test(
       sig='A1',
@@ -3620,6 +3627,7 @@ if __name__ == '__main__':
       old_result = old_results,
       duration=0.2
     )
+
 
     old_results = build_test(
       sig='C0',
@@ -3705,6 +3713,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+
     old_results = build_test(
       sig='to_p',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
@@ -3768,6 +3777,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+
     old_results = build_test(
       sig='to_p',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
@@ -3779,7 +3789,7 @@ if __name__ == '__main__':
       sig='F1',
       expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result=old_results,
-      duration=0.4
+      duration=0.2
     )
 
     old_results = build_test(
@@ -3789,5 +3799,20 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    time.sleep(1000)
+
+    old_results = build_test(
+      sig='to_s',
+      expected_result=['some_other_state'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='F0',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    exit(0)
 
