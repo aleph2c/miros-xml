@@ -354,6 +354,35 @@ of <code class="docutils literal notranslate"><span class="pre">p</span></code>.
   <span class="o">==</span> <span class="o">[[</span><span class="s1">&#39;p_p11_s12&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_r2_under_hidden_region&#39;</span><span class="o">]</span>
 </pre></div>
 </div>
+<hr class="docutils" />
+<p>I am going to support events which transition across regional and
+parallel boundaries.  To do this I need to consider which
+topologies to support:</p>
+<a class="reference external image-reference" href="_static/xml_chart_5_guidance.pdf"><img alt="_images/xml_chart_5_guidance.svg" class="align-center" src="_images/xml_chart_5_guidance.svg" /></a>
+<p>The topological diagrams on the left (Z) are taken from figure 4.6 on
+page 178 of Practical UML Statecharts in C/C++, Second Addition.
+We are supporting 4 different types of transitions, so we
+consider which of these topological diagrams map onto which
+transition type.  Not all transitions make sense, and the
+transitions mapped onto a nominal statechart have already been
+verified; so instead of having to test 32 possible topologies, we
+only have to map (at a minimum) 17 types of transitions.</p>
+<p>These 17 types of transitions are mapped onto the following test
+pattern:</p>
+<a class="reference external image-reference" href="_static/xml_chart_5.pdf"><img alt="_images/xml_chart_5.svg" class="align-center" src="_images/xml_chart_5.svg" /></a>
+<p>Note that there are more than 17 different events being tested.
+Some of the events are there to conveniently transition from test
+to test and others are there for testing the edge conditions of
+the design.</p>
+<p>An event is named as so:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>&lt;transition-type topology-type number&gt;</p></li>
+</ul>
+</div></blockquote>
+<p>For example, PC1, is testing a parallel transition of the C
+topology type.  PC1 is the first event that is testing this type
+of transition, so it is post-pended with the number 1.</p>
 </div>
 <div class="section" id="context-and-terminology">
 <span id="recipes-context-and-terminology"></span><h2><a class="toc-backref" href="#id6">Context and Terminology</a><a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">¶</a></h2>

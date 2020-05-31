@@ -1,109 +1,362 @@
 [[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
+
 *Parallel*
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]])
 
-    Successfully get over the wall with G3
-    To implement parallel regions to an arbitrary level with SCXML.
+    Create a new regression for the work done so far.  Make it
+    more rigorous.  (See xml_chart_5_guidance.pdf and
+    xml_chart_5.pdf)
 
   *What is the problem?*
 
-    Miros does not implement orthogonal regions, it only supports orthogonal
-    components.
+  *Discoveries:* ([[notes.parallel_example_4|notes]])
 
-    I have demonstrated in the past how to do with with miros, but only to one
-    level.  We would like parallel regions to work at an arbitrary level.
+    With the current design, there can be no entry and exit
+    conditions for the regions.  If there are, then the I1
+    dynamics will not work.  The I1 is a BOUNCE_SAME_META_SIGNAL.
+    It exits the region in which it is running in order to
+    re-engage with that regions INIT_META_SIGNAL handling.  This
+    can be changed, but the region entry/exit was just a bonus,
+    it wasn't part of the original specification, but if we
+    include it, were are including a bug.  If I change it, it
+    will be a lot of effort exerted for something that doesn't
+    matter that much.  This applies to D3 as well.
 
-    I do not understand this problem well enough to define the requirements for
-    the SCXML project.
+    To setup auto-testing:
 
-    *NOTE 1:* I do not know if I want to support the final behavior of the SCXML
-    requirement, since magically posting signals seems really stupid.  The
-    posting of events should happen by explicit design, not implicitly due to
-    someone's design preferences.
+      1) Change the tmux display time to 4 seconds
 
-    *NOTE 2:* this is actually a core requirement, not like other aspects of the
-    SCXML (noisy)
+        ctrl-A:
+        set -g display-time 4000
 
-  *Discoveries:* ([[notes.parallel|notes]])
+      2) In the terminal setup a watch command:
 
-  [[file:///C:/github/miros/docs/othogonalregions.html|old write up]]
-  [[https://github.com/aleph2c/miros/blob/master/examples/xml_chart.py|old code]]
+        while inotifywait -e modify 4th_example; do python xml_chart_5.py && tmux display-message "SUCCESS" || tmux display-message "FAILURE"; done
+
+    *How To:*
+
+    To track a meta event (1-4 takes about 10 minutes to set up):
+      1. place a print(ps(_e)) at it's source
+      2. write out a list in this document, one line for each
+         line of the above output... associate each line with a
+         Vim marker, {a, b, c, ... }
+      3. for each line in this listing go to the corresponding
+         location in the code and add an 'investigate(r, e, _e)'.
+         Assign the proper marker
+      4. add a time delay after the broken test in the outer
+         program so that you can break into the statechart thread
+         and the program will continue to run.
+      5. for each step look at the log and look poke around in
+         the investigate location of the marked spot.
+
+    *Warnings:*
+
+    The lazy-inners thing is causing me trouble now (can you make
+    this go away?)
+
+    Since the state functions are decoratored, it is very tricky
+    to compare the using the '==' operator.  Technically
+    speaking, a decorated function and its naked version are not
+    equivalent.  To avoid what could be a very nasty and hard to
+    track bug, compare the string names of function not the
+    functions directly. (You can use the __wrapped__ magic
+    method!)
+
+    Do not use post_fifo or post_lifo within mini-steps.  Instead
+    use _post_fifo and _post_lifo and let the driver push all of
+    the intermediate events through the chart.
+
+    The use of the rr.fns dict has made it harder to troubleshoot
+    problems because I can not grep and search for the functions
+    I want to search for directly.  Try to make your code
+    grep-able.
+
+    *Future Goals*:
+
+      If you are tired, pick an easy goal, if you are fresh pick
+      a hard goal
+
+      *Easy Goals:*
+      * [X] Add bug directory and bug reports
+      * [ ] Audit the entry/exit conditions for every WTF.
+            Create a bug listing for anything that needs to be
+            fixed.
+      * [ ] Remove references to outmost for final_signal_name
+            handling, use same, inner or outer attributes
+            instead. (figure out which is appropriate)
+      * [ ] Write up trouble shooting method for tracking WTF event
+      * [ ] Integrate build_onion into meta_init
+      * [ ] Integrate meta_init into meta_trans
+
+      *Harder Goals:*
+      * [ ] Why does removing pdb as import cause the F1 test to
+            fail?
+      * [ ] Add META_HOOKS
+      * [ ] Find a way to get rid of the timeout in the test.
+            The statechart should able to tell you when it is
+            done or not.
+      * [ ] Exclusive Transitions into a parallel state. (this
+            will require a change in the drawing techniques)
+      * [ ] Create a new, comprehensive topological map, refactor
+            your existing code until you can map all WTF events.
+            Include duplicate WTF events.
+      * [ ] Turn meta_trans into an HSM
+      * [ ] Adjust the log output to look like the print output
+      * [ ] Move the meta_init, meta_trans and all of surrounding
+            minor event drivers into one API.  The idea here is
+            to make the interface extremely easy to use.
+      * [ ] Need a mechanism to clear the graph's cache.  This
+            will be needed when an XML diagram is being used to
+            over-write and inner part of a program.
+
+    Pre-made check lists for consistency work:
+
+    Full Audit:
+    * [ ] RA1
+    * [ ] RB1
+    * [ ] RC1
+    * [ ] RC2
+    * [ ] RD1
+    * [ ] RE1
+    * [ ] RF1
+    * [ ] RG1
+    * [ ] RF1
+    * [ ] SRB1
+    * [ ] SRD1
+    * [ ] SRD2
+    * [ ] SRD3
+    * [ ] SRE1
+    * [ ] SRE2
+    * [ ] SRE3
+    * [ ] SRF1
+    * [ ] SRG1
+    * [ ] SRH1
+    * [ ] SRH2
+    * [ ] SRH3
+    * [ ] PC1
+    * [ ] PF1
+    * [ ] PG1
+    * [ ] PG2
+    * [ ] SA1
+    * [ ] SB1
+    * [ ] SC1
+    * [ ] SD1
+    * [ ] SH1
+
+    R Audit:
+    * [ ] RA1
+    * [ ] RB1
+    * [ ] RC1
+    * [ ] RC2
+    * [ ] RD1
+    * [ ] RE1
+    * [ ] RF1
+    * [ ] RG1
+    * [ ] RF1
+
+    SR Audit:
+    * [ ] SRB1
+    * [ ] SRD1
+    * [ ] SRD2
+    * [ ] SRD3
+    * [ ] SRE1
+    * [ ] SRE2
+    * [ ] SRE3
+    * [ ] SRF1
+    * [ ] SRG1
+    * [ ] SRH1
+    * [ ] SRH2
+    * [ ] SRH3
+
+    P Audit:
+    * [ ] PC1
+    * [ ] PF1
+    * [ ] PG1
+    * [ ] PG2
+
+    S Audit:
+    * [ ] SA1
+    * [ ] SB1
+    * [ ] SC1
+    * [ ] SD1
+    * [ ] SH1
+    
+    Injectors:
+      * [ ] p (active object)
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+
+    Outer Injectors:
+      * [ ] p (active object)
+
+    Inner Injectors:
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+
+    Region State Functions:
+      * [ ] p_p11_r1_region
+      * [ ] p_p12_p11_r1_region
+      * [ ] p_p11_r2_region
+      * [ ] p_p12_p11_r1_region
+      * [ ] p_p12_p11_r2_region
+      * [ ] p_p12_r1_region
+      * [ ] p_p12_r2_region
+      * [ ] p_p22_r1_region
+      * [ ] p_p22_r2_region
+      * [ ] p_r1_region
+      * [ ] p_r2_region
+
+    Under Region State Functions:
+      * [ ] p_p11_r1_under_hidden_region
+      * [ ] p_p11_r2_under_hidden_region
+      * [ ] p_p12_p11_r1_under_hidden_region
+      * [ ] p_p12_p11_r2_under_hidden_region
+      * [ ] p_p12_r1_under_hidden_region
+      * [ ] p_p12_r2_under_hidden_region
+      * [ ] p_p22_r1_under_hidden_region
+      * [ ] p_p22_r2_under_hidden_region
+      * [ ] p_r1_under_hidden_region
+      * [ ] p_r2_under_hidden_region
+
+    Over Region State Functions:
+      * [ ] p_p11_r1_over_hidden_region
+      * [ ] p_p11_r2_over_hidden_region
+      * [ ] p_p12_p11_r1_over_hidden_region
+      * [ ] p_p12_p11_r2_over_hidden_region
+      * [ ] p_p12_r1_over_hidden_region
+      * [ ] p_p12_r2_over_hidden_region
+      * [ ] p_p22_r1_over_hidden_region
+      * [ ] p_p22_r2_over_hidden_region
+      * [ ] p_r1_over_hidden_region
+      * [ ] p_r2_over_hidden_region
+
+    Active Object States:
+      * [ ] outer_state
+      * [ ] p (injector)
+      * [ ] some_other_state
+
+    Other Region States (not injectors or regions):
+      * [ ] p_p11_r1_final
+      * [ ] p_p11_r1_over_hidden_region
+      * [ ] p_p11_r1_under_hidden_region
+      * [ ] p_p11_r2_final
+      * [ ] p_p11_r2_over_hidden_region
+      * [ ] p_p11_r2_under_hidden_region
+      * [ ] p_p11_s11
+      * [ ] p_p11_s12
+      * [ ] p_p11_s21
+      * [ ] p_p11_s22
+      * [ ] p_p12_p11
+      * [ ] p_p12_p11_r1_over_hidden_region
+      * [ ] p_p12_p11_r1_under_hidden_region
+      * [ ] p_p12_p11_r2_over_hidden_region
+      * [ ] p_p12_p11_r2_under_hidden_region
+      * [ ] p_p12_p11_s11
+      * [ ] p_p12_p11_s12
+      * [ ] p_p12_p11_s21
+      * [ ] p_p12_r1_final
+      * [ ] p_p12_r1_over_hidden_region
+      * [ ] p_p12_r1_under_hidden_region
+      * [ ] p_p12_r2_final
+      * [ ] p_p12_r2_over_hidden_region
+      * [ ] p_p12_r2_under_hidden_region
+      * [ ] p_p12_s12
+      * [ ] p_p12_s21
+      * [ ] p_p12_s22
+      * [ ] p_p22_r1_final
+      * [ ] p_p22_r1_over_hidden_region
+      * [ ] p_p22_r1_under_hidden_region
+      * [ ] p_p22_r2_final
+      * [ ] p_p22_r2_over_hidden_region
+      * [ ] p_p22_r2_under_hidden_region
+      * [ ] p_p22_s11
+      * [ ] p_p22_s12
+      * [ ] p_p22_s21
+      * [ ] p_p22_s22
+      * [ ] p_r1_final
+      * [ ] p_r1_over_hidden_region
+      * [ ] p_r1_region
+      * [ ] p_r1_under_hidden_region
+      * [ ] p_r2_final
+      * [ ] p_r2_over_hidden_region
+      * [ ] p_r2_region
+      * [ ] p_r2_under_hidden_region
+      * [ ] p_s21
+
+    Region notes:
 
 = Orient =
-  *Symptoms:* [[symptoms.parallel|symptoms]]
+  *Symptoms:* [[symptoms.parallel_example_4|symptoms]]
 
-== Questions ==
-  *Questions for Parallel: >= 5*
-    Can you think of anyway to speed up your feedback cycle?
-    Do you have enough information?
-    Is your information organized?
-    Can you reproduce the problem?
-    Can you simplify your test?
-    Do you have something to baseline from?
-    What recently changed?
-    What don't you know that you need to know?
+  *Assumptions (at first invisible)*
+    To find your assumptions, look for two pieces of evidence that contradict
+    each other. (may have to wait a couple of loops)
 
-  *Assumptions*
-    You have to use orthogonal components and keep everything in one thread.
-    You don't, you could just build multi-threaded charts using publish and
-    subscribe.
+  *Questions for :*
+
+  === Pre trouble-shooting questions ===
+    * [ ] Do you have enough information?
+    * [ ] Is your information organized?
+    * [ ] Can you draw a diagram of the components and their
+          interactions?
+    * [ ] Do you need to write some code to make it easier to
+          see?
+    * [ ] Can you think of anyway to speed up your feedback cycle?
+
+    * [ ] Is it a repair or a pioneering problem?  Did it work
+          once before, or did it work somewhere else?  Yes:
+          Repair, No: Pioneering.
+
+  === Repair (Complexity increases exponentially) ===
+    * [ ] Can you test the individual components to reduce
+          complexity?
+    * [ ] Can you exchange components?
+    * [ ] Can you reduce the number of interactions?
+    * [ ] Are you continuing event though you know that something
+          you have previously tested isn't working?
+    * [ ] Has a thing you have previously tested fooled you into
+          thinking it works, when it doesn't work? (Never assume
+          something is right before you have checked it twice)
+
+  == Pioneering ==
+    * [ ] Has someone else solved this before (search)? Can you
+          turn this into a repair?
+    * [ ] Do you have something to baseline from?
+    * [ ] Looking under the problem, are you focused on the right
+          goals?  Are you stuck on solving a hard problem, when
+          there is an easy problem?
+    * [ ] Do you understand how your existing system works?  If
+          not, can you draw diagrams and describe how it works
+          before you continue?
+    * [ ] What don't you know that you need to know?
+
+  == Custom Questions: (>=5) ==
+    * [ ] Can you brute force it?
+    * [ ] Can you change the bounce and trans signals to make
+          them consistently named?
+    * [ ] Can you find a way to detect this kind of transition,
+          without damaging the existing WTF infrastructure?
+    * [ ] Did you generalize the outer_state function knowledge
+          from your last push?
 
 = Decide =
+
   [[#Questions]]
   *Research Needed For?:*
 
-  In the experiment folder, using the ActiveObject class and flat state methods
-  implement:
-
-  * [X] xml_chart_2
-  * [ ] xml_chart_3 
-
-  Add requirements/hypothesis/ideas to this plan as you work through the problem.
-
-  In your example code automate the construction of a set of regions
-  parallel_example_1.py:ScxmlChart:107,115
-
-  Timebox your work, really hustle in how you attack these problems.  Use your
-  previous work as a reference.
-
   [[#Questions]]
-  *Idea/Hypotheses for Parallel: >=5*
-  * [ ] Add sub-project from the xml_chart_3 diagram, because it is so hard to
-        implement 
-  * [ ] Extend instrumentation for p as described in the xml_chart example above.
-  * [ ] Need to find a way to recursively post to outer charts, see
-        post_p_final_to_outer_if_ready to see why this is required
-  * [ ] Need a way to name final events given a p region name, see
-        parallel_example_1.py:ScxmlChart:107
-  * [ ] Need a way to progammatically construct p_regions given p region state
-        tags: parallel_example_1.py:ScxmlChart:107
-  * [ ] Need a way to make hidden-region-state names given p region state
-        tags: parallel_example_1.py:ScxmlChart:107
-  * [ ] Need a way to make region-state-names given p region state
-        tags: parallel_example_1.py:ScxmlChart:107
-  * [ ] Build template for a parallel region state, using p_spy_on
-  * [ ] Build template for a parallel region state for globs, using p_spy_on
-  * [ ] Need to inject the p name in front of each state which it is within so
-        that the code can be read at a glance
-  * [ ] The ScxmlChart will have a regions dict which who's keys are the names
-        of the 'p' tags in the xml documente.  If a 'p' tag contains inner 'p'
-        tags, they will just be added to the regions dict in a flat manner.  The
-        recursive property will be handled by the outer state pointers of the
-        state functions, and by the 'p' junctions into a given parallel region.
-        See parallel_example_1.py:p:413
-  * [ ] According to this stupid SCXML standard, any p region will have to
-        implicitly have a final state, from which the chart will post a
-        magically named signal when all regions are in their final state.
-        Should I add this?  It could add a lot of complexity (technical debt)
-        and it could just be added to the XML in an explicit fashion
+  *Idea/Hypotheses for Parallel Example 4: >=5*
 
   *Chosen Research-Goal/Hypothesis*
 
-
-== Plan ([[plan.parallel|plan]]) ==
+== Plan ([[plan.parallel_example_4|plan]]) ==
 
 = Act =
 

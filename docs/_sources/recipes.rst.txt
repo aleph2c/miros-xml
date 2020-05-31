@@ -411,6 +411,46 @@ To summarize:
   [['p_p11_s12', 'p_p11_s21'], 'p_s21'] <- G1 \
     == [['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region']
 
+
+----
+
+I am going to support events which transition across regional and
+parallel boundaries.  To do this I need to consider which
+topologies to support:
+
+.. image:: _static/xml_chart_5_guidance.svg
+    :target: _static/xml_chart_5_guidance.pdf
+    :align: center
+
+The topological diagrams on the left (Z) are taken from figure 4.6 on
+page 178 of Practical UML Statecharts in C/C++, Second Addition.
+We are supporting 4 different types of transitions, so we
+consider which of these topological diagrams map onto which
+transition type.  Not all transitions make sense, and the
+transitions mapped onto a nominal statechart have already been
+verified; so instead of having to test 32 possible topologies, we
+only have to map (at a minimum) 17 types of transitions.
+
+These 17 types of transitions are mapped onto the following test
+pattern:
+
+.. image:: _static/xml_chart_5.svg
+    :target: _static/xml_chart_5.pdf
+    :align: center
+
+Note that there are more than 17 different events being tested.
+Some of the events are there to conveniently transition from test
+to test and others are there for testing the edge conditions of
+the design.
+
+An event is named as so:
+
+   * <transition-type topology-type number>
+
+For example, PC1, is testing a parallel transition of the C
+topology type.  PC1 is the first event that is testing this type
+of transition, so it is post-pended with the number 1.
+
 .. _recipes-context-and-terminology:
 
 Context and Terminology

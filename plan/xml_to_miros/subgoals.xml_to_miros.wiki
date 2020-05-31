@@ -1,15 +1,16 @@
 [[xml_to_miros]]
 = Subgoals: Support the following features =
+  * [ ] parallel [[parallel|link]]
   * [ ] scxml [[scxml|link]]
   * [ ] datamodel [[datamodel|link]]
-  * [ ] script
   * [ ] state [[state|link]]
   * [ ] transition [[transition|link]]
   * [ ] python in document [[python_in_document|link]]
   * [ ] meta init theory [[meta_init_theory|link]]
   * [ ] xml_chart_3 diagram [[xml_chart_3_diagram|link]]
   * [ ] meta_exit [[meta_exit|link]]
-  * [ ] parallel [[parallel|link]]
+  * [ ] understanding xml [[understanding_xml|link]]
+  * [ ] script
   * [ ] initial
   * [ ] final
   * [ ] onentry
@@ -32,4 +33,3 @@
   * [ ] invoke
   * [ ] finalize
   * [ ] basic http I/O processor
-  * [ ] understanding xml [[understanding_xml|link]]
