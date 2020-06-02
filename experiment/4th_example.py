@@ -16,7 +16,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'F0'
+event_to_investigate = 'F1'
 
 def pp(item):
   xprint.pprint(item)

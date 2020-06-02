@@ -10,6 +10,20 @@
     more rigorous.  (See xml_chart_5_guidance.pdf and
     xml_chart_5.pdf)
 
+    Make the logging system usable.
+    Here is a great article about logging... at this technology
+    to this project:
+    
+    Read this first:
+    http://zetcode.com/python/logging/
+    
+    
+    https://martinheinz.dev/blog/24
+    
+    much better:
+    
+    https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
+
   *What is the problem?*
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
@@ -115,39 +129,36 @@
     Pre-made check lists for consistency work:
 
     Full Audit:
-    * [ ] RA1
-    * [ ] RB1
-    * [ ] RC1
-    * [ ] RC2
-    * [ ] RD1
-    * [ ] RE1
+    * [X] RB1
+    * [X] RC1
+    * [X] RC2
+    * [X] RD1
+    * [X] RE1
     * [ ] RF1
     * [ ] RG1
-    * [ ] RF1
-    * [ ] SRB1
-    * [ ] SRD1
-    * [ ] SRD2
-    * [ ] SRD3
-    * [ ] SRE1
-    * [ ] SRE2
-    * [ ] SRE3
-    * [ ] SRF1
-    * [ ] SRG1
-    * [ ] SRH1
-    * [ ] SRH2
-    * [ ] SRH3
-    * [ ] PC1
-    * [ ] PF1
-    * [ ] PG1
-    * [ ] PG2
-    * [ ] SA1
-    * [ ] SB1
-    * [ ] SC1
-    * [ ] SD1
-    * [ ] SH1
+    * [X] SRB1
+    * [X] SRD1
+    * [X] SRD2
+    * [X] SRE1
+    * [X] SRE2
+    * [X] SRE3
+    * [X] SRF1
+    * [X] SRG1
+    * [X] SRH1
+    * [X] SRH2
+    * [X] SRH3
+    * [X] PC1
+    * [X] PF1
+    * [X] PG1
+    * [X] PG2
+    * [X] SA1
+    * [X] SB1
+    * [X] SC1
+    * [X] SD1
+    * [X] SD2
+    * [X] SH1
 
     R Audit:
-    * [ ] RA1
     * [ ] RB1
     * [ ] RC1
     * [ ] RC2
@@ -158,38 +169,38 @@
     * [ ] RF1
 
     SR Audit:
-    * [ ] SRB1
-    * [ ] SRD1
-    * [ ] SRD2
-    * [ ] SRD3
-    * [ ] SRE1
-    * [ ] SRE2
-    * [ ] SRE3
-    * [ ] SRF1
-    * [ ] SRG1
-    * [ ] SRH1
-    * [ ] SRH2
-    * [ ] SRH3
+    * [X] SRB1
+    * [X] SRD1
+    * [X] SRD2
+    * [X] SRE1
+    * [X] SRE2
+    * [X] SRE3
+    * [X] SRF1
+    * [X] SRG1
+    * [X] SRH1
+    * [X] SRH2
+    * [X] SRH3
 
     P Audit:
-    * [ ] PC1
-    * [ ] PF1
-    * [ ] PG1
-    * [ ] PG2
+    * [X] PC1
+    * [X] PF1
+    * [X] PG1
+    * [X] PG2
 
     S Audit:
-    * [ ] SA1
-    * [ ] SB1
-    * [ ] SC1
-    * [ ] SD1
-    * [ ] SH1
-    
+    * [X] SA1
+    * [X] SB1
+    * [X] SC1
+    * [X] SD1
+    * [X] SD2
+    * [X] SH1
+
     Injectors:
       * [ ] p (active object)
-      * [ ] p_p11 (Region)
-      * [ ] p_p12 (Region)
-      * [ ] p_p12_p11 (Region)
-      * [ ] p_p22 (Region)
+      * [X] p_p11 (Region)
+      * [X] p_p12 (Region)
+      * [X] p_p12_p11 (Region)
+      * [X] p_p22 (Region)
 
     Outer Injectors:
       * [ ] p (active object)
