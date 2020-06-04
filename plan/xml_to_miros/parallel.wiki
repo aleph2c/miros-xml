@@ -13,15 +13,15 @@
     Make the logging system usable.
     Here is a great article about logging... at this technology
     to this project:
-    
+
     Read this first:
     http://zetcode.com/python/logging/
-    
-    
+
+
     https://martinheinz.dev/blog/24
-    
+
     much better:
-    
+
     https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
 
   *What is the problem?*

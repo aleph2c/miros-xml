@@ -1,9 +1,9 @@
 version: 1
-disable_existing_loggers: true
+disable_existing_loggers: false
 
 formatters:
   simple:
-    format: "[%(asctime)s]:%(lineno)d %(levelname)s:: %(message)s"
+    format: "[%(asctime)s] %(message)s"
     datefmt: '%M:%S'
   extended:
     format: "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s"
@@ -11,13 +11,12 @@ formatters:
 
 handlers:
   console_handler:  # handler which will log into stdout
+    level: DEBUG  # at what level to set the console
     class: logging.StreamHandler
-    level: DEBUG
     formatter: simple  # Use formatter defined above
     stream: ext://sys.stdout
   xml_chart_5_handler_simple:  # handler which will log into file
     class: logging.handlers.RotatingFileHandler
-    level: DEBUG
     formatter: simple  # Use formatter defined above
     filename: ./xml_chart_5.log
     maxBytes: 10485760 # 10MB
@@ -25,7 +24,6 @@ handlers:
     encoding: utf8
   xml_chart_5_handler_extended:  # handler which will log into file
     class: logging.handlers.RotatingFileHandler
-    level: DEBUG
     formatter: extended  # Use formatter defined above
     filename: ./xml_chart_5_.log
     maxBytes: 10485760 # 10MB
@@ -33,11 +31,10 @@ handlers:
     encoding: utf8
 
 root:  # Loggers are organized in hierarchy - this is the root logger config
-  level: ERROR
-  handlers: [console_handler, xml_chart_5_handler_extended]  # Attaches both handler defined above
+  handlers: [console_handler]   # attach a console handler
 
 loggers:  # Defines descendants of root logger
   xml_chart_5:  # Logger for "xml_chart"
-    level: DEBUG
+    level: INFO
     handlers: [xml_chart_5_handler_simple]  # Will only use "file" handler defined above
-    propagate: no  # Will not propagate logs to "root" logger
+    propagate: yes  # shall we propogate our messages to the root?

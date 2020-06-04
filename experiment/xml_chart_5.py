@@ -1,15 +1,16 @@
 import re
-import pdb
 import time
 import yaml
 import inspect
 import logging
 import pprint as xprint
-from logging import config
 from functools import wraps
 from functools import partial
 from functools import lru_cache
 from collections import namedtuple
+
+# writing it this way to avoid pyflake errors
+from logging import config as logging_config
 
 from miros import Event
 from miros import spy_on
@@ -148,7 +149,8 @@ def payload_string(e):
 ps = payload_string
 
 def pprint(value):
-  print(value)
+  pass
+  (value)
 
 def state(fn):
   '''Statechart state function wrapper, provides instrumentation and
@@ -157,13 +159,29 @@ def state(fn):
   @wraps(fn)
   def _state(chart, *args):
     fn_as_s = fn.__name__
+
+    if len(args) == 1:
+      e = args[0]
+    else:
+      e = args[-1]
+
     if fn_as_s not in chart.regions:
       chart.inner = None
     else:
       chart.inner = chart.regions[fn_as_s]
     chart.current_function_name = fn_as_s
 
-    status = spy_on(fn)(chart, *args)
+    chart.state_name = fn_as_s
+    chart.state_fn = fn
+
+    if(e.signal == signals.REFLECTION_SIGNAL):
+      # We are no longer going to return a ReturnStatus object
+      # instead we write the function name as a string
+      status = fn_as_s
+      return status
+
+    #status = spy_on(fn)(chart, *args)
+    status = fn(chart, e)
     return status
   return _state
 
@@ -297,10 +315,14 @@ class Region(HsmWithQueues):
 
   def scribble(self, string):
     '''Add some state context to the spy instrumention'''
-    # the current_function_name is set by the orthongal_state decoractor
-    if self.outmost.live_spy and self.outmost.instrumented:
-      self.outmost.live_spy_callback("[{}] {}".format(
-        self.current_function_name, string))
+    self.outmost.scribble("[{}] {}".format(
+      self.current_function_name, string)
+    )
+
+  def _scribble(self, string):
+    self.outmost._scribble("[{}] {}".format(
+      self.current_function_name, string)
+    )
 
   def post_p_final_to_outmost_if_ready(self):
     ready = False if self.regions is None and len(self.regions) < 1 else True
@@ -378,10 +400,14 @@ class Region(HsmWithQueues):
     self.state.fun = old_fun
     return result
 
-  def region_spy(self, e):
+  def p_spy(self, e):
     self.outmost.live_spy_callback(
       '{}:{}'.format(e.signal_name, self.state_name)
     )
+
+  def _p_spy(self, e):
+    string = "[x] {}:{}".format(e.signal_name, self.state_name)
+    self.outmost._scribble(string)
 
   @lru_cache(maxsize=32)
   def has_state(self, state):
@@ -473,17 +499,54 @@ class Region(HsmWithQueues):
   def _complete_circuit(self):
     super().complete_circuit()
 
-
 class InstrumentedActiveObject(ActiveObject):
   def __init__(self, name, log_config):
+    '''Add the logging object and tweak the spy and trace features of the
+       statechart to use this logging object.  This class is intended to be
+       subclassed.
+
+    **Note**:
+       "logger_config.yaml" must exist in the same directory as this file.
+
+       The log_config argument will contain a key contained in the
+       "logger_config.yaml" file, in this same directory.  If you would like to
+       change how the logger is behaving, like it's handler, its formatter, log
+       level, edit this "logger_config.yaml" file instead of changing the code
+       in this class.
+
+    **Args**:
+       | ``name`` (str): The name of this chart
+       | ``log_config`` (str): The key of the logger_config.yaml which describes
+       |                       the kind of handler used by this logger
+
+    **Returns**:
+      NA: Intended to be subclassed only
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+      # Since this Class will be subclassed by XmlChart, we will show the
+      # XmlChart's construction in this example.  Note how the ``log_config``
+      # argument is used.  You will find a ``xml_chart_5`` key under the
+      # ``loggers`` keyword in the "logger_config.yaml" file which corresponds
+      # to the way we want our chart's logger to behave.
+      example = XmlChart(
+        name='x',
+        log_config="xml_chart_5",
+        live_trace=False,
+        live_spy=True,
+      )
+
+    '''
     super().__init__(name)
 
     self.log_config = log_config
     self.old_states = None
 
     with open('logger_config.yaml') as f:
-      log_config_dict = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_config_dict)
+      _dict = yaml.safe_load(f.read())
+    logging_config.dictConfig(_dict)
     self.logger = logging.getLogger(self.log_config)
     self.logger.rotation_file_name = self.log_config
     self.clear_log()
@@ -500,18 +563,28 @@ class InstrumentedActiveObject(ActiveObject):
     trace = "{}<-{} == {}".format(old_states, signal_name, new_states)
 
     #self.print(trace_without_datetime)
-    self.logger.debug("T: " + trace)
+    self.logger.info("T: " + trace)
     self.old_states = new_states
 
   def spy_callback(self, spy):
     '''spy with machine name pre-pending'''
     #self.print(spy)
-    self.logger.debug("S: [%s] %s" % (self.name, spy))
+    self.logger.info("S: [%s] %s" % (self.name, spy))
+
+  def scribble(self, string):
+    self.logger.info("S: {}".format(string))
+
+  def _scribble(self, string):
+    self.logger.debug("S: {}".format(string))
 
   def report(self, message):
-    logging.debug("R:%s" % message)
+    self.logger.warning("R: --- %s" % message)
+
+  def _report(self, message):
+    self.logger.warning("R: --- %s" % message)
 
   def clear_log(self):
+    '''Clear this chart's log files'''
     for hdlr in self.logger.handlers[:]:
       if(isinstance(hdlr, logging.FileHandler) or
          isinstance(hdlr, logging.RotatingFileHandler)):
@@ -1391,6 +1464,12 @@ class XmlChart(InstrumentedActiveObject):
     self.state.fun = old_fun
     return result
 
+  def p_spy(self, e):
+    self.live_spy_callback(
+      '{}:{}'.format(e.signal_name, self.state_name)
+    )
+
+
 ################################################################################
 #                                   p region                                   #
 ################################################################################
@@ -1399,9 +1478,13 @@ class XmlChart(InstrumentedActiveObject):
 def p_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_r1_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -1412,9 +1495,10 @@ def p_r1_under_hidden_region(r, e):
 def p_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -1441,8 +1525,10 @@ def p_r1_region(r, e):
       if _e is not None:
         r._post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -1451,18 +1537,20 @@ def p_r1_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_r1_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r1_under_hidden_region
@@ -1473,12 +1561,16 @@ def p_r1_region(r, e):
 def p_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_r1_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r1_region
@@ -1496,14 +1588,16 @@ def p_p11(r, e):
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11")
-    r.region_spy(e)
+    r.p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -1512,20 +1606,20 @@ def p_p11(r, e):
        r.token_match(e.signal_name, "SRH3") or
        r.token_match(e.signal_name, "PG2")
        ):
-    r.region_spy(e)
+    r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12)
   elif r.token_match(e.signal_name, "C0"):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12)
   elif r.token_match(e.signal_name, "A0"):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p11)
   elif r.token_match(e.signal_name, "SRH2"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=middle, s=p_p11, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -1534,10 +1628,10 @@ def p_p11(r, e):
     else:
       status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "PF1"):
-    r.region_spy(e)
+    r.p_spy(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "PC1"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_p11,
@@ -1551,7 +1645,7 @@ def p_p11(r, e):
     else:
       status = return_status.UNHANDLED
   elif(r.token_match(e.signal_name, "RF1")):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -1562,7 +1656,7 @@ def p_p11(r, e):
       status = return_status.UNHANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
     status = return_status.HANDLED
-    r.region_spy(e)
+    r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if _state.__name__ == r.state_fn.__name__:
@@ -1572,7 +1666,7 @@ def p_p11(r, e):
       if r.within(bound=r.state_fn, query=_state):
         status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
-    r.region_spy(e)
+    r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     #if e.payload.springer == 'PC1':
@@ -1600,12 +1694,11 @@ def p_p11(r, e):
         r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.exit_region:
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
   elif e.signal == signals.EXIT_SIGNAL:
-    r.region_spy(e)
     r.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p_p11")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r1_over_hidden_region
@@ -1616,12 +1709,16 @@ def p_p11(r, e):
 def p_p11_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_p11_r1_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -1632,9 +1729,10 @@ def p_p11_r1_under_hidden_region(r, e):
 def p_p11_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -1661,8 +1759,10 @@ def p_p11_r1_region(r, e):
       if _e is not None:
         r._post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -1671,6 +1771,7 @@ def p_p11_r1_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p11_r1_region, _state):
@@ -1678,9 +1779,10 @@ def p_p11_r1_region(r, e):
       r.outer._post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p11_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r1_region")
+    r._p_spy(e)
     #r.inner.post_lifo(Event(signal=signals.exit_region))
     status = return_status.HANDLED
   else:
@@ -1692,12 +1794,16 @@ def p_p11_r1_region(r, e):
 def p_p11_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p11_r1_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r1_region
@@ -1708,15 +1814,16 @@ def p_p11_r1_over_hidden_region(r, e):
 def p_p11_s11(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_s11")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p11_s12)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_s11")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r1_over_hidden_region
@@ -1727,11 +1834,13 @@ def p_p11_s11(r, e):
 def p_p11_s12(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_s12")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "SRH3"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p, s=p_p11_s12, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -1740,11 +1849,10 @@ def p_p11_s12(r, e):
     else:
       status = return_status.UNHANDLED
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p11_r1_final)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_s12")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r1_over_hidden_region
@@ -1755,14 +1863,12 @@ def p_p11_s12(r, e):
 def p_p11_r1_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_r1_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_r1_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -1774,12 +1880,16 @@ def p_p11_r1_final(r, e):
 def p_p11_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_p11_r2_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r2_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r2_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -1790,10 +1900,11 @@ def p_p11_r2_under_hidden_region(r, e):
 def p_p11_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   # p_p11_s21
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -1814,8 +1925,10 @@ def p_p11_r2_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     investigate(r, e, _e)
     _state, _e = e.payload.state, e.payload.event
     for region in r.same._regions:
@@ -1824,15 +1937,17 @@ def p_p11_r2_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p11_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p11_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r2_under_hidden_region
@@ -1843,12 +1958,16 @@ def p_p11_r2_region(r, e):
 def p_p11_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p11_r2_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p11_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r2_region
@@ -1859,14 +1978,15 @@ def p_p11_r2_over_hidden_region(r, e):
 def p_p11_s21(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_s21")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     status = r.trans(p_p11_s22)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_s21")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r2_over_hidden_region
@@ -1879,11 +1999,13 @@ def p_p11_s22(r, e):
   '''
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_s22")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.PG2):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_p11_s22,
@@ -1898,20 +2020,19 @@ def p_p11_s22(r, e):
       status = return_status.UNHANDLED
 
   elif(r.token_match(e.signal_name, "F2")):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.meta_trans(r, t=p_p12_p11_s12, s=p_p11_s22, sig=e.signal_name)
     investigate(r, e, _e)
     r.outer.post_lifo(_e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p11_r2_final)
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p11_s21)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_s22")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r2_over_hidden_region
@@ -1922,14 +2043,12 @@ def p_p11_s22(r, e):
 def p_p11_r2_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p11_r2_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p11_r2_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -1941,14 +2060,12 @@ def p_p11_r2_final(r, e):
 def p_r1_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_r1_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_r1_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -1962,14 +2079,16 @@ def p_p12(r, e):
 
   # Enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12")
+    r.p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   # Any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -1979,13 +2098,13 @@ def p_p12(r, e):
        r.token_match(e.signal_name, "D4") or
        r.token_match(e.signal_name, "I1")
        ):
-    r.region_spy(e)
+    r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
 
   # All internal injectors will have to have this structure
   elif e.signal == signals.EXIT_META_SIGNAL:
-    r.region_spy(e)
+    r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     #if e.payload.springer == 'PC1':
@@ -2007,7 +2126,7 @@ def p_p12(r, e):
         r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.region_spy(e)
+    r.p_spy(e)
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
@@ -2019,13 +2138,13 @@ def p_p12(r, e):
         status = r.trans(_state)
   # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r1_final)
   elif(r.token_match(e.signal_name, "e5")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r1_final)
   elif(e.signal == signals.E2):
-    r.region_spy(e)
+    r.p_spy(e)
     _e = r.outmost.meta_init(r, t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
     investigate(r, e, _e)
     # this force_region_init might be a problem
@@ -2034,12 +2153,11 @@ def p_p12(r, e):
     status = return_status.HANDLED
   # Exit signals
   elif(e.signal == signals.exit_region):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
     r.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p_p12")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r1_over_hidden_region
@@ -2048,18 +2166,22 @@ def p_p12(r, e):
 
 # inner parallel
 @othogonal_state
-def p_p12_r1_under_hidden_region(rr, e):
+def p_p12_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
-  if(rr.token_match(e.signal_name, "enter_region")):
-    status = rr.trans(p_p12_r1_region)
+  if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
+    status = r.trans(p_p12_r1_region)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
+    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
-    rr.temp.fun = rr.bottom
+    r.temp.fun = r.bottom
     status = return_status.SUPER
   return status
 
@@ -2068,9 +2190,10 @@ def p_p12_r1_under_hidden_region(rr, e):
 def p_p12_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -2097,6 +2220,7 @@ def p_p12_r1_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2105,17 +2229,20 @@ def p_p12_r1_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p12_r1_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r1_under_hidden_region
@@ -2126,12 +2253,16 @@ def p_p12_r1_region(r, e):
 def p_p12_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p12_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r1_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r1_region
@@ -2146,8 +2277,7 @@ def p_p12_p11(r, e):
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_p11")
+    r.p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
@@ -2158,14 +2288,14 @@ def p_p12_p11(r, e):
   elif(r.token_match(e.signal_name, "PG1") or
        r.token_match(e.signal_name, "D4") or
        r.token_match(e.signal_name, "I1")):
-    r.region_spy(e)
+    r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_s12)
   elif e.signal == signals.EXIT_META_SIGNAL:
-    r.region_spy(e)
+    r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     #if e.payload.springer == 'PC1':
@@ -2187,7 +2317,7 @@ def p_p12_p11(r, e):
         r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.region_spy(e)
+    r.p_spy(e)
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
@@ -2198,15 +2328,14 @@ def p_p12_p11(r, e):
       if r.within(bound=r.state_fn, query=_state):
         status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_s12)
   elif(e.signal == signals.exit_region):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
     r.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p_p12_p11")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r1_over_hidden_region
@@ -2219,10 +2348,8 @@ def p_p12_p11_r1_under_hidden_region(rrr, e):
   if(rrr.token_match(e.signal_name, "enter_region")):
     status = rrr.trans(p_p12_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r1_under_hidden_region")
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r1_under_hidden_region")
     status = return_status.HANDLED
   else:
     rrr.temp.fun = rrr.bottom
@@ -2233,9 +2360,10 @@ def p_p12_p11_r1_under_hidden_region(rrr, e):
 def p_p12_p11_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -2262,8 +2390,10 @@ def p_p12_p11_r1_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2272,15 +2402,17 @@ def p_p12_p11_r1_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p12_p11_r1_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p12_p11_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r1_under_hidden_region
@@ -2291,12 +2423,16 @@ def p_p12_p11_r1_region(r, e):
 def p_p12_p11_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p12_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r1_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r1_region
@@ -2307,15 +2443,16 @@ def p_p12_p11_r1_over_hidden_region(r, e):
 def p_p12_p11_s11(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_p11_s11")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.e1):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_p11_s12)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_p11_s11")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r1_over_hidden_region
@@ -2326,11 +2463,13 @@ def p_p12_p11_s11(r, e):
 def p_p12_p11_s12(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_p11_s12")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "D4"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11_s12, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -2339,8 +2478,7 @@ def p_p12_p11_s12(r, e):
     else:
       status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_p11_s12")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r1_over_hidden_region
@@ -2353,10 +2491,8 @@ def p_p12_p11_r2_under_hidden_region(r, e):
   if(r.token_match(e.signal_name, "enter_region")):
     status = r.trans(p_p12_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r2_under_hidden_region")
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r2_under_hidden_region")
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
@@ -2372,9 +2508,10 @@ def p_p12_p11_r2_under_hidden_region(r, e):
 def p_p12_p11_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     # If the target state is this state, just strip this layer of
@@ -2400,8 +2537,10 @@ def p_p12_p11_r2_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2410,15 +2549,17 @@ def p_p12_p11_r2_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p12_p11_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p12_p11_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r2_under_hidden_region
@@ -2429,12 +2570,16 @@ def p_p12_p11_r2_region(r, e):
 def p_p12_p11_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p12_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_p11_r2_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_p11_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r2_region
@@ -2445,11 +2590,13 @@ def p_p12_p11_r2_over_hidden_region(r, e):
 def p_p12_p11_s21(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_p11_s21")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.PG1):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_p12_p11_s21,
@@ -2464,7 +2611,7 @@ def p_p12_p11_s21(r, e):
       status = return_status.UNHANDLED
 
   elif(e.signal == signals.I1):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_p12_p11_s21,
@@ -2480,8 +2627,7 @@ def p_p12_p11_s21(r, e):
       status = return_status.HANDLED
 
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_p11_s21")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_p11_r2_over_hidden_region
@@ -2490,21 +2636,22 @@ def p_p12_p11_s21(r, e):
 
 # inner parallel
 @othogonal_state
-def p_p12_s12(rr, e):
+def p_p12_s12(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_s12")
+    r.p_spy(e)
     status = return_status.HANDLED
-  elif(rr.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
-    status = rr.trans(p_p12_r1_final)
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(r.token_match(e.signal_name, "e1")):
+    r.p_spy(e)
+    status = r.trans(p_p12_r1_final)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_s12")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
-    rr.temp.fun = p_p12_r1_over_hidden_region
+    r.temp.fun = p_p12_r1_over_hidden_region
     status = return_status.SUPER
   return status
 
@@ -2513,14 +2660,12 @@ def p_p12_s12(rr, e):
 def p_p12_r1_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_r1_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_r1_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -2532,12 +2677,16 @@ def p_p12_r1_final(r, e):
 def p_p12_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_p12_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r2_under_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_r2_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -2549,9 +2698,10 @@ def p_p12_r2_under_hidden_region(r, e):
 def p_p12_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -2578,8 +2728,10 @@ def p_p12_r2_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2588,15 +2740,17 @@ def p_p12_r2_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p12_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p12_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p12_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r2_under_hidden_region
@@ -2607,12 +2761,16 @@ def p_p12_r2_region(r, e):
 def p_p12_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p12_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p12_r2_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p11_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r2_region
@@ -2624,15 +2782,16 @@ def p_p12_r2_over_hidden_region(r, e):
 def p_p12_s21(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_s21")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_s22)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_s21")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r2_over_hidden_region
@@ -2644,18 +2803,19 @@ def p_p12_s21(r, e):
 def p_p12_s22(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_s22")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_r2_final)
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p12_s21)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_s22")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p12_r2_over_hidden_region
@@ -2667,14 +2827,12 @@ def p_p12_s22(r, e):
 def p_p12_r2_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p12_r2_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p12_r2_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -2686,12 +2844,16 @@ def p_p12_r2_final(r, e):
 def p_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r2_under_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r2_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -2702,9 +2864,10 @@ def p_r2_under_hidden_region(r, e):
 def p_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -2731,8 +2894,10 @@ def p_r2_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2741,15 +2906,17 @@ def p_r2_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_under_hidden_region
@@ -2760,12 +2927,16 @@ def p_r2_region(r, e):
 def p_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_r2_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_region
@@ -2777,14 +2948,16 @@ def p_s21(r, e):
   status = return_status.UNHANDLED
 
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_s21")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "C0")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p22)
   elif(r.token_match(e.signal_name, "F1")):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p_p22_s12, s=p_s21, sig=e.signal_name)
     r.same.post_fifo(_e)
     investigate(r, e, _e)
@@ -2793,7 +2966,7 @@ def p_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif(r.token_match(e.signal_name, "PF1")):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_s21,
@@ -2807,7 +2980,7 @@ def p_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "SRH1"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=middle, s=p_s21, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -2816,7 +2989,7 @@ def p_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "SRD2"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p, s=p_s21, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -2825,8 +2998,7 @@ def p_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_s21")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_over_hidden_region
@@ -2839,7 +3011,7 @@ def p_p22(r, e):
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
+    r.p_spy(e)
     # search for INIT_META_SIGNAL
     print("enter p_p22")
     (_e, _state) = r.meta_peel(e)
@@ -2847,6 +3019,9 @@ def p_p22(r, e):
     if _state:
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -2856,12 +3031,12 @@ def p_p22(r, e):
        r.token_match(e.signal_name, "SRG1") or
        r.token_match(e.signal_name, "E2")
        ):
-    r.region_spy(e)
+    r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
   # final token match
   elif r.token_match(e.signal_name, "SRD1"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p, s=p_p22, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -2870,10 +3045,10 @@ def p_p22(r, e):
     else:
       status = return_status.UNHANDLED
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r2_final)
   elif e.signal == signals.EXIT_META_SIGNAL:
-    r.region_spy(e)
+    r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
@@ -2893,7 +3068,7 @@ def p_p22(r, e):
         r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.region_spy(e)
+    r.p_spy(e)
     status = return_status.HANDLED
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
@@ -2904,15 +3079,14 @@ def p_p22(r, e):
       if r.within(bound=r.state_fn, query=_state):
         status = r.trans(_state)
   elif(e.signal == signals.exit_region):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_r2_under_hidden_region)
   elif(e.signal == signals.C1):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_s21)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
     r.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p_p22")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_r2_over_hidden_region
@@ -2924,12 +3098,16 @@ def p_p22(r, e):
 def p_p22_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_p22_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r1_under_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r1_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -2940,7 +3118,7 @@ def p_p22_r1_under_hidden_region(r, e):
 def p_p22_r1_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     # search for INIT_META_SIGNAL
@@ -2968,6 +3146,7 @@ def p_p22_r1_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -2977,11 +3156,13 @@ def p_p22_r1_region(r, e):
     status = return_status.HANDLED
   # can we get rid of exit_region?
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p22_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r1_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r1_under_hidden_region
@@ -2992,12 +3173,16 @@ def p_p22_r1_region(r, e):
 def p_p22_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p22_r1_under_hidden_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r1_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r1_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r1_region
@@ -3008,15 +3193,16 @@ def p_p22_r1_over_hidden_region(r, e):
 def p_p22_s11(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_s11")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p22_s12)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_s11")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r1_over_hidden_region
@@ -3027,15 +3213,16 @@ def p_p22_s11(r, e):
 def p_p22_s12(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_s12")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p22_r1_final)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_s12")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r1_over_hidden_region
@@ -3046,15 +3233,13 @@ def p_p22_s12(r, e):
 def p_p22_r1_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_r1_final")
+    r.p_spy(e)
     status = return_status.HANDLED
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_r1_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3067,12 +3252,16 @@ def p_p22_r1_final(r, e):
 def p_p22_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(r.token_match(e.signal_name, "enter_region")):
+    r._p_spy(e)
     status = r.trans(p_p22_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r2_under_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r2_under_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = r.bottom
@@ -3083,9 +3272,10 @@ def p_p22_r2_under_hidden_region(r, e):
 def p_p22_r2_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
 
@@ -3112,8 +3302,10 @@ def p_p22_r2_region(r, e):
       if _e is not None:
         r.post_fifo(_e)
   elif(e.signal == signals.INIT_META_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     investigate(r, e, _e)
     for region in r.same._regions:
@@ -3122,15 +3314,17 @@ def p_p22_r2_region(r, e):
         region._post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     if r.within(p_p22_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    r._p_spy(e)
     status = r.trans(p_p22_r2_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r2_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r2_under_hidden_region
@@ -3141,12 +3335,16 @@ def p_p22_r2_region(r, e):
 def p_p22_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.force_region_init):
+    r._p_spy(e)
     status = r.trans(p_p22_r2_under_hidden_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter p_p22_r2_over_hidden_region")
+    r._p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit p_p22_r2_over_hidden_region")
+    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r2_region
@@ -3157,14 +3355,16 @@ def p_p22_r2_over_hidden_region(r, e):
 def p_p22_s21(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_s21")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p22_s22)
   elif r.token_match(e.signal_name, "D2"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=s, s=p_p22_s21, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -3173,7 +3373,7 @@ def p_p22_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "SRG1"):
-    r.region_spy(e)
+    r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=s_s1, s=p_p22_s21, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
@@ -3182,8 +3382,7 @@ def p_p22_s21(r, e):
     else:
       status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_s21")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r2_over_hidden_region
@@ -3194,15 +3393,16 @@ def p_p22_s21(r, e):
 def p_p22_s22(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_s22")
+    r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
-    r.region_spy(e)
+    r.p_spy(e)
     status = r.trans(p_p22_r2_final)
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_s22")
+    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p22_r2_over_hidden_region
@@ -3213,14 +3413,12 @@ def p_p22_s22(r, e):
 def p_p22_r2_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_p22_r2_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_p22_r2_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3232,14 +3430,12 @@ def p_p22_r2_final(r, e):
 def p_r2_final(r, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    r.region_spy(e)
-    pprint("enter p_r2_final")
+    r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    r.region_spy(e)
-    pprint("exit p_r2_final")
+    r.p_spy(e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3251,21 +3447,25 @@ def p_r2_final(r, e):
 def outer(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter outer")
+    self.p_spy(e)
+    #
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SH1")):
-    if self.live_spy and self.instrumented:
-      self.live_spy_callback("{}:outer".format(e.signal_name))
+    self.p_spy(e)
+    #self.p_spy(e)
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "E0")):
-    if self.live_spy and self.instrumented:
-      self.live_spy_callback("{}:outer".format(e.signal_name))
+    self.p_spy(e)
     _e = self.meta_init(r=self, t=p_p11_s22, s=outer, sig=e.signal_name)
     self.post_fifo(_e.payload.event)
     #self.live_spy_callback(ps(_e))
     #self.complete_circuit()
     status = self.trans(_e.payload.state)
   elif(self.token_match(e.signal_name, "SRE3")):
+    self.p_spy(e)
     _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
@@ -3273,7 +3473,7 @@ def outer(self, e):
     #self.complete_circuit()
     status = self.trans(_e.payload.state)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit outer")
+    self.p_spy(e)
     status = return_status.HANDLED
   else:
     self.temp.fun = self.bottom
@@ -3284,13 +3484,19 @@ def outer(self, e):
 def middle(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter outer")
+    self.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SH1")):
+    self.p_spy(e)
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "SB1")):
+    self.p_spy(e)
     status = self.trans(s)
   elif(self.token_match(e.signal_name, "E0")):
+    self.p_spy(e)
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer".format(e.signal_name))
     _e = self.meta_init(r=self, t=p_p11_s22, s=outer, sig=e.signal_name)
@@ -3298,7 +3504,14 @@ def middle(self, e):
     #self.live_spy_callback(ps(_e))
     #self.complete_circuit()
     status = self.trans(_e.payload.state)
+  elif(self.token_match(e.signal_name, "SRE1")):
+    self.p_spy(e)
+    _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
+    investigate(self, e, _e)
+    self.post_fifo(_e.payload.event)
+    status = self.trans(_e.payload.state)
   elif(self.token_match(e.signal_name, "SRE3")):
+    self.p_spy(e)
     _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
@@ -3306,7 +3519,7 @@ def middle(self, e):
     #self.complete_circuit()
     status = self.trans(_e.payload.state)
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit outer")
+    self.p_spy(e)
     status = return_status.HANDLED
   else:
     self.temp.fun = outer
@@ -3317,14 +3530,19 @@ def middle(self, e):
 def s(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter s")
+    self.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit s")
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.SD2):
+    self.p_spy(e)
     status = self.trans(middle)
   elif(self.token_match(e.signal_name, "F0")):
+    self.p_spy(e)
     _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
@@ -3332,6 +3550,7 @@ def s(self, e):
     #self.complete_circuit()
     status = self.trans(_e.payload.state)
   elif(e.signal == signals.SRF1):
+    self.p_spy(e)
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer".format(e.signal_name))
     _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
@@ -3346,10 +3565,13 @@ def s(self, e):
 def s_s1(self, e):
   status = return_status.UNHANDLED
   if(e.signal == signals.ENTRY_SIGNAL):
-    pprint("enter s_s1")
+    self.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
-    pprint("exit s_s1")
+    self.p_spy(e)
     status = return_status.HANDLED
   else:
     self.temp.fun = s
@@ -3362,11 +3584,14 @@ def p(self, e):
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
+    self.p_spy(e)
     (_e, _state) = self.meta_peel(e)  # search for INIT_META_SIGNAL
     if _state:
       self.inner._post_fifo(_e)
-    pprint("enter p")
     self.inner.post_lifo(Event(signal=signals.enter_region))
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    self.p_spy(e)
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(type(self.regions) == dict and (self.token_match(e.signal_name, "e1") or
@@ -3399,14 +3624,17 @@ def p(self, e):
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
   )):
+    self.p_spy(e)
     self.inner.post_fifo(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_META_SIGNAL):
+    self.p_spy(e)
     # hasn't been updated
     self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
     self.regions['p'].post_fifo(e.payload.event.payload.event)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
+    self.p_spy(e)
     _e, _state = e.payload.event, e.payload.state
     self.inner._post_fifo(_e)
     for region in self.inner._regions:
@@ -3418,12 +3646,8 @@ def p(self, e):
     [region.complete_circuit() for region in self.inner._regions]
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SRE2")):
+    self.p_spy(e)
     _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.inner.post_fifo(_e)
-    status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "SRE1")):
-    _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
     self.inner._post_lifo(Event(signal=signals.force_region_init))
     self.inner.post_fifo(_e)
     status = return_status.HANDLED
@@ -3433,25 +3657,32 @@ def p(self, e):
     self.regions['p'].post_fifo(Event(signal=signals.exit_region))
     status = self.trans(s)
   elif(self.token_match(e.signal_name, "SA1")):
+    self.p_spy(e)
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "SD1")):
+    self.p_spy(e)
     status = self.trans(middle)
   elif(self.token_match(e.signal_name, "SC1")):
+    self.p_spy(e)
     status = self.trans(s)
   elif(self.token_match(e.signal_name, "SD1")):
+    self.p_spy(e)
     status = self.trans(middle)
   elif(self.token_match(e.signal_name, "SRB1")):
+    self.p_spy(e)
     _e = self.meta_init(r=self, s=p, t=p_p22, sig=e.signal)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
     status = self.trans(_e.payload.state)
 
   elif(e.signal == signals.EXIT_META_SIGNAL):
+    self.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(self, e, _e)
     self.post_lifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.OUTER_TRANS_REQUIRED):
+    self.p_spy(e)
     status = return_status.HANDLED
     _state = e.payload.state
     investigate(self, e)
@@ -3462,9 +3693,10 @@ def p(self, e):
       self.inner.post_fifo(Event(signal=signals.enter_region))
   elif(e.signal == signals.EXIT_SIGNAL):
     self.inner.post_lifo(Event(signal=signals.exit_region))
-    pprint("exit p")
+    self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
+    self.p_spy(e)
     status = return_status.HANDLED
   else:
     self.temp.fun = middle
@@ -3482,23 +3714,18 @@ if __name__ == '__main__':
   )
   #example.instrumented = False
   example.instrumented = True
+  example.report("starting chart")
   example.start()
   time.sleep(0.20)
-  example.report("\nstarting regression\n")
+  example.report("starting regression")
 
   if regression:
     def build_test(sig, expected_result, old_result, duration=0.2):
       '''test function, so it can be slow'''
       example.post_fifo(Event(signal=sig))
-      #if sig == 'G1':
-      #  active_states = example.active_states()[:]
-      #  string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
-      #  print(string1)
       time.sleep(duration)
       active_states = example.active_states()[:]
-      string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
-      string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
-      print(string1)
+      string2 = "{} <- {} == {}".format(str(old_result), sig, str(active_states))
       example.report(string2)
 
       list_difference = []
@@ -3511,11 +3738,11 @@ if __name__ == '__main__':
         fdata = FrameData(*inspect.getframeinfo(previous_frame))
         function_name = '__main__'
         line_number   = fdata.line_number
-        print("Assert error from {}:{}".format(function_name, line_number))
-        print("From: {}->{}".format(sig, old_result))
-        print("Expecting: {}".format(expected_result))
-        print("Observed:  {}".format(active_states))
-        print("Difference: {}".format(list_difference))
+        example.report("Assert error from {}:{}".format(function_name, line_number))
+        example.report("From: {}->{}".format(sig, old_result))
+        example.report("Expecting: {}".format(expected_result))
+        example.report("Observed:  {}".format(active_states))
+        example.report("Difference: {}".format(list_difference))
         example.active_states()
         time.sleep(1000)
         exit(1)
@@ -3531,9 +3758,9 @@ if __name__ == '__main__':
       #  print(string1)
       time.sleep(duration)
       active_states = example.active_states()[:]
-      string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
+      #string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
       string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
-      print(string1)
+      #print(string1)
       example.report(string2)
       #assert active_states == expected_result
       return active_states
@@ -3582,76 +3809,21 @@ if __name__ == '__main__':
     result2 = example.build_onion(t=p_p11, s=p_p12, sig='TEST')
 
     active_states = example.active_states()
-    print("{:>39}{:>5} <-> {:<80}".format("start", "", str(active_states)))
+    #print("{:>39}{:>5} <-> {:<80}".format("start", "", str(active_states)))
 
     old_results = example.active_states()[:]
 
     #example.logger.setLevel(logging.DEBUG)
 
+    #example.clear_log()
     old_results = build_test(
       sig='SH1',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
       duration=0.2
     )
-    exit(0)
 
-    #old_results = build_test(
-    #  sig='SD1',
-    #  expected_result=['middle'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SC1',
-    #  expected_result=['s'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SD2',
-    #  expected_result=['middle'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SB1',
-    #  expected_result=['s'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    old_results = build_test(
-      sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRE2',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-      old_result=old_results,
-      duration=0.2
-    )
-
+    #example.clear_log()
     old_results = build_test(
       sig='SD1',
       expected_result=['middle'],
@@ -3659,6 +3831,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+    #example.clear_log()
     old_results = build_test(
       sig='SH1',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
@@ -3666,97 +3839,23 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+    #example.clear_log()
     old_results = build_test(
-      sig='SRE1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result=old_results,
+      sig='SC1',
+      expected_result=['s'],
+      old_result= old_results,
       duration=0.2
     )
 
+    #example.clear_log()
     old_results = build_test(
-      sig='SRH2',
+      sig='SD2',
       expected_result=['middle'],
       old_result= old_results,
       duration=0.2
     )
 
-    old_results = build_test(
-      sig='SRH2',
-      expected_result=['middle'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRE3',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='e4',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRH3',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRD2',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRH1',
-      expected_result=['middle'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRB1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRB1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRD1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
-    )
-
+    #example.clear_log()
     old_results = build_test(
       sig='SB1',
       expected_result=['s'],
@@ -3764,48 +3863,15 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+    #example.clear_log()
     old_results = build_test(
-      sig='SRF1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
       duration=0.2
     )
 
-    old_results = build_test(
-      sig='SRG1',
-      expected_result=['s_s1'],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='SRF1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='e4',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='e1',
-      expected_result=[['p_p11_r1_final', 'p_p11_s22'], ['p_p22_r1_final', 'p_p22_s22']],
-      old_result= old_results,
-      duration=0.2
-    )
-
-    old_results = build_test(
-      sig='e2',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_final'],
-      old_result= old_results,
-      duration=0.2
-    )
-
+    #example.clear_log()
     old_results = build_test(
       sig='SA1',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
@@ -3813,6 +3879,200 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRE2',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SD1',
+      expected_result=['middle'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRE1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+    exit(0)
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRH2',
+      expected_result=['middle'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRH2',
+      expected_result=['middle'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRE3',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e4',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRH3',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRD2',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRH1',
+      expected_result=['middle'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRB1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRB1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRD1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SB1',
+      expected_result=['s'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRF1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRG1',
+      expected_result=['s_s1'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SRF1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e4',
+      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[['p_p11_r1_final', 'p_p11_s22'], ['p_p22_r1_final', 'p_p22_s22']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e2',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_final'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
     old_results = build_test(
       sig='e1',
       expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
@@ -3820,13 +4080,14 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    ## move
-    #old_results = build_test(
-    #  sig='SA1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
+    # move
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
 
     #old_results = build_test(
     #  sig='RF1',
