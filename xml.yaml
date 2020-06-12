@@ -7,14 +7,14 @@ windows:
   panes:
   - shell_command:
     - cd /mnt/c/github/miros-xml/experiment
-    - vim 4th_example.log
+    - vim xml_chart_5.log
   - focus: 'true'
     shell_command:
     - cd /mnt/c/github/miros-xml/experiment
-    - python3 4th_example.py
+    - python3 xml_chart_5.py
   - shell_command:
     - cd /mnt/c/github/miros-xml/experiment
-    - vim 4th_example.py
+    - vim xml_chart_5.py
   window_name: experiment
 - options:
     automatic-rename: 'off'
