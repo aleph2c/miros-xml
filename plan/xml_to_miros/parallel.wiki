@@ -5,28 +5,20 @@
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]])
-
-    Create a new regression for the work done so far.  Make it
-    more rigorous.  (See xml_chart_5_guidance.pdf and
-    xml_chart_5.pdf)
-
-    Make the logging system usable.
-    Here is a great article about logging... at this technology
-    to this project:
-
-    Read this first:
-    http://zetcode.com/python/logging/
-
-
-    https://martinheinz.dev/blog/24
-
-    much better:
-
-    https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
+    * [ ] Finish xml_chart_5.py
+    * [ ] A single working RE1
+    * [ ] Fix RB1/RH1
 
   *What is the problem?*
+    An adjustment to the code to fix RE1 broke how RB1/RH1 work.
 
   *Discoveries:* ([[notes.parallel_example_4|notes]])
+
+    Python Logging notes:
+
+      http://zetcode.com/python/logging/
+      https://martinheinz.dev/blog/24
+      https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
 
     With the current design, there can be no entry and exit
     conditions for the regions.  If there are, then the I1
@@ -48,7 +40,8 @@
 
       2) In the terminal setup a watch command:
 
-        while inotifywait -e modify 4th_example; do python xml_chart_5.py && tmux display-message "SUCCESS" || tmux display-message "FAILURE"; done
+        while inotifywait -e modify xml_chart_5.py
+        logger_config.yaml; do python xml_chart_5.py && tmux display-message "SUCCESS" || tmux display-message "FAILURE"; done
 
     *How To:*
 
@@ -129,13 +122,15 @@
     Pre-made check lists for consistency work:
 
     Full Audit:
+    * [ ] RA1
     * [X] RB1
     * [X] RC1
     * [X] RC2
     * [X] RD1
-    * [X] RE1
-    * [ ] RF1
-    * [ ] RG1
+    * [ ] RE1
+    * [X] RF1
+    * [X] RG1
+    * [X] RH1
     * [X] SRB1
     * [X] SRD1
     * [X] SRD2
@@ -144,8 +139,8 @@
     * [X] SRE3
     * [X] SRF1
     * [X] SRG1
-    * [X] SRH1
-    * [X] SRH2
+    * [X] SRH3
+    * [X] SRH3
     * [X] SRH3
     * [X] PC1
     * [X] PF1
@@ -166,7 +161,7 @@
     * [ ] RE1
     * [ ] RF1
     * [ ] RG1
-    * [ ] RF1
+    * [ ] RH1
 
     SR Audit:
     * [X] SRB1
@@ -317,6 +312,7 @@
     * [ ] Is your information organized?
     * [ ] Can you draw a diagram of the components and their
           interactions?
+    * [ ] Does your logging infrastructure work?
     * [ ] Do you need to write some code to make it easier to
           see?
     * [ ] Can you think of anyway to speed up your feedback cycle?
@@ -356,18 +352,36 @@
           without damaging the existing WTF infrastructure?
     * [ ] Did you generalize the outer_state function knowledge
           from your last push?
+    * [ ] How did RB1/RH1 work before?
 
 = Decide =
 
   [[#Questions]]
   *Research Needed For?:*
+    What events use the meta_init and not meta_trans?
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
+  * [ ] instead of using init, use a meta_trans
+  * [ ] while you are at it, switch the other meta_inits to meta_trans
+  * [ ] simplify the code
+  * [ ] create a beastiary for the different meta events
+  * [ ] use this beastiary to create an HSM version of the meta_trans function
+        (which is almost hopeless at this point)
+  * [ ] double back and write some documentation on how this thing works
+  * [ ] review each of the WTF events, we are looking for 1, n and n+1 to
+        confirm the work.
+  * [ ] try and find missing topologies on the chart
+  * [ ] consider how to do a meta hook
 
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
+  * [ ] set the code as it was
+  * [ ] place a break point in RB1
+  * [ ] observe and record the resulting meta event
+  * [ ] adjust the code with the new fix, so that RB1/RH1 work
+  * [ ] move back into the RE1 investigation
 
 = Act =
 
