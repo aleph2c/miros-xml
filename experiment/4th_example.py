@@ -16,7 +16,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'F1'
+event_to_investigate = 'E2'
 
 def pp(item):
   xprint.pprint(item)
@@ -1197,7 +1197,6 @@ class XmlChart(InstrumentedActiveObject):
           r.outmost.regions['p_p11'].post_fifo(_e)
 
     '''
-
     inner = r.inner
     current_function_name = r.current_function_name
 
@@ -3522,7 +3521,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    old_results = build_test(
+    old_results = build_reflect(
       sig='E2',
       expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
@@ -3543,6 +3542,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+    time.sleep(1000)
     old_results = build_test(
       sig='E0',
       expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
@@ -3591,7 +3591,6 @@ if __name__ == '__main__':
       old_result=old_results,
       duration=0.2
     )
-
 
     old_results = build_test(
       sig='A1',
@@ -3799,7 +3798,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     old_results = build_test(
       sig='to_s',
       expected_result=['some_other_state'],
@@ -3814,5 +3812,4 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    exit(0)
 

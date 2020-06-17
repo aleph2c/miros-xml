@@ -5,14 +5,41 @@
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]])
-    * [ ] Finish xml_chart_5.py
-    * [ ] A single working RE1
-    * [ ] Fix RB1/RH1
+    * [X] Finish xml_chart_5.py
+    * [ ] Create a beastiary for all WFT events.
+    * [ ] Create a new meta_trans method which topologically profiles the event,
+          and creates what it needs to look like form a bestiary-HSM-WTF-maker.
 
   *What is the problem?*
-    An adjustment to the code to fix RE1 broke how RB1/RH1 work.
 
-  *Discoveries:* ([[notes.parallel_example_4|notes]])
+    Your meta_trans code has evolved to work with the WTF events.  Now it is
+    time to deconstruct what it does, clean it, and create a comprehendable
+    design.
+
+    I don't know what all of the WTF events look like, so I need to catalog them
+    into a bestiary.
+
+    The WFT bestiary will be large, so it will get in the way of write-thinking
+    underway in the OODA loop.
+
+  *Discoveries:* ([[notes.xml_to_miros|notes]])
+
+    Beastiary:
+
+    RB1:
+    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::RB1:p_p12 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
+    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
+    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
+    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
+
+    RH1:
+    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region [n=0]::RH1:p_p12_p11_s12 ->
+    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+    [n=4]::OUTER_TRANS_REQUIRED:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 -> 
 
     Python Logging notes:
 
@@ -127,7 +154,7 @@
     * [X] RC1
     * [X] RC2
     * [X] RD1
-    * [ ] RE1
+    * [X] RE1
     * [X] RF1
     * [X] RG1
     * [X] RH1
@@ -358,7 +385,9 @@
 
   [[#Questions]]
   *Research Needed For?:*
-    What events use the meta_init and not meta_trans?
+    How is BOUNCE_SAME_META_SIGNAL used within the regions right now?
+    What events use the meta_init and not meta_trans?  The bounce same is
+    currently used by regions.
 
   [[#Questions]]
   *Idea/Hypotheses for Parallel Example 4: >=5*
@@ -373,14 +402,28 @@
         confirm the work.
   * [ ] try and find missing topologies on the chart
   * [ ] consider how to do a meta hook
+  * [ ] can you make it work with a force_region_init too? [yes]
 
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
-  * [ ] set the code as it was
-  * [ ] place a break point in RB1
-  * [ ] observe and record the resulting meta event
-  * [ ] adjust the code with the new fix, so that RB1/RH1 work
+  * [X] set the code as it was
+  * [X] place a break point in RB1
+  * [X] observe and record the resulting meta event
+  * [o] drop a break point in front of RB2
+    * [X] lca looks good for RB1
+    * [X] build onion is broken, for s=p_p12 and t=p_p12 it returns an array of
+          3 items, I'm expecting []
+    * [X] regress upto RB1
+    * [ ] fix build_onion to work as you expected it to for RH1
+    * [ ] place standard init meta beast onto the p_p11 stack, but before that
+          place the BOUNCE_SAME_META_SIGNAL.  Inject this event into all
+          regions of the p_p11 state.
+  * [ ] adjust the code with the new fix, so that
+    * [ ] RB1 works
+    * [ ] update the beastiary
+    * [ ] RH1 works
+    * [ ] update the beastiary
   * [ ] move back into the RE1 investigation
 
 = Act =

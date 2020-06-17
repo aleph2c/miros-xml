@@ -2,7 +2,8 @@
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
 
- priority: [[parallel|link]]
+ priority: [[parallel|parallel]]
+           [[notes.xml_to_miros|notes]]
 
  *Standards are wonderful, everyone should have one!*
 

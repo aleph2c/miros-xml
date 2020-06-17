@@ -1074,16 +1074,16 @@ layer=3</panel_attributes>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>581</x>
+      <x>609</x>
       <y>238</y>
-      <w>203</w>
+      <w>175</w>
       <h>56</h>
     </coordinates>
     <panel_attributes>RF1
 lt=-&gt;
 layer=3
 fg=magenta</panel_attributes>
-    <additional_attributes>10.0;60.0;10.0;10.0;270.0;10.0</additional_attributes>
+    <additional_attributes>10.0;60.0;10.0;10.0;230.0;10.0</additional_attributes>
   </element>
   <element>
     <id>Relation</id>
@@ -1429,14 +1429,14 @@ fg=magenta</panel_attributes>
     <coordinates>
       <x>791</x>
       <y>602</y>
-      <w>70</w>
+      <w>63</w>
       <h>105</h>
     </coordinates>
     <panel_attributes>SRG1
 lt=-&gt;
 layer=3
 fg=orange</panel_attributes>
-    <additional_attributes>80.0;10.0;10.0;130.0</additional_attributes>
+    <additional_attributes>60.0;10.0;10.0;130.0</additional_attributes>
   </element>
   <element>
     <id>UMLState</id>
@@ -1474,14 +1474,14 @@ fg=blue</panel_attributes>
     <coordinates>
       <x>259</x>
       <y>210</y>
-      <w>238</w>
+      <w>252</w>
       <h>84</h>
     </coordinates>
     <panel_attributes>SRE1
 lt=-&gt;
 layer=3
 fg=orange</panel_attributes>
-    <additional_attributes>10.0;20.0;320.0;20.0;320.0;100.0</additional_attributes>
+    <additional_attributes>10.0;20.0;340.0;20.0;340.0;100.0</additional_attributes>
   </element>
   <element>
     <id>Relation</id>

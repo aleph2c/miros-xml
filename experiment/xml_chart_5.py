@@ -19,7 +19,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'RF1'
+event_to_investigate = 'RA1'
 
 def pp(item):
   xprint.pprint(item)
@@ -1088,7 +1088,11 @@ class XmlChart(InstrumentedActiveObject):
     r.inner = inner
     r.current_function_name = current_function_name
 
-    return event
+    _state = event.payload.state
+    if _state == s:
+      _state = None
+
+    return (_state, event)
 
   def build_onion(self, t, sig, s=None):
     '''Find an list of state functions which describe a single gradient in the
@@ -1146,6 +1150,8 @@ class XmlChart(InstrumentedActiveObject):
 
     '''
     region = None
+    if s == t:
+      return []
     onion_states = []
     onion_states.append(t)
 
@@ -1269,7 +1275,11 @@ class XmlChart(InstrumentedActiveObject):
         t=source,
         s=lca,
         sig=sig)
-    exit_onion = exit_onion1[1:]
+
+    if len(exit_onion1) >= 1:
+      exit_onion = exit_onion1[1:]
+    else:
+      exit_onion = []
 
 
     strippped_onion = []
@@ -1297,7 +1307,7 @@ class XmlChart(InstrumentedActiveObject):
     # even more outer part of the onion, the meta exit details.
     event = None
 
-    if entry_onion != [] and entry_onion[-1] == exit_onion[0]:
+    if entry_onion != [] and exit_onion != [] and entry_onion[-1] == exit_onion[0]:
       bounce_type = signals.BOUNCE_SAME_META_SIGNAL
       if len(exit_onion) == 1:
         _state = entry_onion[-2]
@@ -1305,6 +1315,11 @@ class XmlChart(InstrumentedActiveObject):
         _state = None
     elif(entry_onion == []):
       bounce_type = signals.OUTER_TRANS_REQUIRED
+      _state = None
+    elif(exit_onion == []):
+      bounce_type = signals.BOUNCE_SAME_META_SIGNAL
+      if source in entry_onion:
+        entry_onion = entry_onion[0:entry_onion.index(source)]
       _state = None
     else:
       bounce_type = signals.BOUNCE_ACROSS_META_SIGNAL
@@ -1314,6 +1329,8 @@ class XmlChart(InstrumentedActiveObject):
       number = len(entry_onion) - 1
     else:
       number = len(entry_onion) + len(exit_onion)
+      if exit_onion == [] and bounce_type == signals.BOUNCE_SAME_META_SIGNAL:
+        number += 1
 
     if bounce_type == signals.OUTER_TRANS_REQUIRED:
       number += 1
@@ -1343,8 +1360,15 @@ class XmlChart(InstrumentedActiveObject):
               previous_state = source
               previous_signal = sig
           else:
-            previous_state = exit_onion[0]
-            previous_signal = signals.EXIT_META_SIGNAL
+            if len(exit_onion) > 0:
+              previous_state = exit_onion[0]
+              previous_signal = signals.EXIT_META_SIGNAL
+            elif exit_onion == [] and bounce_type == signals.BOUNCE_SAME_META_SIGNAL:
+              previous_state = entry_target
+              previous_signal = bounce_type
+            else:
+              previous_state = s
+              previous_signal = sig
           event = Event(
             signal=signal_name,
             payload=META_SIGNAL_PAYLOAD(
@@ -1399,7 +1423,7 @@ class XmlChart(InstrumentedActiveObject):
           )
         )
         number -= 1
-    else:
+    elif len(exit_onion) == 1:
       previous_state = source
       previous_signal = sig
       event = Event(
@@ -1414,6 +1438,37 @@ class XmlChart(InstrumentedActiveObject):
         )
       )
       number -= 1
+    else:
+      bounce_onion = [s]
+      for index, bounce_target in enumerate(bounce_onion):
+        signal_name = signals.BOUNCE_SAME_META_SIGNAL
+        previous_state = bounce_onion[index]
+        previous_state = bounce_onion[0]
+        previous_signal = sig
+        signal_name = signals.BOUNCE_SAME_META_SIGNAL
+
+        #if index == 1:
+        #  previous_state = bounce_onion[0]
+        #  previous_signal = sig
+        #  signal_name = signals.BOUNCE_SAME_META_SIGNAL
+        #else:
+        #  #signal_name = signals.INIT_META_SIGNAL
+        #  previous_state = bounce_onion[1]
+        #  previous_signal = signal_name
+
+        event = Event(
+          signal=signal_name,
+          payload=META_SIGNAL_PAYLOAD(
+            n=number,
+            event=event,
+            state=bounce_target,
+            previous_state=previous_state,
+            previous_signal=previous_signal,
+            springer=sig,
+          )
+        )
+        _state = None
+        number -= 1
 
     if _state and len(exit_onion) == 1:
       event = event.payload.event.payload.event
@@ -1428,8 +1483,12 @@ class XmlChart(InstrumentedActiveObject):
       return outer
     s_onion = self.build_onion(_s, sig=None)[::-1]
     t_onion = self.build_onion(_t, sig=None)[::-1]
-    _lca = list(set(s_onion).intersection(set(t_onion)))[-1]
-    _lca = self.bottom if _lca is None else _lca
+    t_onion.reverse()
+    _lca = self.bottom
+    for t in t_onion:
+      if t in s_onion:
+        _lca = t
+        break
     return _lca
 
   @lru_cache(maxsize=32)
@@ -1612,7 +1671,7 @@ def p_p11(r, e):
   elif r.token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
     r.p_spy(e)
     status = r.trans(p_p12)
-  elif r.token_match(e.signal_name, "C0"):
+  elif r.token_match(e.signal_name, "RC1"):
     r.p_spy(e)
     status = r.trans(p_p12)
   elif r.token_match(e.signal_name, "A0"):
@@ -1627,6 +1686,10 @@ def p_p11(r, e):
       status = r.trans(_state)
     else:
       status = return_status.UNHANDLED
+  elif r.token_match(e.signal_name, "RA1"):
+    r.p_spy(e)
+    investigate(r, e)
+    status = r.trans(p_p11)
   elif r.token_match(e.signal_name, "PF1"):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1649,11 +1712,17 @@ def p_p11(r, e):
     _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
     investigate(r, e, _e)
     r.same._post_fifo(_e)
-    print("here")
     if _state:
       status = r.trans(_state)
     else:
       status = return_status.UNHANDLED
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
+    _state, _e = e.payload.state, e.payload.event
+    r.inner._post_fifo(_e)
+    investigate(r, e, _e)
+    r.inner.post_lifo(Event(signal=signals.force_region_init))
+    status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
     status = return_status.HANDLED
     r.p_spy(e)
@@ -1675,8 +1744,6 @@ def p_p11(r, e):
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
-      #if e.payload.springer == 'RF1':
-      #  import pdb; pdb.set_trace()
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
          _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
          _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
@@ -1686,15 +1753,12 @@ def p_p11(r, e):
       #elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
       elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
            _e.signal == signals.EXIT_META_SIGNAL):
-        if e.payload.springer == "RF1":
-          r.same._post_lifo(_e)
-        else:
-          r.outer._post_lifo(_e)
+        r.outer._post_lifo(_e)
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
   elif e.signal == signals.exit_region:
-    r.p_spy(e)
+    r._p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
   elif e.signal == signals.EXIT_SIGNAL:
     r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -1783,7 +1847,6 @@ def p_p11_r1_region(r, e):
     status = r.trans(p_p11_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
-    #r.inner.post_lifo(Event(signal=signals.exit_region))
     status = return_status.HANDLED
   else:
     r.temp.fun = p_p11_r1_under_hidden_region
@@ -2094,7 +2157,9 @@ def p_p12(r, e):
   elif(r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "PG1") or
+       r.token_match(e.signal_name, "RD1") or
+       r.token_match(e.signal_name, "RH1") or
+       r.token_match(e.signal_name, "RG1") or
        r.token_match(e.signal_name, "D4") or
        r.token_match(e.signal_name, "I1")
        ):
@@ -2125,6 +2190,43 @@ def p_p12(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
+  elif(r.token_match(e.signal_name, "RE1")):
+    r.p_spy(e)
+    _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
+    investigate(r, e, _e)
+    r.same.post_fifo(_e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
+
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
+    _state, _e = e.payload.state, e.payload.event
+    r.inner._post_fifo(_e)
+    investigate(r, e, _e)
+    r.inner.post_lifo(Event(signal=signals.force_region_init))
+    status = return_status.HANDLED
+
+  elif(r.token_match(e.signal_name, "RB1")):
+    r.p_spy(e)
+    _state, _e = r.outmost.meta_trans(r, t=p_p12_p11, s=p_p12, sig=e.signal_name)
+    r.same._post_fifo(_e)
+    investigate(r, e, _e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
+  #elif(r.token_match(e.signal_name, "RB1")):
+  #  r.p_spy(e)
+  #  _state, _e = r.outmost.meta_trans(r, t=p_p12_p11, s=p_p12, sig=e.signal_name)
+  #  r.inner._post_fifo(_e)
+  #  r.inner.post_lifo(Event(signal=signals.force_region_init))
+  #  if _state:
+  #    status = r.trans(_state)
+  #  else:
+  #    status = return_status.UNHANDLED
+
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2143,17 +2245,9 @@ def p_p12(r, e):
   elif(r.token_match(e.signal_name, "e5")):
     r.p_spy(e)
     status = r.trans(p_r1_final)
-  elif(e.signal == signals.E2):
-    r.p_spy(e)
-    _e = r.outmost.meta_init(r, t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
-    investigate(r, e, _e)
-    # this force_region_init might be a problem
-    r.inner._post_lifo(Event(signal=signals.force_region_init))
-    r.inner.post_fifo(_e)
-    status = return_status.HANDLED
   # Exit signals
   elif(e.signal == signals.exit_region):
-    r.p_spy(e)
+    r._p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -2285,8 +2379,9 @@ def p_p12_p11(r, e):
       r.inner._post_fifo(_e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "D4") or
+  elif(r.token_match(e.signal_name, "RG1") or
+       r.token_match(e.signal_name, "e1") or
+       r.token_match(e.signal_name, "RH1") or
        r.token_match(e.signal_name, "I1")):
     r.p_spy(e)
     r.inner.post_fifo(e)
@@ -2294,12 +2389,19 @@ def p_p12_p11(r, e):
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
     r.p_spy(e)
     status = r.trans(p_p12_s12)
+  elif(r.token_match(e.signal_name, "RD1")):
+    r.p_spy(e)
+    _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11, sig=e.signal_name)
+    r.same.post_fifo(_e)
+    investigate(r, e, _e)
+    if _state:
+      status = r.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    #if e.payload.springer == 'PC1':
-    #  import pdb; pdb.set_trace()
     # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
@@ -2316,6 +2418,13 @@ def p_p12_p11(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
+    _state, _e = e.payload.state, e.payload.event
+    r.inner._post_fifo(_e)
+    investigate(r, e, _e)
+    r.inner.post_lifo(Event(signal=signals.force_region_init))
+    status = return_status.HANDLED
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2331,7 +2440,7 @@ def p_p12_p11(r, e):
     r.p_spy(e)
     status = r.trans(p_p12_s12)
   elif(e.signal == signals.exit_region):
-    r.p_spy(e)
+    r._p_spy(e)
     status = r.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
@@ -2468,7 +2577,7 @@ def p_p12_p11_s12(r, e):
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "D4"):
+  elif r.token_match(e.signal_name, "RH1"):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11_s12, sig=e.signal_name)
     investigate(r, e, _e)
@@ -2595,7 +2704,7 @@ def p_p12_p11_s21(r, e):
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
-  elif(e.signal == signals.PG1):
+  elif(e.signal == signals.RG1):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
@@ -2953,10 +3062,10 @@ def p_s21(r, e):
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "C0")):
+  elif(r.token_match(e.signal_name, "RC1")):
     r.p_spy(e)
     status = r.trans(p_p22)
-  elif(r.token_match(e.signal_name, "F1")):
+  elif(r.token_match(e.signal_name, "RF1")):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=p_p22_s12, s=p_s21, sig=e.signal_name)
     r.same.post_fifo(_e)
@@ -3013,7 +3122,6 @@ def p_p22(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     # search for INIT_META_SIGNAL
-    print("enter p_p22")
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
@@ -3029,7 +3137,8 @@ def p_p22(r, e):
        r.token_match(e.signal_name, "e4") or
        r.token_match(e.signal_name, "D2") or
        r.token_match(e.signal_name, "SRG1") or
-       r.token_match(e.signal_name, "E2")
+       r.token_match(e.signal_name, "RF1") or
+       r.token_match(e.signal_name, "RE1")
        ):
     r.p_spy(e)
     r.inner.post_fifo(e)
@@ -3044,9 +3153,19 @@ def p_p22(r, e):
       status = r.trans(_state)
     else:
       status = return_status.UNHANDLED
+  elif(r.token_match(e.signal_name, "RC2")):
+    r.p_spy(e)
+    status = r.trans(p_s21)
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
     r.p_spy(e)
     status = r.trans(p_r2_final)
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    r._p_spy(e)
+    _state, _e = e.payload.state, e.payload.event
+    r.inner._post_fifo(_e)
+    investigate(r, e, _e)
+    r.inner.post_lifo(Event(signal=signals.force_region_init))
+    status = return_status.HANDLED
   elif e.signal == signals.EXIT_META_SIGNAL:
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
@@ -3079,7 +3198,7 @@ def p_p22(r, e):
       if r.within(bound=r.state_fn, query=_state):
         status = r.trans(_state)
   elif(e.signal == signals.exit_region):
-    r.p_spy(e)
+    r._p_spy(e)
     status = r.trans(p_r2_under_hidden_region)
   elif(e.signal == signals.C1):
     r.p_spy(e)
@@ -3457,21 +3576,14 @@ def outer(self, e):
     self.p_spy(e)
     #self.p_spy(e)
     status = self.trans(p)
-  elif(self.token_match(e.signal_name, "E0")):
-    self.p_spy(e)
-    _e = self.meta_init(r=self, t=p_p11_s22, s=outer, sig=e.signal_name)
-    self.post_fifo(_e.payload.event)
-    #self.live_spy_callback(ps(_e))
-    #self.complete_circuit()
-    status = self.trans(_e.payload.state)
   elif(self.token_match(e.signal_name, "SRE3")):
+    status = return_status.HANDLED
     self.p_spy(e)
-    _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
+    _state, _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
-    #self.live_spy_callback(ps(_e))
-    #self.complete_circuit()
-    status = self.trans(_e.payload.state)
+    if _state:
+      status = self.trans(_state)
   elif(e.signal == signals.EXIT_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3495,29 +3607,14 @@ def middle(self, e):
   elif(self.token_match(e.signal_name, "SB1")):
     self.p_spy(e)
     status = self.trans(s)
-  elif(self.token_match(e.signal_name, "E0")):
-    self.p_spy(e)
-    if self.live_spy and self.instrumented:
-      self.live_spy_callback("{}:outer".format(e.signal_name))
-    _e = self.meta_init(r=self, t=p_p11_s22, s=outer, sig=e.signal_name)
-    self.post_fifo(_e.payload.event)
-    #self.live_spy_callback(ps(_e))
-    #self.complete_circuit()
-    status = self.trans(_e.payload.state)
   elif(self.token_match(e.signal_name, "SRE1")):
+    status = return_status.HANDLED
     self.p_spy(e)
-    _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
+    _state, _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
-    status = self.trans(_e.payload.state)
-  elif(self.token_match(e.signal_name, "SRE3")):
-    self.p_spy(e)
-    _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
-    investigate(self, e, _e)
-    self.post_fifo(_e.payload.event)
-    #self.live_spy_callback(ps(_e))
-    #self.complete_circuit()
-    status = self.trans(_e.payload.state)
+    if _state:
+      status = self.trans(_state)
   elif(e.signal == signals.EXIT_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3541,21 +3638,14 @@ def s(self, e):
   elif(e.signal == signals.SD2):
     self.p_spy(e)
     status = self.trans(middle)
-  elif(self.token_match(e.signal_name, "F0")):
-    self.p_spy(e)
-    _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
-    investigate(self, e, _e)
-    self.post_fifo(_e.payload.event)
-    #self.live_spy_callback(ps(_e))
-    #self.complete_circuit()
-    status = self.trans(_e.payload.state)
   elif(e.signal == signals.SRF1):
     self.p_spy(e)
     if self.live_spy and self.instrumented:
       self.live_spy_callback("{}:outer".format(e.signal_name))
-    _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
+    _state, _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
     self.post_fifo(_e.payload.event)
-    status = self.trans(_e.payload.state)
+    if _state:
+      status = self.trans(_state)
   else:
     self.temp.fun = middle
     status = return_status.SUPER
@@ -3600,20 +3690,23 @@ def p(self, e):
       self.token_match(e.signal_name, "e4") or
       self.token_match(e.signal_name, "e5") or
       self.token_match(e.signal_name, "A0") or
-      self.token_match(e.signal_name, "C0") or
-      self.token_match(e.signal_name, "C1") or
+      self.token_match(e.signal_name, "RC1") or
+      self.token_match(e.signal_name, "RC2") or
+      self.token_match(e.signal_name, "RH1") or
       self.token_match(e.signal_name, "SRH2") or
       self.token_match(e.signal_name, "SRG1") or
       self.token_match(e.signal_name, "D2") or
       self.token_match(e.signal_name, "D2") or
       self.token_match(e.signal_name, "SRH3") or
-      self.token_match(e.signal_name, "D4") or
-      self.token_match(e.signal_name, "E2") or
+      self.token_match(e.signal_name, "RE1") or
+      self.token_match(e.signal_name, "RA1") or
       self.token_match(e.signal_name, "F1") or
       self.token_match(e.signal_name, "F2") or
       self.token_match(e.signal_name, "PC1") or
       self.token_match(e.signal_name, "PF1") or
-      self.token_match(e.signal_name, "PG1") or
+      self.token_match(e.signal_name, "RG1") or
+      self.token_match(e.signal_name, "RB1") or
+      self.token_match(e.signal_name, "RD1") or
       self.token_match(e.signal_name, "PG2") or
       self.token_match(e.signal_name, "I1") or
       self.token_match(e.signal_name, "SRH1") or
@@ -3631,7 +3724,8 @@ def p(self, e):
     self.p_spy(e)
     # hasn't been updated
     self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
-    self.regions['p'].post_fifo(e.payload.event.payload.event)
+    #self.regions['p'].post_fifo(e.payload.event.payload.event)
+    self.regions['p'].post_fifo(e.payload.event)
     status = return_status.HANDLED
   elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
     self.p_spy(e)
@@ -3647,7 +3741,7 @@ def p(self, e):
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SRE2")):
     self.p_spy(e)
-    _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
+    _state, _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
     self.inner._post_lifo(Event(signal=signals.force_region_init))
     self.inner.post_fifo(_e)
     status = return_status.HANDLED
@@ -3655,7 +3749,7 @@ def p(self, e):
   elif(type(self.regions) == dict and self.token_match(e.signal_name,
        self.regions['p'].final_signal_name)):
     self.regions['p'].post_fifo(Event(signal=signals.exit_region))
-    status = self.trans(s)
+    status = self.trans(s_s1)
   elif(self.token_match(e.signal_name, "SA1")):
     self.p_spy(e)
     status = self.trans(p)
@@ -3669,12 +3763,13 @@ def p(self, e):
     self.p_spy(e)
     status = self.trans(middle)
   elif(self.token_match(e.signal_name, "SRB1")):
+    status = return_status.HANDLED
     self.p_spy(e)
-    _e = self.meta_init(r=self, s=p, t=p_p22, sig=e.signal)
+    _state, _e = self.meta_init(r=self, s=p, t=p_p22, sig=e.signal_name)
     investigate(self, e, _e)
-    self.post_fifo(_e.payload.event)
-    status = self.trans(_e.payload.state)
-
+    self.post_lifo(_e.payload.event)
+    if _state:
+      status = self.trans(_state)
   elif(e.signal == signals.EXIT_META_SIGNAL):
     self.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
@@ -3696,7 +3791,7 @@ def p(self, e):
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
-    self.p_spy(e)
+    self._p_spy(e)
     status = return_status.HANDLED
   else:
     self.temp.fun = middle
@@ -3744,8 +3839,7 @@ if __name__ == '__main__':
         example.report("Observed:  {}".format(active_states))
         example.report("Difference: {}".format(list_difference))
         example.active_states()
-        time.sleep(1000)
-        exit(1)
+        #exit(1)
       #assert active_states == expected_result
       return active_states
 
@@ -3910,15 +4004,7 @@ if __name__ == '__main__':
       old_result=old_results,
       duration=0.2
     )
-    exit(0)
 
-    #example.clear_log()
-    old_results = build_test(
-      sig='SRH2',
-      expected_result=['middle'],
-      old_result= old_results,
-      duration=0.2
-    )
 
     #example.clear_log()
     old_results = build_test(
@@ -3935,6 +4021,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
 
     #example.clear_log()
     old_results = build_test(
@@ -3976,6 +4063,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+
     #example.clear_log()
     old_results = build_test(
       sig='SRB1',
@@ -3983,6 +4071,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
 
     #example.clear_log()
     old_results = build_test(
@@ -4016,6 +4105,7 @@ if __name__ == '__main__':
       duration=0.2
     )
 
+
     #example.clear_log()
     old_results = build_test(
       sig='SRF1',
@@ -4039,6 +4129,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
 
     #example.clear_log()
     old_results = build_test(
@@ -4066,6 +4157,49 @@ if __name__ == '__main__':
 
     #example.clear_log()
     old_results = build_test(
+      sig='e5',
+      expected_result=['s_s1'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RF1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
       sig='SA1',
       expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
@@ -4080,7 +4214,30 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    # move
+    #example.clear_log()
+    old_results = build_test(
+      sig='PG2',
+      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='PF1',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RG1',
+      expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
+      old_result= old_results,
+      duration=0.2
+    )
+
     #example.clear_log()
     old_results = build_test(
       sig='SA1',
@@ -4089,421 +4246,120 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    #old_results = build_test(
-    #  sig='RF1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    ## move
-    #exit(0)
-    #old_results = build_test(
-    #  sig='PG2',
-    #  expected_result=['p_r1_under_hidden_region', 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='PF1',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='PG1',
-    #  expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SA1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='PC1',
-    #  expected_result=['p_r1_under_hidden_region', 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='e4',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e1',
-    #  expected_result=[['p_p11_r1_final', 'p_p11_s22'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e2',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e4',
-    #  expected_result=[['p_p12_s12', 'p_p12_s21'], ['p_p22_s12', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e1',
-    #  expected_result=[['p_p12_r1_final', 'p_p12_s22'], ['p_p22_r1_final', 'p_p22_s22']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e2',
-    #  expected_result=['s'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e4',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e1',
-    #  expected_result=[['p_p11_r1_final', 'p_p11_s22'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='to_o',
-    #  expected_result=['outer'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='E0',
-    #  expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='E2',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='E2',
-    #  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='E0',
-    #  expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='G1',
-    #  expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='A1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='G0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='A1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='F1',
-    #  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='A1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='G0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='I1',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region'],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e1',
-    #  expected_result=[['p_p11_r1_final', 'p_p11_s22'], 'p_r2_under_hidden_region'],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='G3',
-    #  expected_result=['p_r1_under_hidden_region', 'p_s21'],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C1',
-    #  expected_result=['p_r1_under_hidden_region', 'p_s21'],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='E0',
-    #  expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='A0',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='B1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='D1',
-    #  expected_result=['outer'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SRH2',
-    #  expected_result=['outer'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'],  ['p_p22_s11', 'p_p22_s21']],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='H1',
-    #  expected_result=['outer'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='C0',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'],  ['p_p22_s11', 'p_p22_s21']],
-    #  old_result = old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='D2',
-    #  expected_result=['s'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='e4',
-    #  expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='SRH3',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='SH1',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='F1',
-    #  expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result=old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='D4',
-    #  expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-
-    #old_results = build_test(
-    #  sig='to_s',
-    #  expected_result=['s'],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
-    #old_results = build_test(
-    #  sig='F0',
-    #  expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-    #  old_result= old_results,
-    #  duration=0.2
-    #)
-
+    #example.clear_log()
+    old_results = build_test(
+      sig='PC1',
+      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RC1',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result = old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RC2',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RB1',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RE1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RH1',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RD1',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result= old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RA1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    time.sleep(1000)
     exit(0)
+
+
 
