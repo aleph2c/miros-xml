@@ -1,25 +1,12 @@
-[[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
-([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) 
+[[subgoals.xml_to_miros|back]],  [[xml_to_miros]] ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) 
 
 *Parallel*
 = Observe =
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
-    * [ ] Integrate meta_init into meta_trans
-      * [ ] SRB1
-      * [ ] SRE1
-      * [ ] SRE2
-      * [ ] SRE3
-      * [ ] SRF1
-
-    Adjust SRE2 to work without force_region_init
 
   *What is the problem?*
-    We want to reduce the complexity of the internal interface into this chart.
-    So we will remove the meta_init method and only use the meta_trans method.
-    This way the code that generates the chart code from the xml doesn't have to
-    be as sophisticated, and it should be easier to write and debug.
 
     [[#Orient]]
     [[#Decide]]
@@ -34,15 +21,13 @@
       https://martinheinz.dev/blog/24
       https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
 
-    With the current design, there can be no entry and exit
-    conditions for the regions.  If there are, then the I1
-    dynamics will not work.  The I1 is a BOUNCE_SAME_META_SIGNAL.
-    It exits the region in which it is running in order to
-    re-engage with that regions INIT_META_SIGNAL handling.  This
-    can be changed, but the region entry/exit was just a bonus,
-    it wasn't part of the original specification, but if we
-    include it, were are including a bug.  If I change it, it
-    will be a lot of effort exerted for something that doesn't
+    With the current design, there can be no entry and exit conditions for the
+    regions.  If there are, then the I1 dynamics will not work.  The I1 is a
+    BOUNCE_SAME_META_SIGNAL.  It exits the region in which it is running in
+    order to re-engage with that regions INIT_META_SIGNAL handling.  This can be
+    changed, but the region entry/exit was just a bonus, it wasn't part of the
+    original specification, but if we include it, were are including a bug.  If
+    I change it, it will be a lot of effort exerted for something that doesn't
     matter that much.  This applies to D3 as well.
 
     To setup auto-testing:
@@ -61,307 +46,144 @@
 
     To track a meta event (1-4 takes about 10 minutes to set up):
       1. place a print(ps(_e)) at it's source
-      2. write out a list in this document, one line for each
-         line of the above output... associate each line with a
-         Vim marker, {a, b, c, ... }
-      3. for each line in this listing go to the corresponding
-         location in the code and add an 'investigate(r, e, _e)'.
-         Assign the proper marker
-      4. add a time delay after the broken test in the outer
-         program so that you can break into the statechart thread
-         and the program will continue to run.
-      5. for each step look at the log and look poke around in
-         the investigate location of the marked spot.
+      2. write out a list in this document, one line for each line of the above
+         output... associate each line with a Vim marker, {a, b, c, ... }
+      3. for each line in this listing go to the corresponding location in the
+         code and add an 'investigate(r, e, _e)'.  Assign the proper marker
+      4. add a time delay after the broken test in the outer program so that you
+         can break into the statechart thread and the program will continue to
+         run.
+      5. for each step look at the log and look poke around in the investigate
+         location of the marked spot.
 
     *Warnings:*
 
-    The lazy-inners thing is causing me trouble now (can you make
-    this go away?)
+    The lazy-inners thing is causing me trouble now (can you make this go away?)
 
-    Since the state functions are decoratored, it is very tricky
-    to compare the using the '==' operator.  Technically
-    speaking, a decorated function and its naked version are not
-    equivalent.  To avoid what could be a very nasty and hard to
-    track bug, compare the string names of function not the
-    functions directly. (You can use the __wrapped__ magic
-    method!)
+    Since the state functions are decoratored, it is very tricky to compare the
+    using the '==' operator.  Technically speaking, a decorated function and its
+    naked version are not equivalent.  To avoid what could be a very nasty and
+    hard to track bug, compare the string names of function not the functions
+    directly. (You can use the __wrapped__ magic method!)
 
-    Do not use post_fifo or post_lifo within mini-steps.  Instead
-    use _post_fifo and _post_lifo and let the driver push all of
-    the intermediate events through the chart.
+    Do not use post_fifo or post_lifo within mini-steps.  Instead use _post_fifo
+    and _post_lifo and let the driver push all of the intermediate events
+    through the chart.
 
-    The use of the rr.fns dict has made it harder to troubleshoot
-    problems because I can not grep and search for the functions
-    I want to search for directly.  Try to make your code
-    grep-able.
+    The use of the rr.fns dict has made it harder to troubleshoot problems
+    because I can not grep and search for the functions I want to search for
+    directly.  Try to make your code grep-able.
 
 == Future Goals ==
 
-      If you are tired, pick an easy goal, if you are fresh pick
-      a hard goal
+      If you are tired, pick an easy goal, if you are fresh pick a hard goal
 
       *Easy Goals:*
-      * [ ] Remove references to outmost for final_signal_name
-            handling, use same, inner or outer attributes
-            instead. (figure out which is appropriate)
+      * [ ] Remove references to outmost for final_signal_name handling, use
+            same, inner or outer attributes instead. (figure out which is
+            appropriate)
       * [ ] Write up trouble shooting method for tracking WTF event
       * [ ] Integrate build_onion into meta_init
 
       *Harder Goals:*
       * [ ] Turn meta_trans into an HSM
       * [ ] Add META_HOOKS
-      * [ ] Find a way to get rid of the timeout in the test.
-            The statechart should able to tell you when it is
-            done or not.
-      * [ ] Exclusive Transitions into a parallel state. (this
-            will require a change in the drawing techniques)
-      * [ ] Need a mechanism to clear the graph's cache.  This
-            will be needed when an XML diagram is being used to
-            over-write and inner part of a program.
-
-    *Bestiary:*
-
-    RA1:
-    RB1:
-    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::RB1:p_p12 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
-    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
-    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
-    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
-    RC1:
-    RC2:
-
-    RD1:
-    [n=1]::EXIT_META_SIGNAL:p_p12_r1_region [n=0]::RD1:p_p12_p11 ->
-    [n=2]::OUTER_TRANS_REQUIRED:p_p12 [n=1]::EXIT_META_SIGNAL:p_p12_r1_region ->
-    [n=3]::OUTER_TRANS_REQUIRED:p_p12 [n=2]::EXIT_META_SIGNAL:p_p12 ->
-
-    RE1:
-    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RE1:p_p12 ->
-    [n=2]::INIT_META_SIGNAL:p_p12_r1_region
-    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
-    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
-    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
-    [n=5]::INIT_META_SIGNAL:p_p12_p11_s12
-    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
-
-    RF1:
-    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RE1:p_p12 ->
-    [n=2]::INIT_META_SIGNAL:p_p12_r1_region
-    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
-    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
-    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
-    [n=5]::INIT_META_SIGNAL:p_p12_p11_s12
-    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
-
-    RG1:
-    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::RG1:p_p12_p11_s21 ->
-    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
-    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
-    [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
-    [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
-    [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
-    [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
-    [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
-    [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->  
-
-    RH1:
-    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region [n=0]::RH1:p_p12_p11_s12 ->
-    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region->
-    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
-    [n=4]::OUTER_TRANS_REQUIRED:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
-    [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 -> 
-
-    SRB1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRB1:p ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
-    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
-
-    SRD1:
-    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD1:p_p22 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
-    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
-
-    SRD2:
-    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD2:p_s21 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
-    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
-
-    SRE1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE1:p ->
-    [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::INIT_META_SIGNAL:p ->
-    [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
-
-    SRE2:
-    [n=1]::INIT_META_SIGNAL:p_p11 [n=0]::SRE2:p ->
-    [n=2]::INIT_META_SIGNAL:p_p11_r1_region [n=1]::INIT_META_SIGNAL:p_p11 ->
-    [n=3]::INIT_META_SIGNAL:p_p11_s12 [n=2]::INIT_META_SIGNAL:p_p11_r1_region ->
-
-    SRE3:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE3:outer ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
-    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
-
-    SRF1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRF1:s ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
-    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
-    [n=4]::INIT_META_SIGNAL:p_p22_r2_region [n=3]::INIT_META_SIGNAL:p_p22 ->
-    [n=5]::INIT_META_SIGNAL:p_p22_s21 [n=4]::INIT_META_SIGNAL:p_p22_r2_region ->
-
-    SRG1:
-    [n=1]::EXIT_META_SIGNAL:p_p22_r2_region [n=0]::SRG1:p_p22_s21 ->
-    [n=2]::EXIT_META_SIGNAL:p_p22 [n=1]::EXIT_META_SIGNAL:p_p22_r2_region ->
-    [n=3]::EXIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p_p22 ->
-    [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r2_region ->
-    [n=5]::OUTER_TRANS_REQUIRED:s_s1 [n=4]::EXIT_META_SIGNAL:p ->
-
-    SRH1:
-    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRH1:p_s21 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
-    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
-
-    SRH2:
-    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::SRH2:p_p11 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
-
-    SRH3:
-    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::SRH3:p_p11_s12 ->
-    [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
-    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
-    [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p -> 
-
-    PC1:
-    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::PC1:p_p11 ->
-    [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=3]::INIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p ->
-    [n=4]::INIT_META_SIGNAL:p_s21 [n=3]::INIT_META_SIGNAL:p_r2_region ->
-
-    PF1:
-    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::PF1:p_s21 ->
-    [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
-    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
-    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
-    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
-    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
-    [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region [n=6]::INIT_META_SIGNAL:p_p12_p11 ->
-    [n=8]::INIT_META_SIGNAL:p_p12_p11_s21
-    [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region ->
-
-    PG1:
-    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::PG1:p_p12_p11_s21 ->
-    [n=2]::EXIT_META_SIGNAL:p_p12_p11
-    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
-    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
-    [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
-    [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
-    [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
-    [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
-    [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
-    [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->
-
-    PG2:
-    [n=1]::EXIT_META_SIGNAL:p_p11_r2_region [n=0]::PG2:p_p11_s22 ->
-    [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r2_region ->
-    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
-    [n=4]::BOUNCE_ACROSS_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=5]::INIT_META_SIGNAL:p_r2_region [n=4]::EXIT_META_SIGNAL:p ->
-    [n=6]::INIT_META_SIGNAL:p_s21 [n=5]::INIT_META_SIGNAL:p_r2_region -> 
+      * [ ] Find a way to get rid of the timeout in the test.  The statechart
+            should able to tell you when it is done or not.
+      * [ ] Exclusive Transitions into a parallel state. (this will require a
+            change in the drawing techniques)
+      * [ ] Need a mechanism to clear the graph's cache.  This will be needed
+            when an XML diagram is being used to over-write and inner part of a
+            program.
 
     Pre-made check lists for consistency work:
 
-    Full Audit:
-    * [X] 
-      * [X] RA1
-      * [X] RB1
-      * [X] RC1
-      * [X] RC2
-      * [X] RD1
-      * [X] RE1
-      * [X] RF1
-      * [X] RG1
-      * [X] RH1
-      * [X] SRB1
-      * [X] SRD1
-      * [X] SRD2
-      * [X] SRE1
-      * [X] SRE2
-      * [X] SRE3
-      * [X] SRF1
-      * [X] SRG1
-      * [X] SRH1
-      * [X] SRH2
-      * [X] SRH3
-      * [X] PC1
-      * [X] PF1
-      * [X] PG1
-      * [X] PG2
-      * [X] SA1
-      * [X] SB1
-      * [X] SC1
-      * [X] SD1
-      * [X] SD2
-      * [X] SH1
+    * [ ] All WTF events
+      * [ ] RA1
+      * [ ] RB1
+      * [ ] RC1
+      * [ ] RC2
+      * [ ] RD1
+      * [ ] RE1
+      * [ ] RF1
+      * [ ] RG1
+      * [ ] RH1
+      * [ ] SRB1
+      * [ ] SRD1
+      * [ ] SRD2
+      * [ ] SRE1
+      * [ ] SRE2
+      * [ ] SRE3
+      * [ ] SRF1
+      * [ ] SRG1
+      * [ ] SRH1
+      * [ ] SRH2
+      * [ ] SRH3
+      * [ ] PC1
+      * [ ] PF1
+      * [ ] PG1
+      * [ ] PG2
+      * [ ] SA1
+      * [ ] SB1
+      * [ ] SC1
+      * [ ] SD1
+      * [ ] SD2
+      * [ ] SH1
 
-    R Audit:
-    * [ ] RB1
-    * [ ] RC1
-    * [ ] RC2
-    * [ ] RD1
-    * [ ] RE1
-    * [ ] RF1
-    * [ ] RG1
-    * [ ] RH1
+    * [ ] R Audit:
+      * [ ] RB1
+      * [ ] RC1
+      * [ ] RC2
+      * [ ] RD1
+      * [ ] RE1
+      * [ ] RF1
+      * [ ] RG1
+      * [ ] RH1
 
-    SR Audit:
-    * [X] SRB1
-    * [X] SRD1
-    * [X] SRD2
-    * [X] SRE1
-    * [X] SRE2
-    * [X] SRE3
-    * [X] SRF1
-    * [X] SRG1
-    * [X] SRH1
-    * [X] SRH2
-    * [X] SRH3
+    * [ ] SR Audit:
+      * [ ] SRB1
+      * [ ] SRD1
+      * [ ] SRD2
+      * [ ] SRE1
+      * [ ] SRE2
+      * [ ] SRE3
+      * [ ] SRF1
+      * [ ] SRG1
+      * [ ] SRH1
+      * [ ] SRH2
+      * [ ] SRH3
 
-    P Audit:
-    * [X] PC1
-    * [X] PF1
-    * [X] PG1
-    * [X] PG2
+    * [ ] P Audit:
+      * [ ] PC1
+      * [ ] PF1
+      * [ ] PG1
+      * [ ] PG2
 
-    S Audit:
-    * [X] SA1
-    * [X] SB1
-    * [X] SC1
-    * [X] SD1
-    * [X] SD2
-    * [X] SH1
+    * [ ] S Audit:
+      * [ ] SA1
+      * [ ] SB1
+      * [ ] SC1
+      * [ ] SD1
+      * [ ] SD2
+      * [ ] SH1
 
-    Injectors:
+    * [ ] Injectors:
       * [ ] p (active object)
-      * [X] p_p11 (Region)
-      * [X] p_p12 (Region)
-      * [X] p_p12_p11 (Region)
-      * [X] p_p22 (Region)
-
-    Outer Injectors:
-      * [ ] p (active object)
-
-    Inner Injectors:
       * [ ] p_p11 (Region)
       * [ ] p_p12 (Region)
       * [ ] p_p12_p11 (Region)
       * [ ] p_p22 (Region)
 
-    Region State Functions:
+    * [ ] Outer Injectors:
+      * [ ] p (active object)
+
+    * [ ] Inner Injectors:
+      * [ ] p_p11 (Region)
+      * [ ] p_p12 (Region)
+      * [ ] p_p12_p11 (Region)
+      * [ ] p_p22 (Region)
+
+    * [ ] Region State Functions:
       * [ ] p_p11_r1_region
       * [ ] p_p12_p11_r1_region
       * [ ] p_p11_r2_region
@@ -374,7 +196,7 @@
       * [ ] p_r1_region
       * [ ] p_r2_region
 
-    Under Region State Functions:
+    * [ ] Under Region State Functions:
       * [ ] p_p11_r1_under_hidden_region
       * [ ] p_p11_r2_under_hidden_region
       * [ ] p_p12_p11_r1_under_hidden_region
@@ -386,7 +208,7 @@
       * [ ] p_r1_under_hidden_region
       * [ ] p_r2_under_hidden_region
 
-    Over Region State Functions:
+    * [ ] Over Region State Functions:
       * [ ] p_p11_r1_over_hidden_region
       * [ ] p_p11_r2_over_hidden_region
       * [ ] p_p12_p11_r1_over_hidden_region
@@ -398,12 +220,12 @@
       * [ ] p_r1_over_hidden_region
       * [ ] p_r2_over_hidden_region
 
-    Active Object States:
+    * [ ] Active Object States:
       * [ ] outer_state
       * [ ] p (injector)
       * [ ] some_other_state
 
-    Other Region States (not injectors or regions):
+    * [ ] Other Region States (not injectors or regions):
       * [ ] p_p11_r1_final
       * [ ] p_p11_r1_over_hidden_region
       * [ ] p_p11_r1_under_hidden_region
@@ -500,29 +322,13 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions: (>=5) ==
-    * [ ] Why does the post after meta_init ignore the first level of event?
-    * [ ] Why does SRE2 have a pre-injection of an event while the other
-          meta_init events don't?
-    * [ ] Why does SRE2 have a pre-injection of an event while the other
-          SREn events don't?
-    * [ ] Do any other events have this behavior? Do force inits or force entry
-          events happen within the initial catch handler?
-    * [ ] What other non-initialization handlers have the force_region_init?
-          BOUNCE_SAME_META_SIGNAL (injectors), INIT_META_SIGNAL of p
-    * [ ] Do the SRE family look the same in the bestiary?
 
 = Decide =
 
   *Research Needed For?:* ([[#Observe]], [[#Orient]])
-    * Search the chart for the meta_init call, use this to create a work list
-
+  * [ ] 
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
-  * [X] Adjust all SRE handlers to look the same
-  * [ ] Adjust SRE2 to work without force_region_init
-    * [ ] change SRE2 to use a meta_trans technique
-    * [ ] add a bounce same to this meta event to remove the need for the
-          force_region_init call before its meta event is posted into the chart
-  * [ ] Remove force_region_init from other SREn handlers
+  * [ ] 
 
   *Chosen Research-Goal/Hypothesis*
 

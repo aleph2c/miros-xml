@@ -19,7 +19,7 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = 'RA1'
+event_to_investigate = '_SRF1'
 
 def pp(item):
   xprint.pprint(item)
@@ -202,7 +202,7 @@ def othogonal_state(fn):
       if fn_as_s in region.outmost.regions:
         region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
 
-    # these can be trampled as a side effect of a search (meta_init, meta_trans)
+    # these can be trampled as a side effect of a search (meta_trans)
     # so make sure you salt their results away when you use these functions
     region.inner = region.inners[fn_as_s]
     region.current_function_name = fn_as_s
@@ -810,6 +810,7 @@ class XmlChart(InstrumentedActiveObject):
     self.current_function_name = None  # dynamically assigned
     self.outmost = self
     self.inner = self
+    self.same = self
 
   def regions_queues_string(self):
     '''Reflect upon all queues for all region objects in statechart
@@ -966,135 +967,6 @@ class XmlChart(InstrumentedActiveObject):
   def _post_fifo(self, e, outmost=None):
     self.post_fifo(e)
 
-  @lru_cache(maxsize=64)
-  def meta_init(self, r, s, t, sig):
-    '''Build target and meta event for the state.  The meta event will be a
-    recursive INIT_META_SIGNAL event for a given WTF signal and return a target for
-    it's first pass off.
-
-    **Note**:
-       see `e0-wtf-event
-       <https://aleph2c.github.io/miros-xml/recipes.html#e0-wtf-event>`_ for
-       details about and why a INIT_META_SIGNAL is constructed and why it is needed.
-
-    **Args**:
-       | ``t`` (state function): target state
-       | ``sig`` (string): event signal name
-       | ``s=None`` (state function): source state
-
-    **Returns**:
-       (Event): recursive Event
-
-    **Example(s)**:
-
-    .. code-block:: python
-
-       target, onion = example.meta_init(p_p11_s21, "E0")
-
-       assert onion.payload.state == p
-       assert onion.payload.event.payload.state == p_r1_region
-       assert onion.payload.event.payload.event.payload.state == p_p11
-       assert onion.payload.event.payload.event.payload.event.payload.state == p_p11_r2_region
-       assert onion.payload.event.payload.event.payload.event.payload.event.payload.state == p_p11_s21
-       assert onion.payload.event.payload.event.payload.event.payload.event.payload.event == None
-
-    '''
-    inner = r.inner
-    current_function_name = r.current_function_name
-
-    region = None
-    onion_states = []
-    onion_states.append(t)
-
-    @lru_cache(maxsize=32)
-    def find_fns(state):
-      '''For a given state find (region_state_function,
-      outer_function_that_holds_the_region, region_object)
-
-      **Args**:
-         | ``state`` (state_function): the target of the WTF event given to
-         |                             meta_init
-
-
-      **Returns**:
-         | (tuple): (region_state_function,
-         |           outer_function_that_holds_the_region, region_object)
-
-
-      **Example(s)**:
-
-      .. code-block:: python
-
-         a, b, c = find_fns(p_p11_s21)
-         assert a == p_p11_r2_region
-         assert b == p_p11
-         assert c.name == 'p_p11_r2'
-
-      '''
-      outer_function_state_holds_the_region = None
-      region_obj = None
-      assert callable(state)
-      for k, rs in self.regions.items():
-        for r in rs._regions:
-          if r.has_state(state):
-            outer_function_state_holds_the_region = eval(rs.name)
-            region_obj = r
-            break
-      if region_obj:
-        region_state_function = region_obj.fns['region_state_function']
-        assert callable(outer_function_state_holds_the_region)
-        return region_state_function, outer_function_state_holds_the_region, region_obj
-      else:
-        return None, None, None
-
-    target_state, region_holding_state, region = find_fns(t)
-    onion_states += [target_state, region_holding_state]
-
-    while region and hasattr(region, 'outer'):
-      target_state, region_holding_state, region = \
-        find_fns(region_holding_state)
-      if s is not None and region_holding_state == s:
-        break
-      if target_state:
-        onion_states += [target_state, region_holding_state]
-
-    # Wrap up the onion meta event from the inside out.
-    # History items at the last layer of the outer part of the
-    # INIT_META_SIGNAL need to reference an even more outer part
-    # of the onion, the source of the meta_init call.
-    event = None
-    init_onion = onion_states[:]
-    number = len(init_onion)
-    for index, entry_target in enumerate(init_onion):
-      previous_signal = signals.INIT_META_SIGNAL
-      if index == len(init_onion) - 1:
-        previous_signal = sig
-        previous_state = s
-      else:
-        previous_state =  init_onion[index + 1]
-
-      event = Event(
-        signal=signals.INIT_META_SIGNAL,
-        payload=META_SIGNAL_PAYLOAD(
-          n=number,
-          event=event,
-          state=entry_target,
-          previous_state=previous_state,
-          previous_signal=previous_signal,
-          springer=sig
-        )
-      )
-      number -= 1
-
-    r.inner = inner
-    r.current_function_name = current_function_name
-
-    _state = event.payload.state
-    if _state == s:
-      _state = None
-
-    return (_state, event)
-
   def build_onion(self, t, sig, s=None):
     '''Find an list of state functions which describe a single gradient in the
     HHSM, from the source 's', to the target, 't'.
@@ -1162,7 +1034,7 @@ class XmlChart(InstrumentedActiveObject):
 
       **Args**:
          | ``state`` (state_function): the target of the WTF event given to
-         |                             meta_init
+         |                             build_onion
 
 
       **Returns**:
@@ -1211,10 +1083,13 @@ class XmlChart(InstrumentedActiveObject):
       if target_state:
         onion_states += [target_state, region_holding_state]
     if None in onion_states:
-      new_target = s
-      new_source = t
-      onion_states = self.build_onion(s=new_source, t=new_target, sig=sig)
-      onion_states.reverse()
+      if s is None:
+        onion_states = [t]
+      else:
+        new_target = s
+        new_source = t
+        onion_states = self.build_onion(s=new_source, t=new_target, sig=sig)
+        onion_states.reverse()
     return onion_states
 
   @lru_cache(maxsize=64)
@@ -1272,10 +1147,16 @@ class XmlChart(InstrumentedActiveObject):
     target = t
     lca = self.lca(source, target)
 
-    exit_onion1 = self.build_onion(
-        t=source,
-        s=lca,
-        sig=sig)
+    outer_injector = None
+    if lca.__name__ == 'top':
+      outer_injector = self.build_onion(target, sig=None)[-1]
+      exit_onion1 = []
+    else:
+      outer_injector = None
+      exit_onion1 = self.build_onion(
+          t=source,
+          s=lca,
+          sig=sig)
 
     if len(exit_onion1) >= 1:
       exit_onion = exit_onion1[1:]
@@ -1473,6 +1354,8 @@ class XmlChart(InstrumentedActiveObject):
 
     if _state and len(exit_onion) == 1:
       event = event.payload.event.payload.event
+    if outer_injector is not None:
+      _state = outer_injector
 
     r.inner = inner
     r.current_function_name = current_function_name
@@ -1675,9 +1558,6 @@ def p_p11(r, e):
   elif r.token_match(e.signal_name, "RC1"):
     r.p_spy(e)
     status = r.trans(p_p12)
-  elif r.token_match(e.signal_name, "A0"):
-    r.p_spy(e)
-    status = r.trans(p_p11)
   elif r.token_match(e.signal_name, "SRH2"):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=middle, s=p_p11, sig=e.signal_name)
@@ -2083,12 +1963,6 @@ def p_p11_s22(r, e):
     else:
       status = return_status.UNHANDLED
 
-  elif(r.token_match(e.signal_name, "F2")):
-    r.p_spy(e)
-    _state, _e = r.meta_trans(r, t=p_p12_p11_s12, s=p_p11_s22, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.outer.post_lifo(_e)
-    status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.trans(p_p11_r2_final)
@@ -2161,9 +2035,7 @@ def p_p12(r, e):
        r.token_match(e.signal_name, "RD1") or
        r.token_match(e.signal_name, "PG1") or
        r.token_match(e.signal_name, "RH1") or
-       r.token_match(e.signal_name, "RG1") or
-       r.token_match(e.signal_name, "D4") or
-       r.token_match(e.signal_name, "I1")
+       r.token_match(e.signal_name, "RG1")
        ):
     r.p_spy(e)
     r.inner.post_fifo(e)
@@ -2384,8 +2256,8 @@ def p_p12_p11(r, e):
   elif(r.token_match(e.signal_name, "RG1") or
        r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "RH1") or
-       r.token_match(e.signal_name, "I1")):
+       r.token_match(e.signal_name, "RH1")
+       ):
     r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
@@ -3138,7 +3010,6 @@ def p_p22(r, e):
   elif(r.token_match(e.signal_name, "e1") or
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "D2") or
        r.token_match(e.signal_name, "SRG1") or
        r.token_match(e.signal_name, "RF1") or
        r.token_match(e.signal_name, "RE1")
@@ -3485,15 +3356,6 @@ def p_p22_s21(r, e):
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.trans(p_p22_s22)
-  elif r.token_match(e.signal_name, "D2"):
-    r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=s, s=p_p22_s21, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
   elif r.token_match(e.signal_name, "SRG1"):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(r, t=s_s1, s=p_p22_s21, sig=e.signal_name)
@@ -3580,14 +3442,20 @@ def outer(self, e):
     #self.p_spy(e)
     status = self.trans(p)
   elif(self.token_match(e.signal_name, "SRE3")):
-    status = return_status.HANDLED
     self.p_spy(e)
-    _state, _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
+    _state, _e = self.outmost.meta_trans(
+      self,
+      t=p_p22,
+      s=outer,
+      sig=e.signal_name
+    )
     investigate(self, e, _e)
-    self.post_fifo(_e.payload.event)
+    self.same._post_fifo(_e)
     if _state:
       status = self.trans(_state)
+    else:
+      status = return_status.UNHANDLED
+
   elif(e.signal == signals.EXIT_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3612,14 +3480,19 @@ def middle(self, e):
     self.p_spy(e)
     status = self.trans(s)
   elif(self.token_match(e.signal_name, "SRE1")):
-    status = return_status.HANDLED
     self.p_spy(e)
-    _state, _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
+    _state, _e = self.outmost.meta_trans(
+      self,
+      t=p_p11,
+      s=p,
+      sig=e.signal_name
+    )
     investigate(self, e, _e)
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.post_fifo(_e.payload.event)
+    self.same._post_fifo(_e)
     if _state:
       status = self.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3645,12 +3518,18 @@ def s(self, e):
     status = self.trans(middle)
   elif(e.signal == signals.SRF1):
     self.p_spy(e)
-    if self.live_spy and self.instrumented:
-      self.live_spy_callback("{}:outer".format(e.signal_name))
-    _state, _e = self.meta_init(r=self, t=p_p22_s21, s=s, sig=e.signal_name)
-    self.post_fifo(_e.payload.event)
+    _state, _e = self.outmost.meta_trans(
+      self,
+      t=p_p22_s21,
+      s=s,
+      sig=e.signal_name
+    )
+    investigate(self, e, _e)
+    self.same._post_fifo(_e)
     if _state:
       status = self.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   else:
     self.temp.fun = middle
     status = return_status.SUPER
@@ -3689,24 +3568,20 @@ def p(self, e):
     self.p_spy(e)
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(type(self.regions) == dict and (self.token_match(e.signal_name, "e1") or
+  elif(type(self.regions) == dict and (
+      self.token_match(e.signal_name, "e1") or
       self.token_match(e.signal_name, "e2") or
       self.token_match(e.signal_name, "e3") or
       self.token_match(e.signal_name, "e4") or
       self.token_match(e.signal_name, "e5") or
-      self.token_match(e.signal_name, "A0") or
       self.token_match(e.signal_name, "RC1") or
       self.token_match(e.signal_name, "RC2") or
       self.token_match(e.signal_name, "RH1") or
       self.token_match(e.signal_name, "SRH2") or
       self.token_match(e.signal_name, "SRG1") or
-      self.token_match(e.signal_name, "D2") or
-      self.token_match(e.signal_name, "D2") or
       self.token_match(e.signal_name, "SRH3") or
       self.token_match(e.signal_name, "RE1") or
       self.token_match(e.signal_name, "RA1") or
-      self.token_match(e.signal_name, "F1") or
-      self.token_match(e.signal_name, "F2") or
       self.token_match(e.signal_name, "PC1") or
       self.token_match(e.signal_name, "PF1") or
       self.token_match(e.signal_name, "RG1") or
@@ -3714,7 +3589,6 @@ def p(self, e):
       self.token_match(e.signal_name, "RD1") or
       self.token_match(e.signal_name, "PG1") or
       self.token_match(e.signal_name, "PG2") or
-      self.token_match(e.signal_name, "I1") or
       self.token_match(e.signal_name, "SRH1") or
       self.token_match(e.signal_name, "SRD2") or
       self.token_match(e.signal_name, "SRD1") or
@@ -3722,7 +3596,8 @@ def p(self, e):
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
-  )):
+    )
+  ):
     self.p_spy(e)
     self.inner.post_fifo(e)
     status = return_status.HANDLED
@@ -3747,10 +3622,18 @@ def p(self, e):
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SRE2")):
     self.p_spy(e)
-    _state, _e = self.meta_init(r=self, s=p, t=p_p11_s12, sig=e.signal)
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.inner.post_fifo(_e)
-    status = return_status.HANDLED
+    _state, _e = self.outmost.meta_trans(
+      self,
+      t=p_p11_s12,
+      s=p,
+      sig=e.signal_name
+    )
+    investigate(self, e, _e)
+    self.same._post_fifo(_e)
+    if _state:
+      status = self.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   # final token match
   elif(type(self.regions) == dict and self.token_match(e.signal_name,
        self.regions['p'].final_signal_name)):
@@ -3769,13 +3652,19 @@ def p(self, e):
     self.p_spy(e)
     status = self.trans(middle)
   elif(self.token_match(e.signal_name, "SRB1")):
-    status = return_status.HANDLED
     self.p_spy(e)
-    _state, _e = self.meta_init(r=self, s=p, t=p_p22, sig=e.signal_name)
+    _state, _e = self.outmost.meta_trans(
+      self,
+      t=p_p22,
+      s=p,
+      sig=e.signal_name
+    )
     investigate(self, e, _e)
-    self.post_lifo(_e.payload.event)
+    self.same._post_fifo(_e)
     if _state:
       status = self.trans(_state)
+    else:
+      status = return_status.UNHANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     self.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
@@ -3792,6 +3681,13 @@ def p(self, e):
     else:
       self.inner.post_fifo(Event(signal=signals.exit_region))
       self.inner.post_fifo(Event(signal=signals.enter_region))
+  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+    self.p_spy(e)
+    _state, _e = e.payload.state, e.payload.event
+    self.inner._post_lifo(Event(signal=signals.force_region_init))
+    self.inner.post_fifo(_e)
+    investigate(self, e, _e)
+    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     self.inner.post_lifo(Event(signal=signals.exit_region))
     self.p_spy(e)
@@ -3845,6 +3741,7 @@ if __name__ == '__main__':
         example.report("Observed:  {}".format(active_states))
         example.report("Difference: {}".format(list_difference))
         example.active_states()
+        time.sleep(1000)
         exit(1)
       #assert active_states == expected_result
       return active_states
@@ -3907,13 +3804,8 @@ if __name__ == '__main__':
       p,
     ])
     result2 = example.build_onion(t=p_p11, s=p_p12, sig='TEST')
-
     active_states = example.active_states()
-    #print("{:>39}{:>5} <-> {:<80}".format("start", "", str(active_states)))
-
     old_results = example.active_states()[:]
-
-    #example.logger.setLevel(logging.DEBUG)
 
     #example.clear_log()
     old_results = build_test(
@@ -4011,7 +3903,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     #example.clear_log()
     old_results = build_test(
       sig='SRH2',
@@ -4027,7 +3918,6 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-
 
     #example.clear_log()
     old_results = build_test(
@@ -4077,8 +3967,6 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-
-
     #example.clear_log()
     old_results = build_test(
       sig='SA1',
@@ -4111,7 +3999,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     #example.clear_log()
     old_results = build_test(
       sig='SRF1',
@@ -4135,8 +4022,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-
-
+    exit(0)
     #example.clear_log()
     old_results = build_test(
       sig='e4',
@@ -4187,7 +4073,6 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-
     #example.clear_log()
     old_results = build_test(
       sig='SA1',
@@ -4203,6 +4088,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
     #example.clear_log()
     old_results = build_test(
       sig='SA1',

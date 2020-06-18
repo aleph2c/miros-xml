@@ -56,8 +56,9 @@
     [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 -> 
 
     SRB1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRB1:p ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRB1:p ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
     [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
 
     SRD1:
@@ -71,23 +72,28 @@
     [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
 
     SRE1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE1:p ->
-    [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRE1:p ->
+    [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->
     [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
 
     SRE2:
-    [n=1]::INIT_META_SIGNAL:p_p11 [n=0]::SRE2:p ->
-    [n=2]::INIT_META_SIGNAL:p_p11_r1_region [n=1]::INIT_META_SIGNAL:p_p11 ->
-    [n=3]::INIT_META_SIGNAL:p_p11_s12 [n=2]::INIT_META_SIGNAL:p_p11_r1_region ->
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRE2:p ->
+    [n=2]::INIT_META_SIGNAL:p_r1_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
+    [n=4]::INIT_META_SIGNAL:p_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p11 ->
+    [n=5]::INIT_META_SIGNAL:p_p11_s12 [n=4]::INIT_META_SIGNAL:p_p11_r1_region ->
 
     SRE3:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE3:outer ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=1]::BOUNCE_SAME_META_SIGNAL:outer [n=0]::SRE3:outer ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
     [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
 
     SRF1:
-    [n=1]::INIT_META_SIGNAL:p [n=0]::SRF1:s ->
-    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=1]::BOUNCE_SAME_META_SIGNAL:s [n=0]::SRF1:s ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
     [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
     [n=4]::INIT_META_SIGNAL:p_p22_r2_region [n=3]::INIT_META_SIGNAL:p_p22 ->
     [n=5]::INIT_META_SIGNAL:p_p22_s21 [n=4]::INIT_META_SIGNAL:p_p22_r2_region ->
