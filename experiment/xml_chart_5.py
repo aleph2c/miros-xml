@@ -166,7 +166,7 @@ def state(fn):
       e = args[-1]
 
     if fn_as_s not in chart.regions:
-      chart.inner = None
+      chart.inner = chart
     else:
       chart.inner = chart.regions[fn_as_s]
     chart.current_function_name = fn_as_s
@@ -809,6 +809,7 @@ class XmlChart(InstrumentedActiveObject):
 
     self.current_function_name = None  # dynamically assigned
     self.outmost = self
+    self.inner = self
 
   def regions_queues_string(self):
     '''Reflect upon all queues for all region objects in statechart
@@ -2158,6 +2159,7 @@ def p_p12(r, e):
        r.token_match(e.signal_name, "e2") or
        r.token_match(e.signal_name, "e4") or
        r.token_match(e.signal_name, "RD1") or
+       r.token_match(e.signal_name, "PG1") or
        r.token_match(e.signal_name, "RH1") or
        r.token_match(e.signal_name, "RG1") or
        r.token_match(e.signal_name, "D4") or
@@ -2381,6 +2383,7 @@ def p_p12_p11(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "RG1") or
        r.token_match(e.signal_name, "e1") or
+       r.token_match(e.signal_name, "PG1") or
        r.token_match(e.signal_name, "RH1") or
        r.token_match(e.signal_name, "I1")):
     r.p_spy(e)
@@ -2719,12 +2722,12 @@ def p_p12_p11_s21(r, e):
     else:
       status = return_status.UNHANDLED
 
-  elif(e.signal == signals.I1):
+  elif(e.signal == signals.PG1):
     r.p_spy(e)
     _state, _e = r.outmost.meta_trans(
       r,
       s=p_p12_p11_s21,
-      t=p_p11_s12,
+      t=p_p22_s11,
       sig=e.signal_name
     )
     investigate(r, e, _e)
@@ -3580,6 +3583,7 @@ def outer(self, e):
     status = return_status.HANDLED
     self.p_spy(e)
     _state, _e = self.meta_init(r=self, t=p_p22, s=outer, sig=e.signal_name)
+    self.inner._post_lifo(Event(signal=signals.force_region_init))
     investigate(self, e, _e)
     self.post_fifo(_e.payload.event)
     if _state:
@@ -3612,6 +3616,7 @@ def middle(self, e):
     self.p_spy(e)
     _state, _e = self.meta_init(r=self, s=p, t=p_p11, sig=e.signal)
     investigate(self, e, _e)
+    self.inner._post_lifo(Event(signal=signals.force_region_init))
     self.post_fifo(_e.payload.event)
     if _state:
       status = self.trans(_state)
@@ -3707,6 +3712,7 @@ def p(self, e):
       self.token_match(e.signal_name, "RG1") or
       self.token_match(e.signal_name, "RB1") or
       self.token_match(e.signal_name, "RD1") or
+      self.token_match(e.signal_name, "PG1") or
       self.token_match(e.signal_name, "PG2") or
       self.token_match(e.signal_name, "I1") or
       self.token_match(e.signal_name, "SRH1") or
@@ -3839,7 +3845,7 @@ if __name__ == '__main__':
         example.report("Observed:  {}".format(active_states))
         example.report("Difference: {}".format(list_difference))
         example.active_states()
-        #exit(1)
+        exit(1)
       #assert active_states == expected_result
       return active_states
 
@@ -4197,7 +4203,6 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-
     #example.clear_log()
     old_results = build_test(
       sig='SA1',
@@ -4309,7 +4314,6 @@ if __name__ == '__main__':
       old_result=old_results,
       duration=0.2
     )
-
     #example.clear_log()
     old_results = build_test(
       sig='RH1',
@@ -4358,7 +4362,22 @@ if __name__ == '__main__':
       duration=0.2
     )
 
-    time.sleep(1000)
+    #example.clear_log()
+    old_results = build_test(
+      sig='p_p11_final',
+      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='PG1',
+      expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
+      old_result=old_results,
+      duration=0.2
+    )
+
     exit(0)
 
 

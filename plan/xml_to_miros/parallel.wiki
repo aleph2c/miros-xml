@@ -1,45 +1,32 @@
 [[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
+([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) 
 
 *Parallel*
-= Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
+= Observe =
 == Evidence ([[evidence.parallel|evidence]]) ==
 
-  *What defines Success?:* ([[subgoals.parallel|subgoals]])
-    * [X] Finish xml_chart_5.py
-    * [ ] Create a beastiary for all WFT events.
-    * [ ] Create a new meta_trans method which topologically profiles the event,
-          and creates what it needs to look like form a bestiary-HSM-WTF-maker.
+  *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
+    * [ ] Integrate meta_init into meta_trans
+      * [ ] SRB1
+      * [ ] SRE1
+      * [ ] SRE2
+      * [ ] SRE3
+      * [ ] SRF1
+
+    Adjust SRE2 to work without force_region_init
 
   *What is the problem?*
+    We want to reduce the complexity of the internal interface into this chart.
+    So we will remove the meta_init method and only use the meta_trans method.
+    This way the code that generates the chart code from the xml doesn't have to
+    be as sophisticated, and it should be easier to write and debug.
 
-    Your meta_trans code has evolved to work with the WTF events.  Now it is
-    time to deconstruct what it does, clean it, and create a comprehendable
-    design.
-
-    I don't know what all of the WTF events look like, so I need to catalog them
-    into a bestiary.
-
-    The WFT bestiary will be large, so it will get in the way of write-thinking
-    underway in the OODA loop.
+    [[#Orient]]
+    [[#Decide]]
 
   *Discoveries:* ([[notes.xml_to_miros|notes]])
 
-    Beastiary:
-
-    RB1:
-    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::RB1:p_p12 ->
-    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
-    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
-    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
-    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
-    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
-
-    RH1:
-    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region [n=0]::RH1:p_p12_p11_s12 ->
-    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region->
-    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
-    [n=4]::OUTER_TRANS_REQUIRED:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
-    [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 -> 
+    [[notes.xml_to_miros|notes#Bestiary]]
 
     Python Logging notes:
 
@@ -108,77 +95,218 @@
     I want to search for directly.  Try to make your code
     grep-able.
 
-    *Future Goals*:
+== Future Goals ==
 
       If you are tired, pick an easy goal, if you are fresh pick
       a hard goal
 
       *Easy Goals:*
-      * [X] Add bug directory and bug reports
-      * [ ] Audit the entry/exit conditions for every WTF.
-            Create a bug listing for anything that needs to be
-            fixed.
       * [ ] Remove references to outmost for final_signal_name
             handling, use same, inner or outer attributes
             instead. (figure out which is appropriate)
       * [ ] Write up trouble shooting method for tracking WTF event
       * [ ] Integrate build_onion into meta_init
-      * [ ] Integrate meta_init into meta_trans
 
       *Harder Goals:*
-      * [ ] Why does removing pdb as import cause the F1 test to
-            fail?
+      * [ ] Turn meta_trans into an HSM
       * [ ] Add META_HOOKS
       * [ ] Find a way to get rid of the timeout in the test.
             The statechart should able to tell you when it is
             done or not.
       * [ ] Exclusive Transitions into a parallel state. (this
             will require a change in the drawing techniques)
-      * [ ] Create a new, comprehensive topological map, refactor
-            your existing code until you can map all WTF events.
-            Include duplicate WTF events.
-      * [ ] Turn meta_trans into an HSM
-      * [ ] Adjust the log output to look like the print output
-      * [ ] Move the meta_init, meta_trans and all of surrounding
-            minor event drivers into one API.  The idea here is
-            to make the interface extremely easy to use.
       * [ ] Need a mechanism to clear the graph's cache.  This
             will be needed when an XML diagram is being used to
             over-write and inner part of a program.
 
+    *Bestiary:*
+
+    RA1:
+    RB1:
+    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::RB1:p_p12 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
+    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
+    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
+    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
+    RC1:
+    RC2:
+
+    RD1:
+    [n=1]::EXIT_META_SIGNAL:p_p12_r1_region [n=0]::RD1:p_p12_p11 ->
+    [n=2]::OUTER_TRANS_REQUIRED:p_p12 [n=1]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p_p12 [n=2]::EXIT_META_SIGNAL:p_p12 ->
+
+    RE1:
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RE1:p_p12 ->
+    [n=2]::INIT_META_SIGNAL:p_p12_r1_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
+    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
+    [n=5]::INIT_META_SIGNAL:p_p12_p11_s12
+    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
+
+    RF1:
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RE1:p_p12 ->
+    [n=2]::INIT_META_SIGNAL:p_p12_r1_region
+    [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
+    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
+    [n=5]::INIT_META_SIGNAL:p_p12_p11_s12
+    [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
+
+    RG1:
+    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::RG1:p_p12_p11_s21 ->
+    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+    [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
+    [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
+    [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
+    [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
+    [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->  
+
+    RH1:
+    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region [n=0]::RH1:p_p12_p11_s12 ->
+    [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+    [n=4]::OUTER_TRANS_REQUIRED:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 -> 
+
+    SRB1:
+    [n=1]::INIT_META_SIGNAL:p [n=0]::SRB1:p ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    SRD1:
+    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD1:p_p22 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
+
+    SRD2:
+    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD2:p_s21 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
+
+    SRE1:
+    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE1:p ->
+    [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
+
+    SRE2:
+    [n=1]::INIT_META_SIGNAL:p_p11 [n=0]::SRE2:p ->
+    [n=2]::INIT_META_SIGNAL:p_p11_r1_region [n=1]::INIT_META_SIGNAL:p_p11 ->
+    [n=3]::INIT_META_SIGNAL:p_p11_s12 [n=2]::INIT_META_SIGNAL:p_p11_r1_region ->
+
+    SRE3:
+    [n=1]::INIT_META_SIGNAL:p [n=0]::SRE3:outer ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    SRF1:
+    [n=1]::INIT_META_SIGNAL:p [n=0]::SRF1:s ->
+    [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::INIT_META_SIGNAL:p ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+    [n=4]::INIT_META_SIGNAL:p_p22_r2_region [n=3]::INIT_META_SIGNAL:p_p22 ->
+    [n=5]::INIT_META_SIGNAL:p_p22_s21 [n=4]::INIT_META_SIGNAL:p_p22_r2_region ->
+
+    SRG1:
+    [n=1]::EXIT_META_SIGNAL:p_p22_r2_region [n=0]::SRG1:p_p22_s21 ->
+    [n=2]::EXIT_META_SIGNAL:p_p22 [n=1]::EXIT_META_SIGNAL:p_p22_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p_p22 ->
+    [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=5]::OUTER_TRANS_REQUIRED:s_s1 [n=4]::EXIT_META_SIGNAL:p ->
+
+    SRH1:
+    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRH1:p_s21 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
+
+    SRH2:
+    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::SRH2:p_p11 ->
+    [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
+
+    SRH3:
+    [n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::SRH3:p_p11_s12 ->
+    [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
+    [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p -> 
+
+    PC1:
+    [n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::PC1:p_p11 ->
+    [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p ->
+    [n=4]::INIT_META_SIGNAL:p_s21 [n=3]::INIT_META_SIGNAL:p_r2_region ->
+
+    PF1:
+    [n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::PF1:p_s21 ->
+    [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
+    [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
+    [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
+    [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
+    [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region [n=6]::INIT_META_SIGNAL:p_p12_p11 ->
+    [n=8]::INIT_META_SIGNAL:p_p12_p11_s21
+    [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region ->
+
+    PG1:
+    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::PG1:p_p12_p11_s21 ->
+    [n=2]::EXIT_META_SIGNAL:p_p12_p11
+    [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+    [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
+    [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
+    [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
+    [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
+    [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->
+
+    PG2:
+    [n=1]::EXIT_META_SIGNAL:p_p11_r2_region [n=0]::PG2:p_p11_s22 ->
+    [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
+    [n=4]::BOUNCE_ACROSS_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=5]::INIT_META_SIGNAL:p_r2_region [n=4]::EXIT_META_SIGNAL:p ->
+    [n=6]::INIT_META_SIGNAL:p_s21 [n=5]::INIT_META_SIGNAL:p_r2_region -> 
+
     Pre-made check lists for consistency work:
 
     Full Audit:
-    * [ ] RA1
-    * [X] RB1
-    * [X] RC1
-    * [X] RC2
-    * [X] RD1
-    * [X] RE1
-    * [X] RF1
-    * [X] RG1
-    * [X] RH1
-    * [X] SRB1
-    * [X] SRD1
-    * [X] SRD2
-    * [X] SRE1
-    * [X] SRE2
-    * [X] SRE3
-    * [X] SRF1
-    * [X] SRG1
-    * [X] SRH3
-    * [X] SRH3
-    * [X] SRH3
-    * [X] PC1
-    * [X] PF1
-    * [X] PG1
-    * [X] PG2
-    * [X] SA1
-    * [X] SB1
-    * [X] SC1
-    * [X] SD1
-    * [X] SD2
-    * [X] SH1
+    * [X] 
+      * [X] RA1
+      * [X] RB1
+      * [X] RC1
+      * [X] RC2
+      * [X] RD1
+      * [X] RE1
+      * [X] RF1
+      * [X] RG1
+      * [X] RH1
+      * [X] SRB1
+      * [X] SRD1
+      * [X] SRD2
+      * [X] SRE1
+      * [X] SRE2
+      * [X] SRE3
+      * [X] SRF1
+      * [X] SRG1
+      * [X] SRH1
+      * [X] SRH2
+      * [X] SRH3
+      * [X] PC1
+      * [X] PF1
+      * [X] PG1
+      * [X] PG2
+      * [X] SA1
+      * [X] SB1
+      * [X] SC1
+      * [X] SD1
+      * [X] SD2
+      * [X] SH1
 
     R Audit:
     * [ ] RB1
@@ -372,59 +500,33 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions: (>=5) ==
-    * [ ] Can you brute force it?
-    * [ ] Can you change the bounce and trans signals to make
-          them consistently named?
-    * [ ] Can you find a way to detect this kind of transition,
-          without damaging the existing WTF infrastructure?
-    * [ ] Did you generalize the outer_state function knowledge
-          from your last push?
-    * [ ] How did RB1/RH1 work before?
+    * [ ] Why does the post after meta_init ignore the first level of event?
+    * [ ] Why does SRE2 have a pre-injection of an event while the other
+          meta_init events don't?
+    * [ ] Why does SRE2 have a pre-injection of an event while the other
+          SREn events don't?
+    * [ ] Do any other events have this behavior? Do force inits or force entry
+          events happen within the initial catch handler?
+    * [ ] What other non-initialization handlers have the force_region_init?
+          BOUNCE_SAME_META_SIGNAL (injectors), INIT_META_SIGNAL of p
+    * [ ] Do the SRE family look the same in the bestiary?
 
 = Decide =
 
-  [[#Questions]]
-  *Research Needed For?:*
-    How is BOUNCE_SAME_META_SIGNAL used within the regions right now?
-    What events use the meta_init and not meta_trans?  The bounce same is
-    currently used by regions.
+  *Research Needed For?:* ([[#Observe]], [[#Orient]])
+    * Search the chart for the meta_init call, use this to create a work list
 
-  [[#Questions]]
-  *Idea/Hypotheses for Parallel Example 4: >=5*
-  * [ ] instead of using init, use a meta_trans
-  * [ ] while you are at it, switch the other meta_inits to meta_trans
-  * [ ] simplify the code
-  * [ ] create a beastiary for the different meta events
-  * [ ] use this beastiary to create an HSM version of the meta_trans function
-        (which is almost hopeless at this point)
-  * [ ] double back and write some documentation on how this thing works
-  * [ ] review each of the WTF events, we are looking for 1, n and n+1 to
-        confirm the work.
-  * [ ] try and find missing topologies on the chart
-  * [ ] consider how to do a meta hook
-  * [ ] can you make it work with a force_region_init too? [yes]
+  *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
+  * [X] Adjust all SRE handlers to look the same
+  * [ ] Adjust SRE2 to work without force_region_init
+    * [ ] change SRE2 to use a meta_trans technique
+    * [ ] add a bounce same to this meta event to remove the need for the
+          force_region_init call before its meta event is posted into the chart
+  * [ ] Remove force_region_init from other SREn handlers
 
   *Chosen Research-Goal/Hypothesis*
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
-  * [X] set the code as it was
-  * [X] place a break point in RB1
-  * [X] observe and record the resulting meta event
-  * [o] drop a break point in front of RB2
-    * [X] lca looks good for RB1
-    * [X] build onion is broken, for s=p_p12 and t=p_p12 it returns an array of
-          3 items, I'm expecting []
-    * [X] regress upto RB1
-    * [ ] fix build_onion to work as you expected it to for RH1
-    * [ ] place standard init meta beast onto the p_p11 stack, but before that
-          place the BOUNCE_SAME_META_SIGNAL.  Inject this event into all
-          regions of the p_p11 state.
-  * [ ] adjust the code with the new fix, so that
-    * [ ] RB1 works
-    * [ ] update the beastiary
-    * [ ] RH1 works
-    * [ ] update the beastiary
-  * [ ] move back into the RE1 investigation
 
 = Act =
 
