@@ -1,3 +1,7 @@
+# For diagram see /doc/_static/xml_chart_5.pdf
+#
+# To continuously test:
+# while inotifywait -e modify xml_chart_5.py logger_config.yaml; do python xml_chart_5.py; done
 import re
 import time
 import yaml
@@ -19,7 +23,8 @@ from miros import ActiveObject
 from miros import return_status
 from miros import HsmWithQueues
 
-event_to_investigate = '_SRF1'
+# To create a deconstruction of a given event:
+event_to_investigate = '_RF1'
 
 def pp(item):
   xprint.pprint(item)
@@ -33,6 +38,28 @@ FrameData = namedtuple('FrameData', [
   'function_name',
   'lines',
   'index'])
+
+################################################################################
+#                              MIXINS                                       #
+################################################################################
+def meta_trans(hsm, e, s, t, sig=None):
+  if(hsm.outmost.in_same_hsm(source=s, target=t)):
+    status = hsm.trans(t)
+  else:
+    _state, _e = hsm.outmost._meta_trans(
+      hsm,
+      t=t,
+      s=s,
+      sig=e.signal_name)
+    if _state:
+      status = hsm.trans(_state)
+      hsm.same._post_fifo(_e)
+      investigate(hsm, e, _e)
+    else:
+      status = return_status.UNHANDLED
+      investigate(hsm, e, _e)
+      hsm.same.post_fifo(_e)
+  return status
 
 @lru_cache(maxsize=128)
 def f_to_s(fn):
@@ -150,8 +177,10 @@ ps = payload_string
 
 def pprint(value):
   pass
-  (value)
 
+################################################################################
+#                            DECORATORS                                       #
+################################################################################
 def state(fn):
   '''Statechart state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute'''
@@ -202,7 +231,7 @@ def othogonal_state(fn):
       if fn_as_s in region.outmost.regions:
         region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
 
-    # these can be trampled as a side effect of a search (meta_trans)
+    # these can be trampled as a side effect of a search (_meta_trans)
     # so make sure you salt their results away when you use these functions
     region.inner = region.inners[fn_as_s]
     region.current_function_name = fn_as_s
@@ -210,15 +239,6 @@ def othogonal_state(fn):
     # instrument the region
     if region.instrumented:
       status = spy_on(fn)(region, *args)  # call to state function here
-      #for line in list(region.rtc.spy):
-      #  m = re.search(r'SEARCH_FOR_SUPER_SIGNAL', str(line))
-      #  if not m:
-      #    if hasattr(region, "outmost"):
-      #      region.outmost.live_spy_callback(
-      #        "[{}] {}".format(region.name, line))
-      #    else:
-      #      region.live_spy_callback(
-      #        "[{}] {}".format(region.name, line))
       region.rtc.spy.clear()
     else:
       e = args[0] if len(args) == 1 else args[-1]
@@ -227,8 +247,9 @@ def othogonal_state(fn):
 
   return _pspy_on
 
-Reflections = []
-
+################################################################################
+#                             CLASSES                                       #
+################################################################################
 class Region(HsmWithQueues):
   def __init__(self,
     name, starting_state, outmost, outer, same,
@@ -280,7 +301,6 @@ class Region(HsmWithQueues):
         )
 
     '''
-
     super().__init__()
     self.name = name
     self.starting_state = starting_state
@@ -499,6 +519,16 @@ class Region(HsmWithQueues):
   def _complete_circuit(self):
     super().complete_circuit()
 
+  def meta_trans(self, e, s, t, sig=None):
+    return meta_trans(
+      hsm=self,
+      e=e,
+      s=s,
+      t=t,
+      sig=None
+    )
+
+
 class InstrumentedActiveObject(ActiveObject):
   def __init__(self, name, log_config):
     '''Add the logging object and tweak the spy and trace features of the
@@ -568,7 +598,6 @@ class InstrumentedActiveObject(ActiveObject):
 
   def spy_callback(self, spy):
     '''spy with machine name pre-pending'''
-    #self.print(spy)
     self.logger.info("S: [%s] %s" % (self.name, spy))
 
   def scribble(self, string):
@@ -1072,12 +1101,10 @@ class XmlChart(InstrumentedActiveObject):
     target_state, region_holding_state, region = find_fns(t)
     onion_states += [target_state, region_holding_state]
 
-    #inner_region = False
     while region and hasattr(region, 'outer'):
       target_state, region_holding_state, region = \
         find_fns(region_holding_state)
       if s is not None and region_holding_state == s:
-        #inner_region = True
         onion_states += [target_state, s]
         break
       if target_state:
@@ -1092,8 +1119,18 @@ class XmlChart(InstrumentedActiveObject):
         onion_states.reverse()
     return onion_states
 
+
+  def meta_trans(self, e, s, t, sig=None):
+    return meta_trans(
+      hsm=self,
+      e=e,
+      s=s,
+      t=t,
+      sig=None
+    )
+
   @lru_cache(maxsize=64)
-  def meta_trans(self, r, s, t, sig):
+  def _meta_trans(self, r, s, t, sig):
     '''Create an event onion which can be passed over zero or one orthogonal
     components.
 
@@ -1129,7 +1166,7 @@ class XmlChart(InstrumentedActiveObject):
           # Reference the parallel_region_to_orthogonal_component_mapping_6.pdf in
           # this repository
           status = return_status.HANDLED
-          _e = r.outmost.meta_trans(
+          _e = r.outmost._meta_trans(
             s=p_p11_s12,
             t=p_s22,
             sig=e.signal_name
@@ -1140,8 +1177,6 @@ class XmlChart(InstrumentedActiveObject):
 
     inner = r.inner
     current_function_name = r.current_function_name
-
-    # TODO: clean this up:
 
     source = s
     target = t
@@ -1172,7 +1207,6 @@ class XmlChart(InstrumentedActiveObject):
 
     strippped_onion.reverse()
     exit_onion = strippped_onion[:]
-    # exit_onion.reverse()
 
     if not (self.within(outer, target)) and lca != target:
       entry_onion1 = self.build_onion(
@@ -1233,7 +1267,6 @@ class XmlChart(InstrumentedActiveObject):
     else:
       for index, entry_target in enumerate(entry_onion):
 
-        #signal_name = signals.INIT_META_SIGNAL if entry_target != lca else bounce_type
         signal_name = signals.INIT_META_SIGNAL
 
         if index == len(entry_onion) - 1:
@@ -1329,15 +1362,6 @@ class XmlChart(InstrumentedActiveObject):
         previous_signal = sig
         signal_name = signals.BOUNCE_SAME_META_SIGNAL
 
-        #if index == 1:
-        #  previous_state = bounce_onion[0]
-        #  previous_signal = sig
-        #  signal_name = signals.BOUNCE_SAME_META_SIGNAL
-        #else:
-        #  #signal_name = signals.INIT_META_SIGNAL
-        #  previous_state = bounce_onion[1]
-        #  previous_signal = signal_name
-
         event = Event(
           signal=signal_name,
           payload=META_SIGNAL_PAYLOAD(
@@ -1412,11 +1436,58 @@ class XmlChart(InstrumentedActiveObject):
       '{}:{}'.format(e.signal_name, self.state_name)
     )
 
+  @lru_cache(maxsize=32)
+  def in_same_hsm(self, source, target):
+    '''Is the source and target in the same statechart
+
+    **Note**:
+       We assume the source is in the same region/chart as self (the
+       first argument).  In fact, the source and target keywords
+       were choosen to match the arguments names of the _meta_trans,
+       since this will be the primary method using this feature.
+
+       This is the XmlChart version of this method
+
+    **Args**:
+       | ``source`` (fn): source function
+       | ``target`` (fn): target function
+
+
+    **Returns**:
+       (type):
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+       # example code goes here
+
+    '''
+    old_temp = self.temp.fun
+    old_fun = self.state.fun
+
+    self.temp.fun = source
+
+    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    temp, outer_state = source, source
+    while(True):
+      if hasattr(self.temp.fun, '__wrapped__'):
+        r = self.temp.fun.__wrapped__(self, super_e)
+      else:
+        r = self.temp.fun(self, super_e)
+      if r == return_status.IGNORED:
+        break
+      outer_state = temp
+      temp = self.temp.fun
+    self.temp.fun = old_temp
+    self.state.fun = old_fun
+
+    result = True if self.within(outer_state, target) else False
+    return result
 
 ################################################################################
-#                                   p region                                   #
+#                          STATE MACHINE                                       #
 ################################################################################
-
 @othogonal_state
 def p_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
@@ -1520,7 +1591,6 @@ def p_r1_over_hidden_region(r, e):
     status = return_status.SUPER
   return status
 
-# p_r1
 @othogonal_state
 def p_p11(r, e):
   '''
@@ -1557,46 +1627,48 @@ def p_p11(r, e):
     status = r.trans(p_p12)
   elif r.token_match(e.signal_name, "RC1"):
     r.p_spy(e)
-    status = r.trans(p_p12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11,
+      t=p_p12,
+      sig=e.signal_name
+    )
   elif r.token_match(e.signal_name, "SRH2"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=middle, s=p_p11, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p11,
+      t=middle,
+      sig=e.signal_name
+    )
   elif r.token_match(e.signal_name, "RA1"):
     r.p_spy(e)
-    investigate(r, e)
-    status = r.trans(p_p11)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11,
+      t=p_p11,
+      sig=e.signal_name
+    )
   elif r.token_match(e.signal_name, "PF1"):
     r.p_spy(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "PC1"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(
-      r,
+    status = r.meta_trans(
+      e=e,
       s=p_p11,
       t=p_s21,
       sig=e.signal_name
     )
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
   elif(r.token_match(e.signal_name, "RF1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p11, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+
+    status = r.meta_trans(
+      e=e,
+      s=p_p11,
+      t=p_p12_p11_s12,
+      sig=e.signal_name
+    )
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
@@ -1619,8 +1691,6 @@ def p_p11(r, e):
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    #if e.payload.springer == 'PC1':
-    #  import pdb; pdb.set_trace()
     # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
@@ -1631,7 +1701,6 @@ def p_p11(r, e):
          ):
         (_e, _state) = _e.payload.event, _e.payload.state
         r.outer._post_lifo(_e)
-      #elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL):
       elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
            _e.signal == signals.EXIT_META_SIGNAL):
         r.outer._post_lifo(_e)
@@ -1765,7 +1834,13 @@ def p_p11_s11(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
-    status = r.trans(p_p11_s12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11_s11,
+      t=p_p11_s12,
+      sig=e.signal_name
+    )
+
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1785,16 +1860,20 @@ def p_p11_s12(r, e):
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "SRH3"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p, s=p_p11_s12, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p11_s12,
+      t=p,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p11_r1_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11_s12,
+      t=p_p11_r1_final,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1846,7 +1925,6 @@ def p_p11_r2_region(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
-  # p_p11_s21
   elif(e.signal == signals.INIT_SIGNAL):
     r._p_spy(e)
     # search for INIT_META_SIGNAL
@@ -1928,7 +2006,12 @@ def p_p11_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
-    status = r.trans(p_p11_s22)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11_s21,
+      t=p_p11_s22,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1950,25 +2033,23 @@ def p_p11_s22(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.PG2):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(
-      r,
+    status = r.meta_trans(
+      e=e,
       s=p_p11_s22,
       t=p_s21,
       sig=e.signal_name
     )
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
-
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.trans(p_p11_r2_final)
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p11_s21)
+    status = r.meta_trans(
+      e=e,
+      s=p_p11_s22,
+      t=p_p11_s21,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2066,14 +2147,12 @@ def p_p12(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "RE1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p12_p11_s12, s=p_p12, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same.post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
-
+    status = r.meta_trans(
+      e=e,
+      s=p_p12,
+      t=p_p12_p11_s12,
+      sig=e.signal_name
+    )
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
@@ -2084,23 +2163,12 @@ def p_p12(r, e):
 
   elif(r.token_match(e.signal_name, "RB1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p12_p11, s=p_p12, sig=e.signal_name)
-    r.same._post_fifo(_e)
-    investigate(r, e, _e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
-  #elif(r.token_match(e.signal_name, "RB1")):
-  #  r.p_spy(e)
-  #  _state, _e = r.outmost.meta_trans(r, t=p_p12_p11, s=p_p12, sig=e.signal_name)
-  #  r.inner._post_fifo(_e)
-  #  r.inner.post_lifo(Event(signal=signals.force_region_init))
-  #  if _state:
-  #    status = r.trans(_state)
-  #  else:
-  #    status = return_status.UNHANDLED
-
+    status = r.meta_trans(
+      e=e,
+      s=p_p12,
+      t=p_p12_p11,
+      sig=e.signal_name
+    )
   elif e.signal == signals.OUTER_TRANS_REQUIRED:
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2118,7 +2186,12 @@ def p_p12(r, e):
     status = r.trans(p_r1_final)
   elif(r.token_match(e.signal_name, "e5")):
     r.p_spy(e)
-    status = r.trans(p_r1_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12,
+      t=p_r1_final,
+      sig=e.signal_name
+    )
   # Exit signals
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
@@ -2263,16 +2336,20 @@ def p_p12_p11(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
     r.p_spy(e)
-    status = r.trans(p_p12_s12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_p11,
+      t=p_p12_s12,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "RD1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11, sig=e.signal_name)
-    r.same.post_fifo(_e)
-    investigate(r, e, _e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_p11,
+      t=p_p12,
+      sig=e.signal_name
+    )
   elif e.signal == signals.EXIT_META_SIGNAL:
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
@@ -2313,7 +2390,12 @@ def p_p12_p11(r, e):
         status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
-    status = r.trans(p_p12_s12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_p11,
+      t=p_p12_s12,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p12_r1_under_hidden_region)
@@ -2434,7 +2516,12 @@ def p_p12_p11_s11(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.e1):
     r.p_spy(e)
-    status = r.trans(p_p12_p11_s12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_p11_s11,
+      t=p_p12_p11_s12,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2454,13 +2541,12 @@ def p_p12_p11_s12(r, e):
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "RH1"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p12, s=p_p12_p11_s12, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_p11_s12,
+      t=p_p12,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2581,35 +2667,20 @@ def p_p12_p11_s21(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.RG1):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(
-      r,
+    status = r.meta_trans(
+      e=e,
       s=p_p12_p11_s21,
       t=p_p22_s11,
       sig=e.signal_name
     )
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
-
   elif(e.signal == signals.PG1):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(
-      r,
+    status = r.meta_trans(
+      e=e,
       s=p_p12_p11_s21,
       t=p_p22_s11,
       sig=e.signal_name
     )
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.HANDLED
-
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2630,7 +2701,12 @@ def p_p12_s12(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p12_r1_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_s12,
+      t=p_p12_r1_final,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2773,7 +2849,12 @@ def p_p12_s21(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p12_s22)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_s21,
+      t=p_p12_s22,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2794,10 +2875,20 @@ def p_p12_s22(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
-    status = r.trans(p_p12_r2_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_s22,
+      t=p_p12_r2_final,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p12_s21)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12_s22,
+      t=p_p12_s21,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2939,48 +3030,45 @@ def p_s21(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "RC1")):
     r.p_spy(e)
-    status = r.trans(p_p22)
+    status = r.meta_trans(
+      e=e,
+      s=p_s21,
+      t=p_p22,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "RF1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p_p22_s12, s=p_s21, sig=e.signal_name)
-    r.same.post_fifo(_e)
-    investigate(r, e, _e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_s21,
+      t=p_p22_s12,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "PF1")):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(
-      r,
+    status = r.meta_trans(
+      e=e,
       s=p_s21,
       t=p_p12_p11_s21,
       sig=e.signal_name
     )
-    investigate(r, e, _e)
-    r.same.post_lifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+
   elif r.token_match(e.signal_name, "SRH1"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=middle, s=p_s21, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_s21,
+      t=middle,
+      sig=e.signal_name
+    )
   elif r.token_match(e.signal_name, "SRD2"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p, s=p_s21, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_s21,
+      t=p,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3020,19 +3108,28 @@ def p_p22(r, e):
   # final token match
   elif r.token_match(e.signal_name, "SRD1"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=p, s=p_p22, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p22,
+      t=p,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, "RC2")):
     r.p_spy(e)
-    status = r.trans(p_s21)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22,
+      t=p_s21,
+      sig=e.signal_name
+    )
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
     r.p_spy(e)
-    status = r.trans(p_r2_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22,
+      t=p_r2_final,
+      sig=e.signal_name
+    )
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
@@ -3076,7 +3173,12 @@ def p_p22(r, e):
     status = r.trans(p_r2_under_hidden_region)
   elif(e.signal == signals.C1):
     r.p_spy(e)
-    status = r.trans(p_s21)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22,
+      t=p_s21,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
     r.p_spy(e)
@@ -3193,7 +3295,12 @@ def p_p22_s11(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
-    status = r.trans(p_p22_s12)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22_s11,
+      t=p_p22_s12,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3213,7 +3320,12 @@ def p_p22_s12(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p22_r1_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22_s12,
+      t=p_p22_r1_final,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3347,6 +3459,7 @@ def p_p22_r2_over_hidden_region(r, e):
 @othogonal_state
 def p_p22_s21(r, e):
   status = return_status.UNHANDLED
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3355,16 +3468,20 @@ def p_p22_s21(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
-    status = r.trans(p_p22_s22)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22_s21,
+      t=p_p22_s22,
+      sig=e.signal_name
+    )
   elif r.token_match(e.signal_name, "SRG1"):
     r.p_spy(e)
-    _state, _e = r.outmost.meta_trans(r, t=s_s1, s=p_p22_s21, sig=e.signal_name)
-    investigate(r, e, _e)
-    r.same._post_fifo(_e)
-    if _state:
-      status = r.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+    status = r.meta_trans(
+      e=e,
+      s=p_p22_s21,
+      t=s_s1,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3376,6 +3493,7 @@ def p_p22_s21(r, e):
 @othogonal_state
 def p_p22_s22(r, e):
   status = return_status.UNHANDLED
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3384,7 +3502,12 @@ def p_p22_s22(r, e):
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
-    status = r.trans(p_p22_r2_final)
+    status = r.meta_trans(
+      e=e,
+      s=p_p22_s22,
+      t=p_p22_r2_final,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3430,6 +3553,7 @@ def p_r2_final(r, e):
 @state
 def outer(self, e):
   status = return_status.UNHANDLED
+
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
     #
@@ -3439,11 +3563,15 @@ def outer(self, e):
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SH1")):
     self.p_spy(e)
-    #self.p_spy(e)
-    status = self.trans(p)
+    status = self.meta_trans(
+      e=e,
+      s=outer,
+      t=p,
+      sig=e.signal_name
+    )
   elif(self.token_match(e.signal_name, "SRE3")):
     self.p_spy(e)
-    _state, _e = self.outmost.meta_trans(
+    _state, _e = self.outmost._meta_trans(
       self,
       t=p_p22,
       s=outer,
@@ -3467,6 +3595,7 @@ def outer(self, e):
 @state
 def middle(self, e):
   status = return_status.UNHANDLED
+
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3475,24 +3604,28 @@ def middle(self, e):
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SH1")):
     self.p_spy(e)
-    status = self.trans(p)
-  elif(self.token_match(e.signal_name, "SB1")):
-    self.p_spy(e)
-    status = self.trans(s)
-  elif(self.token_match(e.signal_name, "SRE1")):
-    self.p_spy(e)
-    _state, _e = self.outmost.meta_trans(
-      self,
-      t=p_p11,
-      s=p,
+    status = self.meta_trans(
+      e=e,
+      s=middle,
+      t=p,
       sig=e.signal_name
     )
-    investigate(self, e, _e)
-    self.same._post_fifo(_e)
-    if _state:
-      status = self.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+  elif(self.token_match(e.signal_name, "SB1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=middle,
+      t=s,
+      sig=e.signal_name
+    )
+  elif(self.token_match(e.signal_name, "SRE1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=middle,
+      t=p_p11,
+      sig=e.signal_name
+    )
   elif(e.signal == signals.EXIT_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3515,21 +3648,20 @@ def s(self, e):
     status = return_status.HANDLED
   elif(e.signal == signals.SD2):
     self.p_spy(e)
-    status = self.trans(middle)
-  elif(e.signal == signals.SRF1):
-    self.p_spy(e)
-    _state, _e = self.outmost.meta_trans(
-      self,
-      t=p_p22_s21,
+    status = self.meta_trans(
+      e=e,
       s=s,
+      t=middle,
       sig=e.signal_name
     )
-    investigate(self, e, _e)
-    self.same._post_fifo(_e)
-    if _state:
-      status = self.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+  elif(e.signal == signals.SRF1):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=s,
+      t=p_p22_s21,
+      sig=e.signal_name
+    )
   else:
     self.temp.fun = middle
     status = return_status.SUPER
@@ -3596,7 +3728,7 @@ def p(self, e):
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name)
-    )
+  )
   ):
     self.p_spy(e)
     self.inner.post_fifo(e)
@@ -3611,6 +3743,7 @@ def p(self, e):
   elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
     self.p_spy(e)
     _e, _state = e.payload.event, e.payload.state
+    investigate(self, e, _e)
     self.inner._post_fifo(_e)
     for region in self.inner._regions:
       if region.has_state(e.payload.previous_state):
@@ -3618,22 +3751,16 @@ def p(self, e):
         region._post_lifo(Event(signal=signals.exit_region))
       else:
         region.post_lifo(Event(signal=signals.enter_region))
-    [region.complete_circuit() for region in self.inner._regions]
+    [region._complete_circuit() for region in self.inner._regions]
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SRE2")):
     self.p_spy(e)
-    _state, _e = self.outmost.meta_trans(
-      self,
-      t=p_p11_s12,
+    status = self.meta_trans(
+      e=e,
       s=p,
+      t=p_p11_s12,
       sig=e.signal_name
     )
-    investigate(self, e, _e)
-    self.same._post_fifo(_e)
-    if _state:
-      status = self.trans(_state)
-    else:
-      status = return_status.UNHANDLED
   # final token match
   elif(type(self.regions) == dict and self.token_match(e.signal_name,
        self.regions['p'].final_signal_name)):
@@ -3641,30 +3768,40 @@ def p(self, e):
     status = self.trans(s_s1)
   elif(self.token_match(e.signal_name, "SA1")):
     self.p_spy(e)
-    status = self.trans(p)
-  elif(self.token_match(e.signal_name, "SD1")):
-    self.p_spy(e)
-    status = self.trans(middle)
-  elif(self.token_match(e.signal_name, "SC1")):
-    self.p_spy(e)
-    status = self.trans(s)
-  elif(self.token_match(e.signal_name, "SD1")):
-    self.p_spy(e)
-    status = self.trans(middle)
-  elif(self.token_match(e.signal_name, "SRB1")):
-    self.p_spy(e)
-    _state, _e = self.outmost.meta_trans(
-      self,
-      t=p_p22,
+    status = self.meta_trans(
+      e=e,
       s=p,
+      t=p,
       sig=e.signal_name
     )
-    investigate(self, e, _e)
-    self.same._post_fifo(_e)
-    if _state:
-      status = self.trans(_state)
-    else:
-      status = return_status.UNHANDLED
+  elif(self.token_match(e.signal_name, "SD1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=p,
+      t=middle,
+      sig=e.signal_name)
+  elif(self.token_match(e.signal_name, "SC1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=p,
+      t=s,
+      sig=e.signal_name)
+  elif(self.token_match(e.signal_name, "SD1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=p,
+      t=middle,
+      sig=e.signal_name)
+  elif(self.token_match(e.signal_name, "SRB1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=p,
+      t=p_p22,
+      sig=e.signal_name)
   elif(e.signal == signals.EXIT_META_SIGNAL):
     self.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
@@ -3700,6 +3837,9 @@ def p(self, e):
     status = return_status.SUPER
   return status
 
+################################################################################
+#                         REGRESSION TEST                                      #
+################################################################################
 if __name__ == '__main__':
   regression = True
   active_states = None
@@ -3725,23 +3865,17 @@ if __name__ == '__main__':
       string2 = "{} <- {} == {}".format(str(old_result), sig, str(active_states))
       example.report(string2)
 
-      list_difference = []
-      for item in active_states:
-        if item not in expected_result:
-          list_difference.append(item)
-
       if active_states != expected_result:
         previous_frame = inspect.currentframe().f_back
         fdata = FrameData(*inspect.getframeinfo(previous_frame))
         function_name = '__main__'
         line_number   = fdata.line_number
-        example.report("Assert error from {}:{}".format(function_name, line_number))
-        example.report("From: {}->{}".format(sig, old_result))
-        example.report("Expecting: {}".format(expected_result))
-        example.report("Observed:  {}".format(active_states))
-        example.report("Difference: {}".format(list_difference))
-        example.active_states()
-        time.sleep(1000)
+        example.critical("Assert error from {}:{}".format(function_name, line_number))
+        example.critical("From: {}->{}".format(sig, old_result))
+        example.critical("Expecting: {}".format(expected_result))
+        example.critical("Observed:  {}".format(active_states))
+        example.critical(example.active_states())
+        time.sleep(5)
         exit(1)
       #assert active_states == expected_result
       return active_states
@@ -4022,7 +4156,7 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-    exit(0)
+
     #example.clear_log()
     old_results = build_test(
       sig='e4',
@@ -4120,7 +4254,6 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
-
     #example.clear_log()
     old_results = build_test(
       sig='RG1',

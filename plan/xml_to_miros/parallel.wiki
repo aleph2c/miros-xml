@@ -1,10 +1,15 @@
-[[subgoals.xml_to_miros|back]],  [[xml_to_miros]] ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) 
+[[subgoals.xml_to_miros|back]],  [[xml_to_miros]]
 
 *Parallel*
 = Observe =
 == Evidence ([[evidence.parallel|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
+
+    Do a review and write down a list of:
+      * code smell
+      * small improvements
+      * or timebombs
 
   *What is the problem?*
 
@@ -82,8 +87,6 @@
       * [ ] Remove references to outmost for final_signal_name handling, use
             same, inner or outer attributes instead. (figure out which is
             appropriate)
-      * [ ] Write up trouble shooting method for tracking WTF event
-      * [ ] Integrate build_onion into meta_init
 
       *Harder Goals:*
       * [ ] Turn meta_trans into an HSM
@@ -322,12 +325,15 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions: (>=5) ==
+    * 
 
 = Decide =
 
   *Research Needed For?:* ([[#Observe]], [[#Orient]])
-  * [ ] 
+    * would it work if the PF1 was sourced from region1 and into region2
+
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
+  * [ ] Write a method called in_same_hsm in the XmlChart
   * [ ] 
 
   *Chosen Research-Goal/Hypothesis*

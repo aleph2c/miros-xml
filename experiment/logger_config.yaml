@@ -9,6 +9,7 @@ formatters:
     format: "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s"
     datefmt: '%H:%M:%S'
 
+# levels: DEBUG/INFO/WARNING/ERROR/CRITICAL
 handlers:
   console_handler:  # handler which will log into stdout
     level: DEBUG  # at what level to set the console
@@ -16,6 +17,7 @@ handlers:
     formatter: simple  # Use formatter defined above
     stream: ext://sys.stdout
   xml_chart_5_handler_simple:  # handler which will log into file
+    level: DEBUG  # at what level to set the console
     class: logging.handlers.RotatingFileHandler
     formatter: simple  # Use formatter defined above
     filename: ./xml_chart_5.log
@@ -25,13 +27,13 @@ handlers:
   xml_chart_5_handler_extended:  # handler which will log into file
     class: logging.handlers.RotatingFileHandler
     formatter: extended  # Use formatter defined above
-    filename: ./xml_chart_5_.log
+    filename: ./xml_chart_5.log
     maxBytes: 10485760 # 10MB
     backupCount: 10
     encoding: utf8
 
 root:  # Loggers are organized in hierarchy - this is the root logger config
-  handlers: [console_handler]   # attach a console handler
+  handlers: [console_handler]  # attach a console handler
 
 loggers:  # Defines descendants of root logger
   xml_chart_5:  # Logger for "xml_chart"
