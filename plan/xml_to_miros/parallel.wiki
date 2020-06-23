@@ -6,12 +6,30 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    Do a review and write down a list of:
-      * code smell
-      * small improvements
-      * or timebombs
+    Write a method to clear all lrc_cache elements used by the design.
 
   *What is the problem?*
+
+    In the case that we are sending a new partial HSM into another HSM we will
+    need to clear the cache so that we don't end up with side-effect bugs.
+
+    lru_cache:
+      * [ ] s_to_s
+
+      Region:
+        * [ ] tockenize
+        * [ ] token_match
+        * [ ] within
+        * [ ] has_state
+        * [ ] get_region
+
+      XmlChart:
+        * [ ] tockenize
+        * [ ] tocken_match
+        * [ ] _meta_trans
+        * [ ] lca
+        * [ ] within
+        * [ ] in_same_hsm
 
     [[#Orient]]
     [[#Decide]]

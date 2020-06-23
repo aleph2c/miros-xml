@@ -61,7 +61,6 @@ def meta_trans(hsm, e, s, t, sig=None):
       hsm.same.post_fifo(_e)
   return status
 
-@lru_cache(maxsize=128)
 def f_to_s(fn):
   '''function to str'''
   return fn.__name__
@@ -76,6 +75,12 @@ def s_to_s(event_or_signal_number):
   else:
     signal_name = event_or_signal_number.signal_name
   return signal_name
+
+def cache_clear():
+  '''Clear the cached values of all caching methods and functions used by this package.'''
+  s_to_s.cache_clear()
+  Region.cache_clear()
+  XmlChart.cache_clear()
 
 def proto_investigate(r, e, _e=None, springer=None):
   '''Used for WTF investigations
@@ -527,6 +532,14 @@ class Region(HsmWithQueues):
       t=t,
       sig=None
     )
+
+  @staticmethod
+  def cache_clear():
+    Region.tockenize.cache_clear()
+    Region.token_match.cache_clear()
+    Region.within.cache_clear()
+    Region.get_region.cache_clear()
+
 
 
 class InstrumentedActiveObject(ActiveObject):
@@ -1400,15 +1413,6 @@ class XmlChart(InstrumentedActiveObject):
     return _lca
 
   @lru_cache(maxsize=32)
-  def lci(self, s, t):
-    '''return the least common injector'''
-    s_onion = self.build_onion(s=s, t=t, sig=None)
-    t_onion = self.build_onion(s=t, t=s, sig=None)
-    _lci = list(set(s_onion).intersection(set(t_onion)))[0]
-    _lci = self.bottom if _lci is None else _lci
-    return _lci
-
-  @lru_cache(maxsize=32)
   def within(self, fn_region_handler, fn_state_handler):
 
     old_temp = self.temp.fun
@@ -1484,6 +1488,15 @@ class XmlChart(InstrumentedActiveObject):
 
     result = True if self.within(outer_state, target) else False
     return result
+
+  @staticmethod
+  def cache_clear():
+    XmlChart.tockenize.cache_clear()
+    XmlChart.token_match.cache_clear()
+    XmlChart._meta_trans.cache_clear()
+    XmlChart.lca.cache_clear()
+    XmlChart.within.cache_clear()
+    XmlChart.in_same_hsm.cache_clear()
 
 ################################################################################
 #                          STATE MACHINE                                       #
@@ -3837,6 +3850,7 @@ def p(self, e):
     status = return_status.SUPER
   return status
 
+
 ################################################################################
 #                         REGRESSION TEST                                      #
 ################################################################################
@@ -3849,6 +3863,11 @@ if __name__ == '__main__':
     live_trace=False,
     live_spy=True,
   )
+
+  cache_clear()
+  Region.cache_clear()
+  XmlChart.cache_clear()
+
   #example.instrumented = False
   example.instrumented = True
   example.report("starting chart")
