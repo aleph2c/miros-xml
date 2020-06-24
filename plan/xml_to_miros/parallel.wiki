@@ -6,30 +6,15 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    Write a method to clear all lrc_cache elements used by the design.
 
   *What is the problem?*
 
-    In the case that we are sending a new partial HSM into another HSM we will
-    need to clear the cache so that we don't end up with side-effect bugs.
-
-    lru_cache:
-      * [ ] s_to_s
-
-      Region:
-        * [ ] tockenize
-        * [ ] token_match
-        * [ ] within
-        * [ ] has_state
-        * [ ] get_region
-
-      XmlChart:
-        * [ ] tockenize
-        * [ ] tocken_match
-        * [ ] _meta_trans
-        * [ ] lca
-        * [ ] within
-        * [ ] in_same_hsm
+    The injectors are nodes in a graph which can be called for their intended
+    region object, or from other region objects or the statechart object.  To
+    add hidden graph elements into the region class is a mistake.  Currently the
+    graph is on the diagram and in the state functions.  The inner/same/outer
+    post_fifo... family of methods are a necessary evil.  We would like the
+    graph elements in one place so that it is easy to remove or replace them.
 
     [[#Orient]]
     [[#Decide]]
@@ -102,20 +87,14 @@
       If you are tired, pick an easy goal, if you are fresh pick a hard goal
 
       *Easy Goals:*
-      * [ ] Remove references to outmost for final_signal_name handling, use
-            same, inner or outer attributes instead. (figure out which is
-            appropriate)
 
       *Harder Goals:*
-      * [ ] Turn meta_trans into an HSM
-      * [ ] Add META_HOOKS
       * [ ] Find a way to get rid of the timeout in the test.  The statechart
             should able to tell you when it is done or not.
+      * [ ] Turn meta_trans into an HSM
+      * [ ] Add META_HOOKS
       * [ ] Exclusive Transitions into a parallel state. (this will require a
             change in the drawing techniques)
-      * [ ] Need a mechanism to clear the graph's cache.  This will be needed
-            when an XML diagram is being used to over-write and inner part of a
-            program.
 
     Pre-made check lists for consistency work:
 
