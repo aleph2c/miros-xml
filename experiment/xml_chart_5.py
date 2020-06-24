@@ -39,6 +39,8 @@ FrameData = namedtuple('FrameData', [
   'lines',
   'index'])
 
+SEARCH_FOR_SUPER_SIGNAL = signals.SEARCH_FOR_SUPER_SIGNAL
+
 ################################################################################
 #                              MIXINS                                       #
 ################################################################################
@@ -338,6 +340,10 @@ class Region(HsmWithQueues):
     # region has been added to the regions object
     self.regions = []
 
+  @property
+  def final_signal_name(self):
+    return self.final_event.signal_name
+
   def scribble(self, string):
     '''Add some state context to the spy instrumention'''
     self.outmost.scribble("[{}] {}".format(
@@ -362,9 +368,12 @@ class Region(HsmWithQueues):
 
   @lru_cache(maxsize=32)
   def token_match(self, resident, other):
-    alien_set = self.tockenize(other)
-    resident_set = self.tockenize(resident)
-    result = True if len(resident_set.intersection(alien_set)) >= 1 else False
+    if other is None:
+      result = False
+    else:
+      alien_set = self.tockenize(other)
+      resident_set = self.tockenize(resident)
+      result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
   def meta_peel(self, e):
@@ -409,7 +418,7 @@ class Region(HsmWithQueues):
       self.temp.fun = query
 
     result = False
-    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if(self.temp.fun.__name__ == current_state.__name__):
         result = True
@@ -458,7 +467,7 @@ class Region(HsmWithQueues):
     state_fn = self.state_fn
 
     self.temp.fun = state
-    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if(self.temp.fun.__name__ == self.fns['region_state_function'].__name__):
         result = True
@@ -488,7 +497,7 @@ class Region(HsmWithQueues):
     self.temp.fun = current_state
 
     result = ''
-    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if 'under' in self.temp.fun.__name__:
         result = self.temp.fun.__name__
@@ -774,7 +783,6 @@ class Regions():
     for region in self._regions:
       region.start_at(region.starting_state)
 
-
   @property
   def instrumented(self):
     instrumented = True
@@ -853,6 +861,7 @@ class XmlChart(InstrumentedActiveObject):
     self.outmost = self
     self.inner = self
     self.same = self
+    self.final_signal_name = None
 
   def regions_queues_string(self):
     '''Reflect upon all queues for all region objects in statechart
@@ -927,9 +936,12 @@ class XmlChart(InstrumentedActiveObject):
 
   @lru_cache(maxsize=32)
   def token_match(self, resident, other):
-    alien_set = self.tockenize(other)
-    resident_set = self.tockenize(resident)
-    result = True if len(resident_set.intersection(alien_set)) >= 1 else False
+    if other is None:
+      result = False
+    else:
+      alien_set = self.tockenize(other)
+      resident_set = self.tockenize(resident)
+      result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
   def post_fifo_with_sendid(self, sendid, e, period=None, times=None, deferred=None):
@@ -1422,7 +1434,7 @@ class XmlChart(InstrumentedActiveObject):
     self.temp.fun = fn_state_handler
 
     result = False
-    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if(self.temp.fun == current_state):
         result = True
@@ -1472,7 +1484,7 @@ class XmlChart(InstrumentedActiveObject):
 
     self.temp.fun = source
 
-    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
     temp, outer_state = source, source
     while(True):
       if hasattr(self.temp.fun, '__wrapped__'):
@@ -1504,6 +1516,12 @@ class XmlChart(InstrumentedActiveObject):
 @othogonal_state
 def p_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_r1_region)
@@ -1514,13 +1532,19 @@ def p_r1_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r1_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r1_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -1580,13 +1604,19 @@ def p_r1_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r1_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r1_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_r1_region)
@@ -1600,17 +1630,22 @@ def p_r1_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r1_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11(r, e):
   '''
-  r is either p_r1, p_r2 region
+  r can be any region
   r.outer = p
   '''
   status = return_status.UNHANDLED
+  __super__ = p_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -1728,13 +1763,19 @@ def p_p11(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p11_r1_region)
@@ -1748,13 +1789,19 @@ def p_p11_r1_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r1_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r1_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -1812,13 +1859,19 @@ def p_p11_r1_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r1_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r1_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p11_r1_region)
@@ -1832,13 +1885,19 @@ def p_p11_r1_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r1_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_s11(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1853,18 +1912,23 @@ def p_p11_s11(r, e):
       t=p_p11_s12,
       sig=e.signal_name
     )
-
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_s12(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -1891,13 +1955,19 @@ def p_p11_s12(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r1_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -1908,13 +1978,19 @@ def p_p11_r1_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p11_r2_region)
@@ -1928,13 +2004,19 @@ def p_p11_r2_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r2_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r2_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -1985,13 +2067,19 @@ def p_p11_r2_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r2_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r2_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p11_r2_region)
@@ -2005,13 +2093,19 @@ def p_p11_r2_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r2_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_s21(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2029,15 +2123,19 @@ def p_p11_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_s22(r, e):
-  '''
-  '''
   status = return_status.UNHANDLED
+  __super__ = p_p11_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2067,13 +2165,19 @@ def p_p11_s22(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p11_r2_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p11_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -2084,13 +2188,19 @@ def p_p11_r2_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p11_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r1_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -2101,13 +2211,18 @@ def p_r1_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12(r, e):
   status = return_status.UNHANDLED
+
+  __super__ = p_r1_over_hidden_region
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   # Enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -2140,8 +2255,7 @@ def p_p12(r, e):
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    #if e.payload.springer == 'PC1':
-    #  import pdb; pdb.set_trace()
+
     # this appears backwards, but it needs to be this way.
     if r.within(bound=_state, query=r.state_fn):
       # The next state is going to be our region handler skip it and post this
@@ -2214,7 +2328,7 @@ def p_p12(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2222,6 +2336,12 @@ def p_p12(r, e):
 @othogonal_state
 def p_p12_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p12_r1_region)
@@ -2235,7 +2355,7 @@ def p_p12_r1_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2243,6 +2363,12 @@ def p_p12_r1_under_hidden_region(r, e):
 @othogonal_state
 def p_p12_r1_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r1_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2299,13 +2425,19 @@ def p_p12_r1_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r1_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r1_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p12_r1_region)
@@ -2319,7 +2451,7 @@ def p_p12_r1_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r1_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2328,6 +2460,11 @@ def p_p12_r1_over_hidden_region(r, e):
 @othogonal_state
 def p_p12_p11(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -2417,27 +2554,40 @@ def p_p12_p11(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
-def p_p12_p11_r1_under_hidden_region(rrr, e):
+def p_p12_p11_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
-  if(rrr.token_match(e.signal_name, "enter_region")):
-    status = rrr.trans(p_p12_p11_r1_region)
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
+  if(r.token_match(e.signal_name, "enter_region")):
+    status = r.trans(p_p12_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     status = return_status.HANDLED
   else:
-    rrr.temp.fun = rrr.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_r1_region(r, e):
   status = return_status.UNHANDLED
+
+  __super__ = p_p12_p11_r1_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2494,13 +2644,19 @@ def p_p12_p11_r1_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r1_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r1_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p12_p11_r1_region)
@@ -2514,13 +2670,19 @@ def p_p12_p11_r1_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r1_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_s11(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2539,13 +2701,19 @@ def p_p12_p11_s11(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_s12(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2564,13 +2732,19 @@ def p_p12_p11_s12(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     status = r.trans(p_p12_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -2583,13 +2757,19 @@ def p_p12_p11_r2_under_hidden_region(r, e):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_r2_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r2_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2645,13 +2825,19 @@ def p_p12_p11_r2_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r2_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r2_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p12_p11_r2_region)
@@ -2665,13 +2851,19 @@ def p_p12_p11_r2_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r2_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_p11_s21(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_p11_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2698,7 +2890,7 @@ def p_p12_p11_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_p11_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2706,6 +2898,12 @@ def p_p12_p11_s21(r, e):
 @othogonal_state
 def p_p12_s12(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2724,7 +2922,7 @@ def p_p12_s12(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2732,6 +2930,12 @@ def p_p12_s12(r, e):
 @othogonal_state
 def p_p12_r1_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -2742,13 +2946,19 @@ def p_p12_r1_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p12_r2_region)
@@ -2762,7 +2972,7 @@ def p_p12_r2_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2770,6 +2980,12 @@ def p_p12_r2_under_hidden_region(r, e):
 @othogonal_state
 def p_p12_r2_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r2_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2826,13 +3042,19 @@ def p_p12_r2_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r2_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p12_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r2_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p12_r2_region)
@@ -2846,7 +3068,7 @@ def p_p12_r2_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r2_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2854,6 +3076,12 @@ def p_p12_r2_over_hidden_region(r, e):
 @othogonal_state
 def p_p12_s21(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2872,7 +3100,7 @@ def p_p12_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2880,6 +3108,12 @@ def p_p12_s21(r, e):
 @othogonal_state
 def p_p12_s22(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -2906,7 +3140,7 @@ def p_p12_s22(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -2914,6 +3148,12 @@ def p_p12_s22(r, e):
 @othogonal_state
 def p_p12_r2_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p12_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -2924,13 +3164,19 @@ def p_p12_r2_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p12_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_r2_region)
@@ -2944,13 +3190,19 @@ def p_r2_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r2_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r2_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3007,13 +3259,19 @@ def p_r2_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r2_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r2_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_r2_region)
@@ -3027,13 +3285,18 @@ def p_r2_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r2_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_s21(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
@@ -3086,13 +3349,18 @@ def p_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -3197,7 +3465,7 @@ def p_p22(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -3205,6 +3473,12 @@ def p_p22(r, e):
 @othogonal_state
 def p_p22_r1_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p22_r1_region)
@@ -3218,13 +3492,19 @@ def p_p22_r1_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r1_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r1_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3273,13 +3553,18 @@ def p_p22_r1_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r1_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r1_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r1_region
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p22_r1_under_hidden_region)
@@ -3293,13 +3578,19 @@ def p_p22_r1_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r1_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_s11(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3318,13 +3609,19 @@ def p_p22_s11(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_s12(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3343,13 +3640,19 @@ def p_p22_s12(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r1_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r1_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
@@ -3361,7 +3664,7 @@ def p_p22_r1_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r1_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
@@ -3369,6 +3672,12 @@ def p_p22_r1_final(r, e):
 @othogonal_state
 def p_p22_r2_under_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = r.bottom
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p22_r2_region)
@@ -3382,13 +3691,19 @@ def p_p22_r2_under_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = r.bottom
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r2_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r2_under_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3445,13 +3760,19 @@ def p_p22_r2_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r2_under_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r2_over_hidden_region(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r2_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
     status = r.trans(p_p22_r2_under_hidden_region)
@@ -3465,13 +3786,19 @@ def p_p22_r2_over_hidden_region(r, e):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r2_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_s21(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
@@ -3499,13 +3826,18 @@ def p_p22_s21(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_s22(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
@@ -3525,13 +3857,19 @@ def p_p22_s22(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_p22_r2_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_p22_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -3542,13 +3880,19 @@ def p_p22_r2_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_p22_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @othogonal_state
 def p_r2_final(r, e):
   status = return_status.UNHANDLED
+  __super__ = p_r2_over_hidden_region
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    r.temp.fun = __super__
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
@@ -3559,13 +3903,17 @@ def p_r2_final(r, e):
     r.final = False
     status = return_status.HANDLED
   else:
-    r.temp.fun = p_r2_over_hidden_region
+    r.temp.fun = __super__
     status = return_status.SUPER
   return status
 
 @state
 def outer(self, e):
   status = return_status.UNHANDLED
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    self.temp.fun = self.bottom
+    return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
@@ -3609,6 +3957,10 @@ def outer(self, e):
 def middle(self, e):
   status = return_status.UNHANDLED
 
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    self.temp.fun = outer
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3650,6 +4002,11 @@ def middle(self, e):
 @state
 def s(self, e):
   status = return_status.UNHANDLED
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    self.temp.fun = middle
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3683,6 +4040,11 @@ def s(self, e):
 @state
 def s_s1(self, e):
   status = return_status.UNHANDLED
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    self.temp.fun = s
+    return return_status.SUPER
+
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
     status = return_status.HANDLED
@@ -3700,6 +4062,10 @@ def s_s1(self, e):
 @state
 def p(self, e):
   status = return_status.UNHANDLED
+
+  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+    self.temp.fun = middle
+    return return_status.SUPER
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -3889,11 +4255,11 @@ if __name__ == '__main__':
         fdata = FrameData(*inspect.getframeinfo(previous_frame))
         function_name = '__main__'
         line_number   = fdata.line_number
-        example.critical("Assert error from {}:{}".format(function_name, line_number))
-        example.critical("From: {}->{}".format(sig, old_result))
-        example.critical("Expecting: {}".format(expected_result))
-        example.critical("Observed:  {}".format(active_states))
-        example.critical(example.active_states())
+        example.logger.critical("Assert error from {}:{}".format(function_name, line_number))
+        example.logger.critical("From: {}->{}".format(sig, old_result))
+        example.logger.critical("Expecting: {}".format(expected_result))
+        example.logger.critical("Observed:  {}".format(active_states))
+        example.logger.critical(example.active_states())
         time.sleep(5)
         exit(1)
       #assert active_states == expected_result
@@ -3959,6 +4325,9 @@ if __name__ == '__main__':
     result2 = example.build_onion(t=p_p11, s=p_p12, sig='TEST')
     active_states = example.active_states()
     old_results = example.active_states()[:]
+
+    print(example.regions['p']._regions[0].final_signal_name)
+    print(example.regions['p_p11'].final_signal_name)
 
     #example.clear_log()
     old_results = build_test(
