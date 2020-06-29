@@ -76,7 +76,7 @@
     [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->
     [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
 
-    SRE2:
+    SRE3:
     [n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRE2:p ->
     [n=2]::INIT_META_SIGNAL:p_r1_region
     [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->

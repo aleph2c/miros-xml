@@ -6,15 +6,18 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
+    Implement WFT hooks.
 
   *What is the problem?*
 
-    The injectors are nodes in a graph which can be called for their intended
-    region object, or from other region objects or the statechart object.  To
-    add hidden graph elements into the region class is a mistake.  Currently the
-    graph is on the diagram and in the state functions.  The inner/same/outer
-    post_fifo... family of methods are a necessary evil.  We would like the
-    graph elements in one place so that it is easy to remove or replace them.
+    The problem is presented as H1 on the diagram.  The H1 hook is in the p_p11
+    state and is written as "H1 // <>" with the "//" to show that it applies to
+    all internal regions.
+
+    H1 also causes a transition from p to middle, and p is the same injector that
+    has to post it deeper into the chart.  So here is the problem, how does p
+    know to transition this H1 event deeper into the chart, or to just cause a
+    transition from p to middle?
 
     [[#Orient]]
     [[#Decide]]
@@ -30,13 +33,13 @@
       https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/
 
     With the current design, there can be no entry and exit conditions for the
-    regions.  If there are, then the I1 dynamics will not work.  The I1 is a
+    regions.  If there are, then the RG1 dynamics will not work.  The RG1 is a
     BOUNCE_SAME_META_SIGNAL.  It exits the region in which it is running in
     order to re-engage with that regions INIT_META_SIGNAL handling.  This can be
     changed, but the region entry/exit was just a bonus, it wasn't part of the
     original specification, but if we include it, were are including a bug.  If
     I change it, it will be a lot of effort exerted for something that doesn't
-    matter that much.  This applies to D3 as well.
+    matter that much.  This applies to SRH3 as well.
 
     To setup auto-testing:
 
@@ -330,8 +333,9 @@
     * would it work if the PF1 was sourced from region1 and into region2
 
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
-  * [ ] Write a method called in_same_hsm in the XmlChart
-  * [ ] 
+  * [ ] use the active_states method to ask all active states if they need the
+        hook, if not proceed with the transition.
+  * [ ] query each state with the event labelled as a hook inside of a 
 
   *Chosen Research-Goal/Hypothesis*
 
