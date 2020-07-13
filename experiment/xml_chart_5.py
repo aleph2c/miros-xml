@@ -24,7 +24,7 @@ from miros import return_status
 from miros import HsmWithQueues
 
 # To create a deconstruction of a given event:
-event_to_investigate = '_SRF1'
+event_to_investigate = '_H2'
 
 def pp(item):
   xprint.pprint(item)
@@ -58,29 +58,30 @@ def flatten(l, a=None):
   return a
 
 def meta_trans(hsm, e, s, t):
-  if(hsm.outmost.in_same_hsm(source=s, target=t)):
+  #if e.signal_name == "H2":
+  #  import pdb; pdb.set_trace()
+  fn = example.meta_hooked(
+    s=s,
+    e=e
+  )
+  if fn is not None:
+    status = fn(hsm, e)
+  elif(hsm.outmost.in_same_hsm(source=s, target=t)):
     status = hsm.trans(t)
   else:
-    fn = hsm.outmost.meta_hooked(
+    _state, _e = hsm.outmost._meta_trans(
+      hsm,
+      t=t,
       s=s,
-      e=e
-    )
-    if fn is not None:
-      status = fn(hsm, e)
+      sig=e.signal_name)
+    if _state:
+      status = hsm.trans(_state)
+      hsm.same._post_fifo(_e)
+      investigate(hsm, e, _e)
     else:
-      _state, _e = hsm.outmost._meta_trans(
-        hsm,
-        t=t,
-        s=s,
-        sig=e.signal_name)
-      if _state:
-        status = hsm.trans(_state)
-        hsm.same._post_fifo(_e)
-        investigate(hsm, e, _e)
-      else:
-        status = return_status.HANDLED
-        investigate(hsm, e, _e)
-        hsm.same.post_fifo(_e)
+      status = return_status.HANDLED
+      investigate(hsm, e, _e)
+      hsm.same.post_fifo(_e)
   return status
 
 def f_to_s(fn):
@@ -1557,7 +1558,7 @@ class XmlChart(InstrumentedActiveObject):
         _fn = layer
       r = _fn(self, e_seach_hook)
       if r == return_status.HANDLED:
-        fn = layer
+        fn = _fn
         break
     self.temp.fun, self.state.fun = old_temp, old_fun
     return fn
@@ -2346,6 +2347,13 @@ def p_p12(r, e):
   elif(r.token_match(e.signal_name, "H1")):
     r.scribble("p_p12 hooked")
     status = return_status.HANDLED
+  elif(r.token_match(e.signal_name, "H2")):
+    r.p_spy(e)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12,
+      t=p
+    )
   elif(r.token_match(e.signal_name, "RE1")):
     r.p_spy(e)
     status = r.meta_trans(
@@ -3139,7 +3147,7 @@ def p_p12_r2_over_hidden_region(r, e):
 @othogonal_state
 def p_p12_s21(r, e):
   __super__ = p_p12_r2_over_hidden_region
-  __hooks__ = [signals.H1]
+  __hooks__ = [signals.H1, signals.H2]
   status = return_status.UNHANDLED
 
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
@@ -3155,7 +3163,10 @@ def p_p12_s21(r, e):
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H1")):
+  elif(
+    r.token_match(e.signal_name, "H1") or
+    r.token_match(e.signal_name, "H2")
+  ):
     r.scribble("p_p11 hooked")
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
@@ -3644,7 +3655,7 @@ def p_p22_r1_over_hidden_region(r, e):
 def p_p22_s11(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p22_r1_over_hidden_region
-  __hooks__ = [signals.H1, signals.H2]
+  __hooks__ = [signals.H2]
 
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
@@ -3655,6 +3666,9 @@ def p_p22_s11(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.H2):
+    r.scribble('p_p22_s11 hook')
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
@@ -4138,6 +4152,7 @@ def p(self, e):
       self.token_match(e.signal_name, "e5") or
       self.token_match(e.signal_name, "RC1") or
       self.token_match(e.signal_name, "RC2") or
+      self.token_match(e.signal_name, "H2") or
       self.token_match(e.signal_name, "RH1") or
       self.token_match(e.signal_name, "SRH2") or
       self.token_match(e.signal_name, "SRG1") or
@@ -4155,7 +4170,6 @@ def p(self, e):
       self.token_match(e.signal_name, "SRD2") or
       self.token_match(e.signal_name, "SRD1") or
       self.token_match(e.signal_name, "RF1") or
-      self.token_match(e.signal_name, "H1") or
       self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
       self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name) or
@@ -4203,6 +4217,13 @@ def p(self, e):
       e=e,
       s=p,
       t=p,
+    )
+  elif(self.token_match(e.signal_name, "H1")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=p,
+      t=middle
     )
   elif(self.token_match(e.signal_name, "SD1")):
     self.p_spy(e)
@@ -4311,7 +4332,8 @@ if __name__ == '__main__':
         example.logger.critical("Expecting: {}".format(expected_result))
         example.logger.critical("Observed:  {}".format(active_states))
         example.logger.critical(example.active_states())
-        time.sleep(60*3)
+        time.sleep(60 * 3)
+        #time.sleep(5)
         exit(1)
       #assert active_states == expected_result
       return active_states
@@ -4337,7 +4359,7 @@ if __name__ == '__main__':
         s=p,
         t=p_p11,
         sig='H1'
-      ) is p_p11
+      ) is p_p11.__wrapped__
     )
     assert(
       example._meta_hooked(
@@ -4351,14 +4373,14 @@ if __name__ == '__main__':
         s=p,
         t=p_p12_p11,
         sig='H1'
-      ) is p_p12
+      ) is p_p12.__wrapped__
     )
     assert(
       example._meta_hooked(
         s=p_p12,
         t=p_p12_s21,
         sig="H1"
-      ) is p_p12_s21
+      ) is p_p12_s21.__wrapped__
     )
     assert(example.lca(_s=p_p12, _t=outer) == outer)
     assert(example.lca(_s=p_p12, _t=s) == outer)
@@ -4420,7 +4442,7 @@ if __name__ == '__main__':
       example.meta_hooked(
         s=p,
         e=Event(signal=signals.H1)
-      ) is p_p11
+      ) is p_p11.__wrapped__
     )
 
     # SD1
@@ -4459,7 +4481,7 @@ if __name__ == '__main__':
       example.meta_hooked(
         s=middle,
         e=Event(signal=signals.H1)
-      ) is p_p11
+      ) is p_p11.__wrapped__
     )
 
     assert(
@@ -4574,7 +4596,7 @@ if __name__ == '__main__':
       example.meta_hooked(
         s=p,
         e=Event(signal=signals.H1)
-      ) is p_p11
+      ) is p_p11.__wrapped__
     )
 
     # p_p22_s11 has an H2 hook
@@ -4582,7 +4604,7 @@ if __name__ == '__main__':
       example.meta_hooked(
         s=p,
         e=Event(signal=signals.H2)
-      ) is p_p22_s11
+      ) is p_p22_s11.__wrapped__
     )
 
     #example.clear_log()
@@ -4844,7 +4866,7 @@ if __name__ == '__main__':
       example.meta_hooked(
         s=p,
         e=Event(signal=signals.H1)
-      ) is p_p12
+      ) is p_p12.__wrapped__
     )
 
     assert(
@@ -4937,6 +4959,88 @@ if __name__ == '__main__':
     old_results = build_test(
       sig='PG1',
       expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #########################################################################
+    #                              HOOK TESTS                               #
+    #########################################################################
+    #example.clear_log()
+    old_results = build_test(
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='PC1',
+      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    # confirm transition works to middle from p
+    #example.clear_log()
+    old_results = build_test(
+      sig='H1',
+      expected_result=['middle'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='SH1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='H1',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='RF1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='e1',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    #example.clear_log()
+    old_results = build_test(
+      sig='H2',
+      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='e4',
+      expected_result=[['p_p12_s12', 'p_p12_s22'], ['p_p22_s12', 'p_p22_s22']],
+      old_result=old_results,
+      duration=0.2
+    )
+
+    old_results = build_test(
+      sig='H2',
+      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
       duration=0.2
     )

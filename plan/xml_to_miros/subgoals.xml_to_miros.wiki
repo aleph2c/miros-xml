@@ -1,6 +1,7 @@
 [[xml_to_miros]]
 = Subgoals: Support the following features =
   * [ ] parallel [[parallel|link]]
+  * [ ] docs [[docs|link]]
   * [ ] scxml [[scxml|link]]
   * [ ] datamodel [[datamodel|link]]
   * [ ] state [[state|link]]
