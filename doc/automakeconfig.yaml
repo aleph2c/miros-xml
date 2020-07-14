@@ -1,3 +1,0 @@
----
-root_file:      "miros-xml.tex"
-change_filters: ['*.rst','*.xml','*.gif','*.jpg', '*.png', '*.svg', '*.uxf']
