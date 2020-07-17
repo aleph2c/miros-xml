@@ -7,7 +7,7 @@
     Jessica has built a new doc framework with a new theme
 
   *What is the problem?*
-    I need to port it from miros, and I don't know how to use it.
+    I need to port it from miros-xml, and I don't know how to use it.
 
   *Discoveries:* ([[notes.docs|notes]])
 

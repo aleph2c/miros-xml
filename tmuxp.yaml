@@ -26,9 +26,9 @@ windows:
     automatic-rename: 'off'
   panes:
   - shell_command:
-    - miros
+    - xml
     - clear
-    - while inotifywait -e modify ./miros-xml/*.py ./test/*.py; do pytest -s; done
+    - while inotifywait -e modify ./miros_scxml/*.py ./test/*.py; do pytest -s; done
   - shell_command:
     - miros-xml
     - deactivate
