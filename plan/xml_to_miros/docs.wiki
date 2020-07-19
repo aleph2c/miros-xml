@@ -11,6 +11,33 @@
 
   *Discoveries:* ([[notes.docs|notes]])
 
+    * Every significant project will now come with a tmuxp.yaml in its base
+      directory.  This file can be used to build a tmux session, which typically
+      will have one tab for programming, one for automation of the doc creation
+      and software testing and the last to control the tmux interface itself.
+
+    * To load this tmux configuration:
+      tmuxp load tmuxp.yaml
+
+    * The documentation automation, in the second tab will be reliant upon
+      inotifywait:
+
+        while inotifywait -e modify ./source/*.rst ./source/_static/*.uxf; do make html; done
+
+    * The documentation will be built using a Makefile in the docs/source
+      directory.  This make file will recursively call another make file called
+      pictures.mk in the docs/source/_static/ directory.  The pictures.mk file
+      will turn all *.uxf files into *.svg and *.pdf files.  The higher level
+      make file is dependent upon this picture creation process and it will wait
+      until this pictures are build prior to calling the sphinx build tool.
+
+    * The benefit of using inotifywait with this make hierarchy is that web
+      browser can be made to look like a word processor.  The diagram
+      construction can be done with Umlet and the documenation layout can be
+      handled by the sphinx project.
+
+    * Jessica has include instructions on using her theme [[https://github.com/jessicarush/sphinx-theme|here]]
+
 = Orient =
   *Symptoms:* [[symptoms.docs|symptoms]]
 

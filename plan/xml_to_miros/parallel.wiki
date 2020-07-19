@@ -6,9 +6,15 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    Implement WFT hooks.
+    Have an understandable system, 6 months from now
 
   *What is the problem?*
+    I don't remember what I have written, and how much of it is now wrong.
+
+    I have written a lot of new code and need to figure out what needs to be
+    documented.
+
+    ----
 
     The problem is presented as H1 on the diagram.  The H1 hook is in the p_p11
     state and is written as "H1 // <>" with the "//" to show that it applies to
@@ -330,12 +336,11 @@
 = Decide =
 
   *Research Needed For?:* ([[#Observe]], [[#Orient]])
-    * would it work if the PF1 was sourced from region1 and into region2
+    * [ ] Read the XML docs
+    * [ ] Find a way to effortlessly update them
+    * [ ] Find a way to effortlessly read them
 
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
-  * [ ] use the active_states method to ask all active states if they need the
-        hook, if not proceed with the transition.
-  * [ ] query each state with the event labelled as a hook inside of a 
 
   *Chosen Research-Goal/Hypothesis*
 

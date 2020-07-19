@@ -3,6 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+This project extends miros to support parallel statecharts and the construction
+of normal and parallel statecharts using XML.
+
+
 Miros-XML
 ---------
 

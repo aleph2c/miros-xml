@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'Example'
+project = 'miros-xml'
 copyright = '13 Down Software'
 author = '13 Down Software'
 github_repo = 'https://github.com/'
@@ -168,11 +168,11 @@ html_add_permalinks = '#'
 html_sidebars = {
    '**': [
      #'sidebarlogo.html',
-     'sidebarintro.html',
      'localtoc.html',
      'globaltoc.html',
      # 'relations.html',
      # 'sourcelink.html',
+     'sidebarintro.html',
      'sidebar_example.html',
      'searchbox.html'
      ]
