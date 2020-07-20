@@ -35,7 +35,7 @@ complex than the real system.
 
 .. image:: _static/bomb_disposal.jpg
     :target: https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/
-    :class: scale-to-fit
+    :class: noscale-center
 
 David Harel neatly solved the "state space explosion" problem by inventing a
 different type of picture.  He invented hierarchical state machines and parallel
