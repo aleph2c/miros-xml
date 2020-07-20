@@ -11,67 +11,6 @@ How it Works
 
 .. _how_it_works-summary:
 
-Problem - The Tale of Two Architectural Explosion Chambers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. note::
-
-  I wrote this document to help me think through my problems and to try and find a
-  straightforward way to implement the <p> parallel tag using miros.
-
-
-State machine theory used to plague designers with a problem known as state
-space explosion: The number of states needed in a finite state machine (FSM)
-would explode in number, as a system's requirements reached even a moderate
-level of complexity.  A design would start off as a simple set of circles
-connected by arrows, and this would be enough to map an abstract idea about how
-a system should work onto some working software.  Then a new requirement would
-be added, with a new bubble and some more edge conditions, the number of
-possible paths and behavior would go up exponentially, but for small numbers
-exponential increase looks linear.  Then one day a new requirement is added and
-everything becomes unmanageable.  The picture and the software used to map your
-picture into behavior is 
-
-Any useful engineering formalism (or way of modelling your
-problem) should compress complexity within the model, not make your model more
-complex than the real system.  A design using an FSM would map requirements
-versus complexity in a concave way.  It could only be applied to simple systems;
-with the state space explosion becoming a promised apocalypse for that system's
-maintenance developers.
-
-.. image:: _static/bomb_disposal.jpg
-    :target: https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/
-    :class: scale-to-fit
-
-David Harel neatly solved this issue by inventing a better formalism.  He
-invented hierarchical state machines and parallel regions.  His way of drawing
-diagrams would ensnare tremendous amounts of complexity, packing it into small
-and intuitive diagrams.  With his approach, the graph of mapping requirements to
-a design's complexity would be linear or even sigmoidal in nature.
-
-When state machines are running in parallel regions they are running at the same
-time: both regions react to the events which are sent to the chart.  This is
-easy for a theorist to envision, but it is much harder for the practitioner to
-implement.  Regions can exist within regions, and each region represents a
-parallel execution of code, with access to common outer memory and a need to
-react to events managed by other parts of the program.  It is like applying
-topology to your system forks.
-
-Miro Samek wanted to address the need to contain state explosion too, but in a
-way which could be put onto very small processors with limited resources.  So he invented the  `orthogonal component
-pattern
-<https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_:
-an HSM running within another HSM.
-
-Miro Samek's approach is very much appropriate for the environment he built it
-for, but it is not nearly as expressive as the parallel region, as we will see
-in the next section.  But from an implementation perspective Miro
-Samek's approach is much faster and far easier to implement than David Harel's
-approach.
-
-This project is about having cake and eating it too.  I will recursively map
-Miro Samek's orthogonal component pattern to make hierarchies of HSMs (HHSMs).
-The HHSMs will provide the features needed to create David Harel's parallel regions.
 
 .. _how_it_works-class-relationships:
 

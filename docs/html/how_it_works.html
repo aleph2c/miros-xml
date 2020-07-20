@@ -102,7 +102,6 @@
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">How it Works</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#problem-the-tale-of-two-architectural-explosion-chambers">Problem - The Tale of Two Architectural Explosion Chambers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#class-and-hsm-relationships">Class and HSM Relationships</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#context-and-terminology">Context and Terminology</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reflection-and-logging">Reflection and Logging</a></li>
@@ -164,83 +163,32 @@
 <span id="id1"></span><h1>How it Works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">#</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><p><a class="reference internal" href="#problem-the-tale-of-two-architectural-explosion-chambers" id="id2">Problem - The Tale of Two Architectural Explosion Chambers</a></p></li>
-<li><p><a class="reference internal" href="#class-and-hsm-relationships" id="id3">Class and HSM Relationships</a></p></li>
-<li><p><a class="reference internal" href="#context-and-terminology" id="id4">Context and Terminology</a></p></li>
-<li><p><a class="reference internal" href="#reflection-and-logging" id="id5">Reflection and Logging</a></p>
+<li><p><a class="reference internal" href="#class-and-hsm-relationships" id="id2">Class and HSM Relationships</a></p></li>
+<li><p><a class="reference internal" href="#context-and-terminology" id="id3">Context and Terminology</a></p></li>
+<li><p><a class="reference internal" href="#reflection-and-logging" id="id4">Reflection and Logging</a></p>
 <ul>
-<li><p><a class="reference internal" href="#souped-up-spy" id="id6">Souped Up Spy</a></p></li>
-<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id7">Souped Up State Name Reflection</a></p></li>
-<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id8">Simplifying the Inner Injector Functions</a></p></li>
-<li><p><a class="reference internal" href="#reading-the-log-file" id="id9">Reading the Log File</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-spy" id="id5">Souped Up Spy</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id6">Souped Up State Name Reflection</a></p></li>
+<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id7">Simplifying the Inner Injector Functions</a></p></li>
+<li><p><a class="reference internal" href="#reading-the-log-file" id="id8">Reading the Log File</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#building-a-subregion" id="id10">Building a Subregion</a></p></li>
-<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id11">Writing WTF Events Across Regions</a></p>
+<li><p><a class="reference internal" href="#building-a-subregion" id="id9">Building a Subregion</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id10">Writing WTF Events Across Regions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#e-wtf-events" id="id12">E WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#e0-wtf-event" id="id13">E0 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e1-wtf-event" id="id14">E1 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e2-wtf-event" id="id15">E2 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#c-wtf-events" id="id16">C WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#c0-wtf-event" id="id17">C0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e-wtf-events" id="id11">E WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#e0-wtf-event" id="id12">E0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e1-wtf-event" id="id13">E1 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e2-wtf-event" id="id14">E2 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#c-wtf-events" id="id15">C WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#c0-wtf-event" id="id16">C0 WTF Event</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id18">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id17">Hidden Dynamics</a></p></li>
 </ul>
-</div>
-<div class="section" id="problem-the-tale-of-two-architectural-explosion-chambers">
-<span id="how-it-works-summary"></span><h2>Problem - The Tale of Two Architectural Explosion Chambers<a class="headerlink" href="#problem-the-tale-of-two-architectural-explosion-chambers" title="Permalink to this headline">#</a></h2>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>I wrote this document to help me think through my problems and to try and find a
-straightforward way to implement the &lt;p&gt; parallel tag using miros.</p>
-</div>
-<p>State machine theory used to plague designers with a problem known as state
-space explosion: The number of states needed in a finite state machine (FSM)
-would explode in number, as a system’s requirements reached even a moderate
-level of complexity.  A design would start off as a simple set of circles
-connected by arrows, and this would be enough to map an abstract idea about how
-a system should work onto some working software.  Then a new requirement would
-be added, with a new bubble and some more edge conditions, the number of
-possible paths and behavior would go up exponentially, but for small numbers
-exponential increase looks linear.  Then one day a new requirement is added and
-everything becomes unmanageable.  The picture and the software used to map your
-picture into behavior is</p>
-<p>Any useful engineering formalism (or way of modelling your
-problem) should compress complexity within the model, not make your model more
-complex than the real system.  A design using an FSM would map requirements
-versus complexity in a concave way.  It could only be applied to simple systems;
-with the state space explosion becoming a promised apocalypse for that system’s
-maintenance developers.</p>
-<a class="reference external image-reference" href="https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/"><img alt="_images/bomb_disposal.jpg" class="scale-to-fit" src="_images/bomb_disposal.jpg" /></a>
-<p>David Harel neatly solved this issue by inventing a better formalism.  He
-invented hierarchical state machines and parallel regions.  His way of drawing
-diagrams would ensnare tremendous amounts of complexity, packing it into small
-and intuitive diagrams.  With his approach, the graph of mapping requirements to
-a design’s complexity would be linear or even sigmoidal in nature.</p>
-<p>When state machines are running in parallel regions they are running at the same
-time: both regions react to the events which are sent to the chart.  This is
-easy for a theorist to envision, but it is much harder for the practitioner to
-implement.  Regions can exist within regions, and each region represents a
-parallel execution of code, with access to common outer memory and a need to
-react to events managed by other parts of the program.  It is like applying
-topology to your system forks.</p>
-<p>Miro Samek wanted to address the need to contain state explosion too, but in a
-way which could be put onto very small processors with limited resources.  So he invented the  <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal component
-pattern</a>:
-an HSM running within another HSM.</p>
-<p>Miro Samek’s approach is very much appropriate for the environment he built it
-for, but it is not nearly as expressive as the parallel region, as we will see
-in the next section.  But from an implementation perspective Miro
-Samek’s approach is much faster and far easier to implement than David Harel’s
-approach.</p>
-<p>This project is about having cake and eating it too.  I will recursively map
-Miro Samek’s orthogonal component pattern to make hierarchies of HSMs (HHSMs).
-The HHSMs will provide the features needed to create David Harel’s parallel regions.</p>
 </div>
 <div class="section" id="class-and-hsm-relationships">
-<span id="how-it-works-class-relationships"></span><h2>Class and HSM Relationships<a class="headerlink" href="#class-and-hsm-relationships" title="Permalink to this headline">#</a></h2>
+<span id="how-it-works-class-relationships"></span><span id="how-it-works-summary"></span><h2>Class and HSM Relationships<a class="headerlink" href="#class-and-hsm-relationships" title="Permalink to this headline">#</a></h2>
 <p>Here is an example of a statechart diagram written using the Harel way of
 drawing statecharts:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="scale-to-fit" src="_images/xml_chart_4.svg" /></a>
@@ -2000,7 +1948,7 @@ this:</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jul 20, 2020 6:50 AM</span>
+          <span class="time">Jul 20, 2020 9:44 AM</span>
         </div>
         
         
