@@ -18,9 +18,9 @@
 # -- Project information -----------------------------------------------------
 
 project = 'miros-xml'
-copyright = '13 Down Software'
-author = '13 Down Software'
-github_repo = 'https://github.com/'
+copyright = 'Scott Volk'
+author = 'Scott Volk'
+github_repo = 'https://github.com/aleph2c/miros-xml'
 copyright_link = 'https://github.com/aleph2c'
 
 # The major project version
@@ -97,7 +97,7 @@ html_theme = '13ds_theme_one'
 html_theme_options = {
   'nosidebar': False,
   'navbar_logo': False,
-  'docs_start': 'usage/installation',
+  'docs_start': 'installation',
   }
 
 # A list of paths that contain custom themes, either as subdirectories or as
@@ -131,11 +131,11 @@ html_static_path = ['_static']
 # This is appended to the <title> tag of individual pages, and used in the
 # navigation bar as the “topmost” element. It defaults to
 # '<project> v<revision> documentation'.
-html_title = 'Example documentation'
+html_title = 'Miros-xml Documentation'
 
 # A shorter “title” for the HTML docs. This is used for links in the
 # header and in the HTML Help docs. If not given, it defaults to html_title.
-html_short_title = 'Example'
+html_short_title = 'miros-xml'
 
 # If given, this must be the name of an image file (path relative to the
 # configuration directory). It is placed at the top of the sidebar.
@@ -168,14 +168,15 @@ html_add_permalinks = '#'
 html_sidebars = {
    '**': [
      #'sidebarlogo.html',
-     'localtoc.html',
+     'sidebarabout.html',
+     #'localtoc.html',
      'globaltoc.html',
      # 'relations.html',
      # 'sourcelink.html',
      'sidebarintro.html',
-     'sidebar_example.html',
+     #'sidebar_example.html',
      'searchbox.html'
-     ]
+   ]
 }
 
 # The URL which points to the root of the HTML documentation. It is used to

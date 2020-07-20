@@ -832,19 +832,6 @@ fg=magenta</panel_attributes>
   <element>
     <id>Relation</id>
     <coordinates>
-      <x>576</x>
-      <y>252</y>
-      <w>36</w>
-      <h>168</h>
-    </coordinates>
-    <panel_attributes>lt=.&gt;
-layer=3
-fg=green</panel_attributes>
-    <additional_attributes>10.0;120.0;10.0;10.0</additional_attributes>
-  </element>
-  <element>
-    <id>Relation</id>
-    <coordinates>
       <x>420</x>
       <y>492</y>
       <w>72</w>

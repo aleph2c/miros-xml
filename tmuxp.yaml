@@ -27,15 +27,15 @@ windows:
   panes:
   - shell_command:
     - xml
+    - cd ./docs/source/
     - clear
-    - while inotifywait -e modify ./miros_scxml/*.py ./test/*.py; do pytest -s; done
   - shell_command:
     - miros-xml
     - deactivate
     - . ./venv/bin/activate
     - cd ./docs/
     - clear
-    - while inotifywait -e modify ./source/*.rst ./source/_static/*.uxf; do make html; done
+    - while inotifywait -e modify ./source/*.rst ./source/_static/*.uxf; do make clean & make html; done
   start_directory: /mnt/c/github/miros-xml
   window_name: automation
 - options:

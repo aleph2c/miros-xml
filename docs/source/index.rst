@@ -1,29 +1,37 @@
-.. miros documentation master file, created by
-   sphinx-quickstart on Mon Oct 16 06:18:38 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. Documentation master file
+  Created:
+  Authors: Scott Volk/Jessica Rush
+  This will be the documentation's landing page
+  It should at least contain the root `toctree` directive
 
-This project extends miros to support parallel statecharts and the construction
-of normal and parallel statecharts using XML.
-
+.. meta::
+  :description: miros-xml documentation
+  :keywords: python statecharts, statecharts, miros, miros-xml, parallel regions
+  :author: Scott Volk
+  :copyright: Scott Volk
+  :robots: index, follow
 
 Miros-XML
----------
+=========
+
+The miros-xml is a Python library which: consumes XML files describing a
+statechart and turns it into a working python program:
+
+* The parallel regions feature will be supported.
+
+* Its XML mapping is inspired by the SCXML standard.
+
+The majority of this document is written to describe how to implement parallel
+regions using the miros event processor.
+
+Contents
+--------
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Contents:
-   :titlesonly:
+   :maxdepth: 2
 
    installation
    introduction
    quickstart
    recipes
-   architecture
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   how_it_works

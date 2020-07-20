@@ -31,9 +31,9 @@
 /* -- Variables ----------------------------------------------------------- */
 
 :root {
-  --emphasis-color: rgb(55,200,165);
-  --emphasis-color-dark: rgb(46,171,141);
-  --emphasis-color-light: rgb(139,224,203);
+  --emphasis-color: rgb(15,103,204);
+  --emphasis-color-dark: rgb(30,81,132);
+  --emphasis-color-light: rgb(78,157,221);
   /* --emphasis-color: rgb(64,179,255);
   --emphasis-color-dark: rgb(52,146,207);
   --emphasis-color-light: rgb(169,221,255); */
