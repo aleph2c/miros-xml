@@ -169,26 +169,26 @@
 <p>I wrote this document to help me think through my problems and to try and find a
 straightforward way to implement the &lt;p&gt; parallel tag using miros.</p>
 </div>
-<p>Software engineers will map their system’s behavioral requirements onto a
-picture, then use that picture as a guide for how to write their software.</p>
-<p>It is very natural for a software engineer to draw a set of bubbles connected by
-arrows.  The bubbles represent states of the system and the arrows represent
-events which require a change of state.  If the drawing is just a set of bubbles
-connected by arrows, it is called a finite state machine (FSM).</p>
+<p>Software engineers like to describe how their system’s should behave with a
+picture. Often these pictures look like a bunch of circles connected by arrows.
+The circles represent the different system states and the arrows represent the
+things which cause change.  Pictures drawn like this are called finite state
+machines (FSMs).</p>
 <p>The problem with FSMs are that they are architectural time bombs.  As the number
 of requirements increase in your system, the number of bubbles and arrows
 required to model it, significantly outpaces the number of requirements.  This
 effect is so dramatic, it has been given the name: “state-space-explosion”.</p>
-<p>Any useful engineering formalism (or way of modelling your
+<p>Any useful engineering formalism (or way of modelling/drawing your
 problem) should compress complexity within the model, not make your model more
 complex than the real system.</p>
 <a class="reference external image-reference" href="https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/"><img alt="_images/bomb_disposal.jpg" class="noscale-center" src="_images/bomb_disposal.jpg" /></a>
-<p>David Harel neatly solved the “state space explosion” problem by inventing a
-different type of picture.  He invented hierarchical state machines and parallel
-regions.  A hierarchical state machine allows for bubbles to be drawn within
-bubbles; an inner bubble containing all of the behavior described by an outer
-bubble.  A parallel region, is a dashed line on a picture.  Each region marked
-off with this dashed line describes concurrent operation.</p>
+<p>In 1987, David Harel neatly solved “state space explosions” by
+inventing some new drawing rules for these circle-and-arrow type of pictures.
+He named these drawing rules: “hierarchical state machines” (HSMs) and “parallel
+regions”.  A hierarchical state machine allows for circles to be drawn within
+circles; an inner circle containing all of the behavior described by an outer
+circle.  A parallel region, is represented as a dashed line on a picture.  Each
+region marked off with this dashed line describes concurrent operation.</p>
 <p>David Harel’s drawing rules ensnare tremendous amounts of behavioral complexity.
 If you model system’s using his techniques you will end up with small and
 intuitive diagrams which can easily adapt to future requirements.</p>
@@ -200,29 +200,55 @@ to implement.  Regions can exist within regions, and each region represents a
 parallel execution of code, with access to common outer memory and a need to
 react to events managed by other parts of the program.  It is like applying
 topology to your system forks.</p>
-<p>Miro Samek liberated statecharts in his 2000 paper titled <a class="reference external" href="https://www.embedded.com/state-oriented-programming/">State-Oriented
-Programming</a>.  His
-algorithm supported the bubble within bubble part of the statemachine picture,
-but it did not support the dashed line: parallel regions. He went about
-addressing the “state space explosion” problem in a different way, he invented the
-<a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal component pattern</a>:
+<p>To make the manifestation of such pictures easier for a software engineer, firms
+wrote tools to help draw these pictures then turn them into working software.
+The problem was that the tooling, though powerful, was expensive, added risk and
+produced programs outside of the direct control of the software developer.
+To get your code working, you had to ensure a third party tool was installed,
+could run properly, that its licence server was working and linked in your
+network, and so on.  The word for this is Vender-lock-in.  If the firm you
+depended on failed, your entire software system could become moot.</p>
+<p>Miro Samek liberated statecharts from Vender-lock-in with his
+2000 paper titled <a class="reference external" href="https://www.embedded.com/state-oriented-programming/">State-Oriented Programming</a>.  His algorithm
+supported the bubble within bubble part of the statemachine picture, but it did
+not support the dashed line: parallel regions. He went about addressing the
+“state space explosion” problem in a different way, he invented the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal
+component pattern</a>:
 an HSM running within another HSM.</p>
 <p>Miro Samek’s approach was built for small processors, and it ran fast and used
 very few resources.  It was not as pictorially expressive as the parallel
-region, as we will see in the next section.</p>
-<p>Both men went about containing the architecture “state space explosion” caused from FSMs.
-One method was practical from an implementation perspective and the other was
-more pictorially expressive in how it described concurrency.</p>
+region, but it was comprehensible by the software developer who was using it.
+To use his software, an engineer would port it onto their processor, just as
+they would with a real-time operating system (RTOS).  In fact, with his software
+you didn’t need an RTOS anymore.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference external" href="https://www.state-machine.com/">Miro Samek’s business model was interesting too</a>.  He provided his code and his
+understanding for free under an open source licence, and had another licence
+for commercial products.  For this reason there is no Vender-lock-in, you can
+just go an get his code and build it into your system directly.  His business
+innovation was based on trust:  Engineers working within large firms want to
+see that his firm gets paid, so they will research the licences on his webpage
+and make sure he gets his money.  In doing so they establish a relationship
+which could save them months in development time.</p>
+</div>
+<p>Both David Harel and Miro Samek went about containing the architecture “state
+space explosion” caused from FSMs.  One method was practical from an
+implementation perspective and the other was more pictorially expressive in how
+it described concurrency.</p>
 <p>This project is about having cake and eating it too.  The library this project
 is dependent upon uses Miro Samek’s algorithm and thereby doesn’t implicitly
 support parallel regions, but it does support the orthogonal component pattern.
 So I will use the orthogonal component as a kind of assembly language.  I will
-map a parallel region described within an XML document onto a set of orthogonal
-regions.  One orthogonal region may contain 0 or more other orthogonal regions,
-in a kind of onion-type architecture.  An event will be able to cause
-transitions between these orthogonal regions. From the outside, it will look
-like parallel region’s are supported.  So this library is about bringing
-parallel regions to the Miro Samek algorithm.</p>
+map a parallel region described within an XML document (within a &lt;p&gt; tag) onto a
+set of orthogonal regions.  One orthogonal region may contain 0 or more other
+orthogonal regions, in a kind of hierarchy of hierarchical state machines
+(HHSM).  An event will be able to cause transitions between these orthogonal
+regions. From the outside, it will look like parallel region’s are supported.
+So this library is about bringing parallel regions to the Miro Samek algorithm.</p>
+<p>The drawing rule to make these HHSMs will just be those described by David
+Harel, and yet the code will follow the Miro Samek philosophy of being
+comprehensible and accessible.</p>
 <span class="target" id="introduction-what-this-documentation-will-provide"></span></div>
 </div>
 
@@ -261,7 +287,7 @@ parallel regions to the Miro Samek algorithm.</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jul 20, 2020 9:55 AM</span>
+          <span class="time">Jul 22, 2020 7:08 AM</span>
         </div>
         
         

@@ -1,3 +1,9 @@
+.. note::
+
+  This portion of the document is a collection of notes I have been taking as I
+  write the software.  It is not meant for general consumption, since a lot of
+  the words/definitions used to describe the system are inconsistent; it's a
+  work in progress.
 
 .. _how_it_works:
 
@@ -8,8 +14,6 @@ How it Works
   :depth: 2
   :local: 
   :backlinks: none
-
-.. _how_it_works-summary:
 
 
 .. _how_it_works-class-relationships:
