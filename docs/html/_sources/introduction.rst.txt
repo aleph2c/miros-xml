@@ -3,6 +3,9 @@
   
   -- John Boyd
 
+.. toctree::
+   :titlesonly:
+
 .. _introduction-introduction:
 
 Introduction
@@ -11,12 +14,7 @@ Introduction
 Problem - The Tale of Two Architectural Explosion Chambers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. note::
-
-  I wrote this document to help me think through my problems and to try and find a
-  straightforward way to implement the <p> parallel tag using miros.
-
-Software engineers like to describe how their system's should behave with a
+Software engineers like to describe how their systems should behave with a
 picture. Often these pictures look like a bunch of circles connected by arrows.
 The circles represent the different system states and the arrows represent the
 things which cause change.  Pictures drawn like this are called finite state
@@ -24,12 +22,12 @@ machines (FSMs).
 
 The problem with FSMs are that they are architectural time bombs.  As the number
 of requirements increase in your system, the number of bubbles and arrows
-required to model it, significantly outpaces the number of requirements.  This
+required to model it, outpaces the number of requirements.  This
 effect is so dramatic, it has been given the name: "state-space-explosion".
 
-Any useful engineering formalism (or way of modelling/drawing your
-problem) should compress complexity within the model, not make your model more
-complex than the real system.
+Any useful engineering formalism (or way of drawing your problem) should
+compress complexity within the model, not make your model more complex than the
+real system.
 
 .. image:: _static/bomb_disposal.jpg
     :target: https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/
@@ -44,7 +42,7 @@ circle.  A parallel region, is represented as a dashed line on a picture.  Each
 region marked off with this dashed line describes concurrent operation.
 
 David Harel's drawing rules ensnare tremendous amounts of behavioral complexity.
-If you model system's using his techniques you will end up with small and
+If you model systems using his techniques you will end up with small and
 intuitive diagrams which can easily adapt to future requirements.
 
 When state machines are running in parallel regions they are running at the same

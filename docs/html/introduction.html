@@ -160,27 +160,24 @@
 <div><p><em>Decisions without actions are pointless. Actions without decisions are reckless.</em></p>
 <p class="attribution">—John Boyd</p>
 </div></blockquote>
+<div class="toctree-wrapper compound">
+</div>
 <div class="section" id="introduction">
 <span id="introduction-introduction"></span><h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">#</a></h1>
 <div class="section" id="problem-the-tale-of-two-architectural-explosion-chambers">
 <h2>Problem - The Tale of Two Architectural Explosion Chambers<a class="headerlink" href="#problem-the-tale-of-two-architectural-explosion-chambers" title="Permalink to this headline">#</a></h2>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>I wrote this document to help me think through my problems and to try and find a
-straightforward way to implement the &lt;p&gt; parallel tag using miros.</p>
-</div>
-<p>Software engineers like to describe how their system’s should behave with a
+<p>Software engineers like to describe how their systems should behave with a
 picture. Often these pictures look like a bunch of circles connected by arrows.
 The circles represent the different system states and the arrows represent the
 things which cause change.  Pictures drawn like this are called finite state
 machines (FSMs).</p>
 <p>The problem with FSMs are that they are architectural time bombs.  As the number
 of requirements increase in your system, the number of bubbles and arrows
-required to model it, significantly outpaces the number of requirements.  This
+required to model it, outpaces the number of requirements.  This
 effect is so dramatic, it has been given the name: “state-space-explosion”.</p>
-<p>Any useful engineering formalism (or way of modelling/drawing your
-problem) should compress complexity within the model, not make your model more
-complex than the real system.</p>
+<p>Any useful engineering formalism (or way of drawing your problem) should
+compress complexity within the model, not make your model more complex than the
+real system.</p>
 <a class="reference external image-reference" href="https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/"><img alt="_images/bomb_disposal.jpg" class="noscale-center" src="_images/bomb_disposal.jpg" /></a>
 <p>In 1987, David Harel neatly solved “state space explosions” by
 inventing some new drawing rules for these circle-and-arrow type of pictures.
@@ -190,7 +187,7 @@ circles; an inner circle containing all of the behavior described by an outer
 circle.  A parallel region, is represented as a dashed line on a picture.  Each
 region marked off with this dashed line describes concurrent operation.</p>
 <p>David Harel’s drawing rules ensnare tremendous amounts of behavioral complexity.
-If you model system’s using his techniques you will end up with small and
+If you model systems using his techniques you will end up with small and
 intuitive diagrams which can easily adapt to future requirements.</p>
 <p>When state machines are running in parallel regions they are running at the same
 time: both regions react to the events which are sent to the statechart.  This
@@ -287,7 +284,7 @@ comprehensible and accessible.</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jul 22, 2020 7:08 AM</span>
+          <span class="time">Jul 23, 2020 7:42 AM</span>
         </div>
         
         

@@ -5,6 +5,9 @@
   the words/definitions used to describe the system are inconsistent; it's a
   work in progress.
 
+  If you would like to follow this document, first make sure you have a firm
+  understanding of the miros library.
+
 .. _how_it_works:
 
 How it Works
@@ -21,15 +24,15 @@ How it Works
 Class and HSM Relationships
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here is an example of a statechart diagram written using the Harel way of
-drawing statecharts:
+Here is an example of a statechart diagram written using David Harel's parallel
+region's drawing technique:
 
 .. image:: _static/xml_chart_4.svg
     :target: _static/xml_chart_4.pdf
     :class: scale-to-fit
 
 The state machines separated from one another with dashed lines are said to be
-running in parallel regions.  This means any event seen by the whole machine
+running in "parallel regions".  This means any event seen by the whole machine
 will be seen by each region and both regions are expected to run concurrently as
 if they were running on their own computer.  A statechart which supports the
 parallel region pattern can have one or more active state at a time.  The event
@@ -37,15 +40,13 @@ processing algorithm used by miros does not support the parallel regions
 pattern.
 
 But miros *does* support the ability to place an HSM within another HSM.  This
-is called the orthogonal component pattern.  Since the state of an inner HSM is
-in a different state than the outer machine which holds it, the orthogonal
-component pattern can have more than one active state like the parallel region
-pattern.
+is called the "orthogonal component" pattern (an HSM in an HSM).  Since the
+state of an inner HSM is in a different state than the outer machine which holds
+it, the orthogonal component pattern can have more than one active state like
+the parallel region pattern.
 
 The goal of this documentation is to show how to map the orthogonal component
-pattern onto the parallel region pattern.  This way a user can use the existing
-miros infrastructure to gain the incredible complexity packing and
-ease-of-description offered by David Harel's parallel-region-drawing-style.
+pattern onto the parallel region pattern.
 
 ----
 
@@ -55,13 +56,24 @@ From a very high level the code is structured like this:
     :target: _static/class_relationships.pdf
     :class: noscale-center
 
-The Region class is an HsmWithQueues, it is an HSM inside of another HSM, so it
-is an orthogonal component.  
+The "orthogonal components" will be the Region objects described in the diagram
+above.  An "orthogonal component" is another name for an HSM inside of another
+HSM.  So our Region objects will have to run within another HSM.  They will
+either run within the outmost XmlChart statechart object or within another
+Region object.
 
-The Regions object is a collection of Region objects.  The Regions object
-manages its orthogonal components by driving events through them.  A region can
-access the methods controlling other regions around it in a hierarchy via its
-``inner``, ``same`` and ``outer`` attributes.
+The Region class is derived from the HsmWithQueues class. HsmWithQueues objects
+don't have their own threads to watch for incoming events so neither will any
+Region object.  The outmost XmlChart's thread will have to watch for new events
+in its queue, then begin the process of driving these events deeper and deeper
+into its inner region objects.
+
+The management, communication and graphical organization of all of the Region
+objects, relative to one another, will be managed by a Regions object.  Through
+the Regions methods, any region can access the methods controlling other regions
+it is adjacent to in the hierarchy of HSMs via the  ``inner``, ``same`` and
+``outer`` attributes.
+
 
 The XmlChart has many Regions and it inherits from the InstrumentedActiveObject
 which is just an ActiveObject with some additional logging and customized
@@ -79,7 +91,7 @@ dashed line notation:
     :target: _static/region.pdf
     :class: scale-to-fit
 
-A Region is just an HsmWithQueues with some additional methods; it's just an
+A Region is just an HsmWithQueues with some additional methods; so it's just an
 HSM.  The Region will be attached to a state machine who's inner part is
 identical to that in the parallel region diagram, but with three additional
 outer states and event handlers.  These outer structures will be invisible to
@@ -103,19 +115,23 @@ controls.
     :target: _static/regions.pdf
     :class: scale-to-fit
 
-But a Regions object does not understand the graphical context in which it is
-placed. Only the state functions have topological information about how they
-relate to one another.
+For an HHSM to work, a state function within one region will have to the
+capability to drive events into other region HSMs at inner, same or outer levels
+of the "orthogonal region" hierarchy.  The Regions class provides the means to
+this.
 
-So it is the state functions that will need to drive events into the appropriate
-layer of HSMs in our hierarchical HSM.  This will be done using the Regions
-object and the outer statechart object.  Both the Regions objects and the outer
-statechart object, XmlChart, have ``post_fifo``, ``post_lifo`` and a host of
-other event control and driving mechanisms.  Since the Regions class and the
-XmlChart class use the same names for the methods that do this work, you can say
-they are polymorphic; they have the same interface.  A state function will need
-to aim these methods at different levels of the hierarchical HSM.  To simplify
-this, a convention was established:
+Both the Regions objects and the outmost statechart object, XmlChart, have
+``post_fifo``, ``post_lifo`` and a host of other event control and driving
+mechanisms.  Since the Regions class and the XmlChart class use the same names
+for the methods that do this work, you can say they are polymorphic; they have
+the same interface.  A state function will need to aim these methods at
+different levels of the hierarchical HSM.
+
+The Regions objects have limited graphical information.  They only know about
+the "outer", "same" and "inner" information of the Region objects it owns.
+
+For this reason an attribute convention was established for Region/XmlChart
+objects:
 
 * ``outmost``: The outer most statechart object. (green line)
 * ``outer``: HSMs one layer out in the parallel regions diagram. (magenta line)
