@@ -102,8 +102,19 @@
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">How it Works</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#class-and-hsm-relationships">Class and HSM Relationships</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#context-and-terminology">Context and Terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#context-and-design-goal">Context and Design Goal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#structure-of-the-code">Structure of the Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-the-region-class-relates-to-the-parallel-region-drawing">How the Region Class Relates to the Parallel Region Drawing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-the-regions-class-organizes-a-graph-of-region-objects">How the Regions Class Organizes a Graph of Region Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#injector-state-functions-region-objects-and-regions-objects-in-a-graph">Injector State Functions, Region Objects and Regions Objects in a Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-the-xmlchart-organizes-its-regions">How the XmlChart Organizes its Regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hidden-states-and-what-they-are-for">Hidden States and What They are For</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-the-parallel-region-is-mapped-onto-the-orthogonal-component">How the Parallel-Region is mapped onto the Orthogonal Component</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wtf-transitions-meta-events-and-transitions-across-parallel-regions">WTF Transitions, Meta Events and Transitions Across Parallel Regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-1">A Walk through of a WTF Transition, Case 1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-2">A Walk through of a WTF Transition, Case 2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-3">A Walk through of a WTF Transition, Case 3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-systematic-way-of-naming-wtf-events">Creating a Systematic way of Naming WTF Events</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reflection-and-logging">Reflection and Logging</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#building-a-subregion">Building a Subregion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a></li>
@@ -162,42 +173,53 @@
   <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This portion of the document is a collection of notes I have been taking as I
-write the software.  It is not meant for general consumption, since a lot of
-the words/definitions used to describe the system are inconsistent; it’s a
-work in progress.</p>
-<p>If you would like to follow this document, first make sure you have a firm
-understanding of the miros library.</p>
+write the software.  It is me, writing to think through the problem.  It is
+not meant for general consumption, since a lot of the words/definitions used
+to describe the system are inconsistent; it’s a work in progress.</p>
+<p>But if you would like to follow this document, first make sure you have a
+firm understanding of the miros library.</p>
 </div>
 <div class="section" id="how-it-works">
 <span id="id1"></span><h1>How it Works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">#</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><p><a class="reference internal" href="#class-and-hsm-relationships" id="id2">Class and HSM Relationships</a></p></li>
-<li><p><a class="reference internal" href="#context-and-terminology" id="id3">Context and Terminology</a></p></li>
-<li><p><a class="reference internal" href="#reflection-and-logging" id="id4">Reflection and Logging</a></p>
+<li><p><a class="reference internal" href="#context-and-design-goal" id="id2">Context and Design Goal</a></p></li>
+<li><p><a class="reference internal" href="#structure-of-the-code" id="id3">Structure of the Code</a></p></li>
+<li><p><a class="reference internal" href="#how-the-region-class-relates-to-the-parallel-region-drawing" id="id4">How the Region Class Relates to the Parallel Region Drawing</a></p></li>
+<li><p><a class="reference internal" href="#how-the-regions-class-organizes-a-graph-of-region-objects" id="id5">How the Regions Class Organizes a Graph of Region Objects</a></p></li>
+<li><p><a class="reference internal" href="#injector-state-functions-region-objects-and-regions-objects-in-a-graph" id="id6">Injector State Functions, Region Objects and Regions Objects in a Graph</a></p></li>
+<li><p><a class="reference internal" href="#how-the-xmlchart-organizes-its-regions" id="id7">How the XmlChart Organizes its Regions</a></p></li>
+<li><p><a class="reference internal" href="#hidden-states-and-what-they-are-for" id="id8">Hidden States and What They are For</a></p></li>
+<li><p><a class="reference internal" href="#how-the-parallel-region-is-mapped-onto-the-orthogonal-component" id="id9">How the Parallel-Region is mapped onto the Orthogonal Component</a></p></li>
+<li><p><a class="reference internal" href="#wtf-transitions-meta-events-and-transitions-across-parallel-regions" id="id10">WTF Transitions, Meta Events and Transitions Across Parallel Regions</a></p></li>
+<li><p><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-1" id="id11">A Walk through of a WTF Transition, Case 1</a></p></li>
+<li><p><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-2" id="id12">A Walk through of a WTF Transition, Case 2</a></p></li>
+<li><p><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-3" id="id13">A Walk through of a WTF Transition, Case 3</a></p></li>
+<li><p><a class="reference internal" href="#creating-a-systematic-way-of-naming-wtf-events" id="id14">Creating a Systematic way of Naming WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#reflection-and-logging" id="id15">Reflection and Logging</a></p>
 <ul>
-<li><p><a class="reference internal" href="#souped-up-spy" id="id5">Souped Up Spy</a></p></li>
-<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id6">Souped Up State Name Reflection</a></p></li>
-<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id7">Simplifying the Inner Injector Functions</a></p></li>
-<li><p><a class="reference internal" href="#reading-the-log-file" id="id8">Reading the Log File</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-spy" id="id16">Souped Up Spy</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id17">Souped Up State Name Reflection</a></p></li>
+<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id18">Simplifying the Inner Injector Functions</a></p></li>
+<li><p><a class="reference internal" href="#reading-the-log-file" id="id19">Reading the Log File</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#building-a-subregion" id="id9">Building a Subregion</a></p></li>
-<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id10">Writing WTF Events Across Regions</a></p>
+<li><p><a class="reference internal" href="#building-a-subregion" id="id20">Building a Subregion</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id21">Writing WTF Events Across Regions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#e-wtf-events" id="id11">E WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#e0-wtf-event" id="id12">E0 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e1-wtf-event" id="id13">E1 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e2-wtf-event" id="id14">E2 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#c-wtf-events" id="id15">C WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#c0-wtf-event" id="id16">C0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e-wtf-events" id="id22">E WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#e0-wtf-event" id="id23">E0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e1-wtf-event" id="id24">E1 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e2-wtf-event" id="id25">E2 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#c-wtf-events" id="id26">C WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#c0-wtf-event" id="id27">C0 WTF Event</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id17">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id28">Hidden Dynamics</a></p></li>
 </ul>
 </div>
-<div class="section" id="class-and-hsm-relationships">
-<span id="how-it-works-class-relationships"></span><h2>Class and HSM Relationships<a class="headerlink" href="#class-and-hsm-relationships" title="Permalink to this headline">#</a></h2>
+<div class="section" id="context-and-design-goal">
+<span id="how-it-works-subsection-title"></span><h2>Context and Design Goal<a class="headerlink" href="#context-and-design-goal" title="Permalink to this headline">#</a></h2>
 <p>Here is an example of a statechart diagram written using David Harel’s parallel
 region’s drawing technique:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="scale-to-fit" src="_images/xml_chart_4.svg" /></a>
@@ -215,7 +237,9 @@ it, the orthogonal component pattern can have more than one active state like
 the parallel region pattern.</p>
 <p>The goal of this documentation is to show how to map the orthogonal component
 pattern onto the parallel region pattern.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="structure-of-the-code">
+<span id="how-it-works-structure-of-the-code"></span><h2>Structure of the Code<a class="headerlink" href="#structure-of-the-code" title="Permalink to this headline">#</a></h2>
 <p>From a very high level the code is structured like this:</p>
 <a class="reference external image-reference" href="_static/class_relationships.pdf"><img alt="_images/class_relationships.svg" class="noscale-center" src="_images/class_relationships.svg" /></a>
 <p>The “orthogonal components” will be the Region objects described in the diagram
@@ -238,7 +262,9 @@ which is just an ActiveObject with some additional logging and customized
 instrumentation features.</p>
 <p>Each region object has access to the methods of the XmlChart object via their
 <code class="docutils literal notranslate"><span class="pre">outmost</span></code> attribute.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="how-the-region-class-relates-to-the-parallel-region-drawing">
+<span id="how-it-works-how-the-region-class-relates-to-the-parallel-region-drawing"></span><h2>How the Region Class Relates to the Parallel Region Drawing<a class="headerlink" href="#how-the-region-class-relates-to-the-parallel-region-drawing" title="Permalink to this headline">#</a></h2>
 <p>There will be one Region object for every region in a diagram which supports the
 dashed line notation:</p>
 <a class="reference external image-reference" href="_static/region.pdf"><img alt="_images/region.svg" class="scale-to-fit" src="_images/region.svg" /></a>
@@ -252,16 +278,18 @@ more about these outer structures later, but for now know that they are just
 there to map one technique onto another.</p>
 <p>Parallel regions occur within a state.  A state function that needs to connect
 to inner, embedded HSMs will use the Regions object to do this work.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="how-the-regions-class-organizes-a-graph-of-region-objects">
+<span id="how-it-works-how-the-regions-class-organizes-a-graph-of-region-objects"></span><h2>How the Regions Class Organizes a Graph of Region Objects<a class="headerlink" href="#how-the-regions-class-organizes-a-graph-of-region-objects" title="Permalink to this headline">#</a></h2>
 <p>The Regions object is constructed within the XmlChart class.  A Regions object
 can construct and own many different region objects.</p>
 <p>The Regions class can inject and drive events into all of the Region objects it
 controls.</p>
 <a class="reference external image-reference" href="_static/regions.pdf"><img alt="_images/regions.svg" class="scale-to-fit" src="_images/regions.svg" /></a>
-<p>For an HHSM to work, a state function within one region will have to the
-capability to drive events into other region HSMs at inner, same or outer levels
-of the “orthogonal region” hierarchy.  The Regions class provides the means to
-this.</p>
+<p>For an HHSM to work, a state function operating in one HSM (region) will have to
+be able to drive events into other HSMs (other regions).  The Regions class
+provides this ability: it allows a state function to drive events to inner, same
+or outer levels of the layered HSM hierarchy.</p>
 <p>Both the Regions objects and the outmost statechart object, XmlChart, have
 <code class="docutils literal notranslate"><span class="pre">post_fifo</span></code>, <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> and a host of other event control and driving
 mechanisms.  Since the Regions class and the XmlChart class use the same names
@@ -269,9 +297,7 @@ for the methods that do this work, you can say they are polymorphic; they have
 the same interface.  A state function will need to aim these methods at
 different levels of the hierarchical HSM.</p>
 <p>The Regions objects have limited graphical information.  They only know about
-the “outer”, “same” and “inner” information of the Region objects it owns.</p>
-<p>For this reason an attribute convention was established for Region/XmlChart
-objects:</p>
+the “outer”, “same” and “inner” information of the Region objects they own:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">outmost</span></code>: The outer most statechart object. (green line)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">outer</span></code>: HSMs one layer out in the parallel regions diagram. (magenta line)</p></li>
@@ -289,11 +315,13 @@ at <code class="docutils literal notranslate"><span class="pre">&lt;&lt;x&gt;&gt
 <code class="docutils literal notranslate"><span class="pre">p_state_function</span></code>.</p>
 <p>But a function can’t really own anything in OO theory.  If you read the code you
 will see that the <code class="docutils literal notranslate"><span class="pre">inner</span></code> attribute is assigned dynamically by a decorator.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="injector-state-functions-region-objects-and-regions-objects-in-a-graph">
+<span id="how-it-works-injector-state-functions-region-objects-and-regions-objects-in-a-graph"></span><h2>Injector State Functions, Region Objects and Regions Objects in a Graph<a class="headerlink" href="#injector-state-functions-region-objects-and-regions-objects-in-a-graph" title="Permalink to this headline">#</a></h2>
 <p>State functions have Regions objects which have Region objects which have state
 functions.  This is all very confusing.  Seeing how things inter-relate in a
 graph would be nice, but this is not supported with idiomatic UML.</p>
-<p>So we will break the rules and describe their topological relationship like so:</p>
+<p>So we will break the rules and describe their graphical relationship like so:</p>
 <a class="reference external image-reference" href="_static/regions_in_regions.pdf"><img alt="_images/regions_in_regions.svg" class="noscale-center" src="_images/regions_in_regions.svg" /></a>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">r.outer.post_fifo(...)</span></code>: post to all HSMs one level up in the hierarchy (magenta line)</p></li>
@@ -317,7 +345,9 @@ its super-region or parent region components.  To do this it uses the
 <code class="docutils literal notranslate"><span class="pre">r.outer.post_fifo(...)</span></code> syntax.</p>
 <p>Not included on the above diagram is a posting to the outer statechart, this
 would be done as <code class="docutils literal notranslate"><span class="pre">r.outmost.post_fifo(...)</span></code>.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="how-the-xmlchart-organizes-its-regions">
+<span id="how-it-works-how-the-xmlchart-organizes-its-regions"></span><h2>How the XmlChart Organizes its Regions<a class="headerlink" href="#how-the-xmlchart-organizes-its-regions" title="Permalink to this headline">#</a></h2>
 <a class="reference external image-reference" href="_static/XmlChart.pdf"><img alt="_images/XmlChart.svg" class="noscale-center" src="_images/XmlChart.svg" /></a>
 <p>The XmlChart class is a statechart which has a bunch of Regions objects, which
 in turn manage groups of orthogonal components (Region objects).  I have
@@ -336,12 +366,13 @@ gears.  Any event that is passed to our chart must first be managed by the
 XmlChart class, then pushed into the inner Regions.  All <strong>injector</strong> functions
 will also drive their received external events deeper and deeper into the chart
 until the whole collective RTC event is finished.</p>
-<hr class="docutils" />
+</div>
+<div class="section" id="hidden-states-and-what-they-are-for">
+<span id="how-it-works-hidden-states-and-what-they-are-for"></span><h2>Hidden States and What They are For<a class="headerlink" href="#hidden-states-and-what-they-are-for" title="Permalink to this headline">#</a></h2>
 <p>The state machines inside of a Region will mostly look the same as how they will
 look on a David Harel diagram, or how they are structured within the &lt;p&gt; tag of
-the XML.  But for the mapping of one pattern onto another three additional
-states wrapped the machine within a parallel region.  See the diagram below for
-an example of this:</p>
+the XML.  But for the mapping of one pattern onto another, three additional
+states wrap the state-machine within a parallel region.  See the diagram below:</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_1.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_1.svg" class="noscale-center" src="_images/parallel_region_to_orthogonal_component_mapping_1.svg" /></a>
 <p>The wrapper states are described here:</p>
 <ul class="simple">
@@ -360,7 +391,9 @@ state can be run any time.</p></li>
 <p>Here we see how the parallel region is mapped onto the orthogonal component with a
 bit more detail about the Regions object and Region objects:</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_2.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_2.svg" class="noscale-center" src="_images/parallel_region_to_orthogonal_component_mapping_2.svg" /></a>
-<hr class="docutils" />
+</div>
+<div class="section" id="how-the-parallel-region-is-mapped-onto-the-orthogonal-component">
+<span id="how-it-works-how-the-parallel-region-is-mapped-onto-the-orthogonal-component"></span><h2>How the Parallel-Region is mapped onto the Orthogonal Component<a class="headerlink" href="#how-the-parallel-region-is-mapped-onto-the-orthogonal-component" title="Permalink to this headline">#</a></h2>
 <p>To get events into the inner regions of the chart you must pass them via the
 <strong>injectors</strong> (p in this diagram):</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_3.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_3.svg" class="noscale-center" src="_images/parallel_region_to_orthogonal_component_mapping_3.svg" /></a>
@@ -374,22 +407,31 @@ the chart should settle into <code class="docutils literal notranslate"><span cl
 <p>From this simple exercise we can see how the pictorial-descriptive-power of the
 orthogonal components is being completely outclassed by the Harel-parallel-regions
 drawing technique.</p>
-<p>Now imagine the orthogonal component diagram from this:</p>
+<p>Now imagine the orthogonal component diagram for this:</p>
 <a class="reference external image-reference" href="_static/xml_chart_4.pdf"><img alt="_images/xml_chart_4.svg" class="scale-to-fit" src="_images/xml_chart_4.svg" /></a>
 <p>I could draw it, but it would stop being useful.</p>
-<p>It seems that the orthogonal components technique can’t be used to track
-topological context for even a design of moderate complexity.  Now imagine
-trying to draw the above using finite state machines? (Architectural state-space
-explosion)</p>
-<hr class="docutils" />
-<p>Here is a walk through of our first WFT event: <code class="docutils literal notranslate"><span class="pre">E0</span></code></p>
+<p>Now imagine trying to draw the above using finite state machines.  It may be
+possible, but I know I wouldn’t want to do it, and I certainly wouldn’t want to
+maintain the diagram and its code base.</p>
+</div>
+<div class="section" id="wtf-transitions-meta-events-and-transitions-across-parallel-regions">
+<span id="how-it-works-wtf-transitions-meta-events-and-transitions-across-parallel-regions"></span><h2>WTF Transitions, Meta Events and Transitions Across Parallel Regions<a class="headerlink" href="#wtf-transitions-meta-events-and-transitions-across-parallel-regions" title="Permalink to this headline">#</a></h2>
+<p>I named the transitions across parallel regions WTF transitions (or WTF events),
+because initially I had no idea how to implement them.  Eventually I discovered
+a way to get them working: I made events which carried other events which could
+react to custom event handlers written into many of the state functions.</p>
+<p>Since an event carrying information about another event in its payload is a kind
+of meta phenomenon, I decided to call these events, meta-events.</p>
+</div>
+<div class="section" id="a-walk-through-of-a-wtf-transition-case-1">
+<span id="how-it-works-a-walk-through-of-a-wtf-transition-case-1"></span><h2>A Walk through of a WTF Transition, Case 1<a class="headerlink" href="#a-walk-through-of-a-wtf-transition-case-1" title="Permalink to this headline">#</a></h2>
+<p>Here is a walk through of our first WFT transition: <code class="docutils literal notranslate"><span class="pre">E0</span></code></p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_5.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_5.svg" class="scale-to-fit" src="_images/parallel_region_to_orthogonal_component_mapping_5.svg" /></a>
-<p>A meta event is an event that has an event inside of it.  We will use meta
-events to pass messages in and out of orthogonal components.  As you walk
-through the code, remember that <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">_post_lifo</span></code> only place
-events into the queues of all of the regions connected to those calls.
-<code class="docutils literal notranslate"><span class="pre">post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> place events and drive those events through
-their connected orthogonal components.</p>
+<p>We will use meta events to pass messages in and out of orthogonal components.
+As you walk through the code, remember that <code class="docutils literal notranslate"><span class="pre">_post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">_post_lifo</span></code>
+only place events into the queues of all of the regions connected to those
+calls.  <code class="docutils literal notranslate"><span class="pre">post_fifo</span></code> and <code class="docutils literal notranslate"><span class="pre">post_lifo</span></code> place events and drive those events
+through their connected orthogonal components.</p>
 <p>If we started the above chart in the outer_state and sent it an <code class="docutils literal notranslate"><span class="pre">E0</span></code> we would
 end up in the <code class="docutils literal notranslate"><span class="pre">[['p_p11_s12',</span> <span class="pre">'...'],</span> <span class="pre">['...']]</span></code> states.</p>
 <p>The code that makes the programmable init work isn’t on the diagram, but it
@@ -405,7 +447,22 @@ looks like this:</p>
       <span class="n">rr</span><span class="o">.</span><span class="n">post_fifo</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
 </pre></div>
 </div>
-<hr class="docutils" />
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As I continued on the project, I extended the trouble shooting code included
+with the miros python libray.  To have a meta-event trace appear in your logs,
+look for the definition of <code class="docutils literal notranslate"><span class="pre">events_to_investigate</span></code> at the top of your
+experiment file and assign the signal name of the meta event you want to
+investigate:</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">events_to_investigate</span> <span class="o">=</span> <span class="s1">&#39;E1&#39;</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="a-walk-through-of-a-wtf-transition-case-2">
+<h2>A Walk through of a WTF Transition, Case 2<a class="headerlink" href="#a-walk-through-of-a-wtf-transition-case-2" title="Permalink to this headline">#</a></h2>
 <p>Let’s focus on something a bit more difficult, the <code class="docutils literal notranslate"><span class="pre">G1</span></code> WTF event (click to
 enlarge):</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_6.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_6.svg" class="scale-to-fit" src="_images/parallel_region_to_orthogonal_component_mapping_6.svg" /></a>
@@ -418,7 +475,9 @@ explicitely reactivated by <code class="docutils literal notranslate"><span clas
   <span class="o">==</span> <span class="o">[</span><span class="s1">&#39;p_r1_under_hidden_region&#39;</span>, <span class="s1">&#39;p_s22&#39;</span><span class="o">]</span>
 </pre></div>
 </div>
-<hr class="docutils" />
+</div>
+<div class="section" id="a-walk-through-of-a-wtf-transition-case-3">
+<h2>A Walk through of a WTF Transition, Case 3<a class="headerlink" href="#a-walk-through-of-a-wtf-transition-case-3" title="Permalink to this headline">#</a></h2>
 <p>Let’s focus on something a bit less difficult, the <code class="docutils literal notranslate"><span class="pre">G0</span></code> WTF event (click to
 enlarge):</p>
 <a class="reference external image-reference" href="_static/parallel_region_to_orthogonal_component_mapping_7.pdf"><img alt="_images/parallel_region_to_orthogonal_component_mapping_7.svg" class="scale-to-fit" src="_images/parallel_region_to_orthogonal_component_mapping_7.svg" /></a>
@@ -431,61 +490,44 @@ of <code class="docutils literal notranslate"><span class="pre">p</span></code>.
   <span class="o">==</span> <span class="o">[[</span><span class="s1">&#39;p_p11_s12&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_r2_under_hidden_region&#39;</span><span class="o">]</span>
 </pre></div>
 </div>
-<hr class="docutils" />
-<p>I am going to support events which transition across regional and
-parallel boundaries.  To do this I need to consider which
-topologies to support:</p>
+</div>
+<div class="section" id="creating-a-systematic-way-of-naming-wtf-events">
+<span id="how-it-works-creating-a-systematic-way-of-naming-wtf-events"></span><h2>Creating a Systematic way of Naming WTF Events<a class="headerlink" href="#creating-a-systematic-way-of-naming-wtf-events" title="Permalink to this headline">#</a></h2>
+<p>I am going to support events which transition across regional and parallel
+boundaries.  To do this I need to figure out how to build a small testing
+diagram from which I can test every supported transition type.  This testing
+diagram will serve as the specification for the parallel region feature of this
+library.</p>
+<p>To begin this theoretical work lets start by examining the topological diagrams
+taken from figure 4.6 on page 178 of Practical UML Statecharts in C/C++, Second
+Addition.  Here, Miro Samek demonstrates what family of graphs are supported by
+his event processor (then does a code walk through about how each graph is
+supported).</p>
+<a class="reference external image-reference" href="_static/xml_chart_5_guidance_graphs.pdf"><img alt="_images/xml_chart_5_guidance_graphs.svg" class="noscale-center" src="_images/xml_chart_5_guidance_graphs.svg" /></a>
+<p>Here is a coloured and named list of transition classes which are being added by
+this library to provide the “parallel regions” feature:</p>
+<a class="reference external image-reference" href="_static/xml_chart_5_guidance_naming.pdf"><img alt="_images/xml_chart_5_guidance_naming.svg" class="noscale-center" src="_images/xml_chart_5_guidance_naming.svg" /></a>
+<p>To create a test pattern, I need to consider all combinations of the transition
+types with the topological sub-graphs.</p>
 <a class="reference external image-reference" href="_static/xml_chart_5_guidance.pdf"><img alt="_images/xml_chart_5_guidance.svg" class="scale-to-fit" src="_images/xml_chart_5_guidance.svg" /></a>
-<p>The topological diagrams on the left (Z) are taken from figure 4.6 on
-page 178 of Practical UML Statecharts in C/C++, Second Addition.
-We are supporting 4 different types of transitions, so we
-consider which of these topological diagrams map onto which
-transition type.  Not all transitions make sense, and the
-transitions mapped onto a nominal statechart have already been
-verified; so instead of having to test 32 possible topologies, we
-only have to map (at a minimum) 17 types of transitions.</p>
+<p>Not all transitions make sense, and the transitions mapped onto a nominal
+statechart have already been verified; so instead of having to test 32 possible
+topologies, we only have to map (at a minimum) 17 types of transitions.</p>
 <p>These 17 types of transitions are mapped onto the following test
 pattern:</p>
 <a class="reference external image-reference" href="_static/xml_chart_5.pdf"><img alt="_images/xml_chart_5.svg" class="scale-to-fit" src="_images/xml_chart_5.svg" /></a>
-<p>Note that there are more than 17 different events being tested.
-Some of the events are there to conveniently transition from test
-to test and others are there for testing the edge conditions of
-the design.</p>
+<p>Note that there are more than 17 different events being tested.  Some of the
+events are there to conveniently transition from test to test and others are
+there for testing the edge conditions of the design.</p>
 <p>An event is named like this:</p>
-<ul class="simple">
-<li><p>&lt;transition-type topology-type number&gt;</p></li>
-</ul>
-<p>For example, PC1, is testing a parallel transition of the C
-topology type.  PC1 is the first event that is testing this type
-of transition, so it is post-pended with the number 1.</p>
-</div>
-<div class="section" id="context-and-terminology">
-<span id="how-it-works-context-and-terminology"></span><h2>Context and Terminology<a class="headerlink" href="#context-and-terminology" title="Permalink to this headline">#</a></h2>
-<blockquote>
-<div><dl>
-<dt>WTF events</dt><dd><p>Any event which crosses between regions.  See <code class="docutils literal notranslate"><span class="pre">E0</span></code>, <code class="docutils literal notranslate"><span class="pre">E1</span></code> and <code class="docutils literal notranslate"><span class="pre">E3</span></code>
-in the following diagram</p>
-<a class="reference external image-reference" href="_static/hidden_dynamics.pdf"><img alt="_images/hidden_dynamics.svg" class="scale-to-fit" src="_images/hidden_dynamics.svg" /></a>
-<p>The WTF events are not supported within the miros event processing
-algorithim.  This document was written, largely to understand how to
-implement these events for the miros-xml parser.</p>
-</dd>
-<dt>META_INIT</dt><dd><p>An event which contains 0 or more META_INIT events and the state which
-are intended to handle the event.  They are injected into the queue of
-inner states so that the inner state’s <code class="docutils literal notranslate"><span class="pre">peel_meta</span></code> methods can
-programmatically initialize their region.</p>
-</dd>
-<dt>META_EXIT</dt><dd><p>An event which permits a WTF exit strategy</p>
-</dd>
-<dt>META_SIGNAL_PAYLOAD</dt><dd><p>The payload of a META event.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">META_SIGNAL_PAYLOAD</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
-   <span class="s2">&quot;META_SIGNAL_PAYLOAD&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;event&#39;</span><span class="p">,</span> <span class="s1">&#39;state&#39;</span><span class="p">,</span> <span class="s1">&#39;source_event&#39;</span><span class="p">,</span> <span class="s1">&#39;region&#39;</span><span class="p">]</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;transition-type</span> <span class="pre">topology-type</span> <span class="pre">number&gt;</span></code></p>
+<p>For example, PC1, is testing a parallel transition of the PC topology type.  PC1
+is the first event that is testing this type of transition, so it is post-pended
+with the number 1.</p>
+<p>The test pattern is a good first step for figuring out what has to be tested to
+build a robust feature.  At any time in the future, I can add more events (like
+the red hooks).  If you are reading this and see a major bug in my theory, email
+me and let me know.</p>
 </div>
 <div class="section" id="reflection-and-logging">
 <span id="how-it-works-reflection-and-logging"></span><h2>Reflection and Logging<a class="headerlink" href="#reflection-and-logging" title="Permalink to this headline">#</a></h2>
@@ -1966,7 +2008,7 @@ this:</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jul 23, 2020 7:42 AM</span>
+          <span class="time">Jul 25, 2020 8:00 AM</span>
         </div>
         
         

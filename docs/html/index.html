@@ -178,8 +178,19 @@ regions using the miros event processor.</p>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How it Works</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#class-and-hsm-relationships">Class and HSM Relationships</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#context-and-terminology">Context and Terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#context-and-design-goal">Context and Design Goal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#structure-of-the-code">Structure of the Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#how-the-region-class-relates-to-the-parallel-region-drawing">How the Region Class Relates to the Parallel Region Drawing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#how-the-regions-class-organizes-a-graph-of-region-objects">How the Regions Class Organizes a Graph of Region Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#injector-state-functions-region-objects-and-regions-objects-in-a-graph">Injector State Functions, Region Objects and Regions Objects in a Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#how-the-xmlchart-organizes-its-regions">How the XmlChart Organizes its Regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#hidden-states-and-what-they-are-for">Hidden States and What They are For</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#how-the-parallel-region-is-mapped-onto-the-orthogonal-component">How the Parallel-Region is mapped onto the Orthogonal Component</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#wtf-transitions-meta-events-and-transitions-across-parallel-regions">WTF Transitions, Meta Events and Transitions Across Parallel Regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#a-walk-through-of-a-wtf-transition-case-1">A Walk through of a WTF Transition, Case 1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#a-walk-through-of-a-wtf-transition-case-2">A Walk through of a WTF Transition, Case 2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#a-walk-through-of-a-wtf-transition-case-3">A Walk through of a WTF Transition, Case 3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how_it_works.html#creating-a-systematic-way-of-naming-wtf-events">Creating a Systematic way of Naming WTF Events</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how_it_works.html#reflection-and-logging">Reflection and Logging</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how_it_works.html#building-a-subregion">Building a Subregion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how_it_works.html#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a></li>
@@ -224,7 +235,7 @@ regions using the miros event processor.</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jul 23, 2020 7:42 AM</span>
+          <span class="time">Jul 25, 2020 8:00 AM</span>
         </div>
         
         

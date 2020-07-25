@@ -1,12 +1,12 @@
 .. note::
 
   This portion of the document is a collection of notes I have been taking as I
-  write the software.  It is not meant for general consumption, since a lot of
-  the words/definitions used to describe the system are inconsistent; it's a
-  work in progress.
+  write the software.  It is me, writing to think through the problem.  It is
+  not meant for general consumption, since a lot of the words/definitions used
+  to describe the system are inconsistent; it's a work in progress.
 
-  If you would like to follow this document, first make sure you have a firm
-  understanding of the miros library.
+  But if you would like to follow this document, first make sure you have a
+  firm understanding of the miros library.
 
 .. _how_it_works:
 
@@ -19,10 +19,10 @@ How it Works
   :backlinks: none
 
 
-.. _how_it_works-class-relationships:
+.. _how_it_works-subsection-title:
 
-Class and HSM Relationships
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Context and Design Goal
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Here is an example of a statechart diagram written using David Harel's parallel
 region's drawing technique:
@@ -48,7 +48,10 @@ the parallel region pattern.
 The goal of this documentation is to show how to map the orthogonal component
 pattern onto the parallel region pattern.
 
-----
+.. _how_it_works-structure-of-the-code:
+
+Structure of the Code
+^^^^^^^^^^^^^^^^^^^^^
 
 From a very high level the code is structured like this:
 
@@ -82,7 +85,10 @@ instrumentation features.
 Each region object has access to the methods of the XmlChart object via their
 ``outmost`` attribute.
 
-----
+.. _how_it_works-how-the-region-class-relates-to-the-parallel-region-drawing:
+
+How the Region Class Relates to the Parallel Region Drawing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There will be one Region object for every region in a diagram which supports the
 dashed line notation:
@@ -103,7 +109,10 @@ there to map one technique onto another.
 Parallel regions occur within a state.  A state function that needs to connect
 to inner, embedded HSMs will use the Regions object to do this work.
 
-----
+.. _how_it_works-how-the-regions-class-organizes-a-graph-of-region-objects:
+
+How the Regions Class Organizes a Graph of Region Objects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Regions object is constructed within the XmlChart class.  A Regions object
 can construct and own many different region objects.
@@ -115,10 +124,11 @@ controls.
     :target: _static/regions.pdf
     :class: scale-to-fit
 
-For an HHSM to work, a state function within one region will have to the
-capability to drive events into other region HSMs at inner, same or outer levels
-of the "orthogonal region" hierarchy.  The Regions class provides the means to
-this.
+For an HHSM to work, a state function operating in one HSM (region) will have to
+be able to drive events into other HSMs (other regions).  The Regions class
+provides this ability: it allows a state function to drive events to inner, same
+or outer levels of the layered HSM hierarchy.
+
 
 Both the Regions objects and the outmost statechart object, XmlChart, have
 ``post_fifo``, ``post_lifo`` and a host of other event control and driving
@@ -128,10 +138,7 @@ the same interface.  A state function will need to aim these methods at
 different levels of the hierarchical HSM.
 
 The Regions objects have limited graphical information.  They only know about
-the "outer", "same" and "inner" information of the Region objects it owns.
-
-For this reason an attribute convention was established for Region/XmlChart
-objects:
+the "outer", "same" and "inner" information of the Region objects they own:
 
 * ``outmost``: The outer most statechart object. (green line)
 * ``outer``: HSMs one layer out in the parallel regions diagram. (magenta line)
@@ -151,13 +158,16 @@ at ``<<x>>_region_state_1``, it will not have the same ``inner`` relation that
 But a function can't really own anything in OO theory.  If you read the code you
 will see that the ``inner`` attribute is assigned dynamically by a decorator.
 
-----
+.. _how_it_works-injector-state-functions,-region-objects-and-regions-objects-in-a-graph:
+
+Injector State Functions, Region Objects and Regions Objects in a Graph
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 State functions have Regions objects which have Region objects which have state
 functions.  This is all very confusing.  Seeing how things inter-relate in a
 graph would be nice, but this is not supported with idiomatic UML.
 
-So we will break the rules and describe their topological relationship like so:
+So we will break the rules and describe their graphical relationship like so:
 
 .. image:: _static/regions_in_regions.svg
     :target: _static/regions_in_regions.pdf
@@ -189,7 +199,10 @@ its super-region or parent region components.  To do this it uses the
 Not included on the above diagram is a posting to the outer statechart, this
 would be done as ``r.outmost.post_fifo(...)``.
 
-----
+.. _how_it_works-how-the-xmlchart-organizes-its-regions:
+
+How the XmlChart Organizes its Regions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. image:: _static/XmlChart.svg
     :target: _static/XmlChart.pdf
@@ -215,13 +228,15 @@ XmlChart class, then pushed into the inner Regions.  All **injector** functions
 will also drive their received external events deeper and deeper into the chart
 until the whole collective RTC event is finished.
 
-----
+.. _how_it_works-hidden-states-and-what-they-are-for:
+
+Hidden States and What They are For
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The state machines inside of a Region will mostly look the same as how they will
 look on a David Harel diagram, or how they are structured within the <p> tag of
-the XML.  But for the mapping of one pattern onto another three additional
-states wrapped the machine within a parallel region.  See the diagram below for
-an example of this:
+the XML.  But for the mapping of one pattern onto another, three additional
+states wrap the state-machine within a parallel region.  See the diagram below:
 
 .. image:: _static/parallel_region_to_orthogonal_component_mapping_1.svg
     :target: _static/parallel_region_to_orthogonal_component_mapping_1.pdf
@@ -250,7 +265,10 @@ bit more detail about the Regions object and Region objects:
     :target: _static/parallel_region_to_orthogonal_component_mapping_2.pdf
     :class: noscale-center
 
-----
+.. _how_it_works-how-the-parallel-region-is-mapped-onto-the-orthogonal-component:
+
+How the Parallel-Region is mapped onto the Orthogonal Component
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To get events into the inner regions of the chart you must pass them via the
 **injectors** (p in this diagram):
@@ -276,7 +294,7 @@ From this simple exercise we can see how the pictorial-descriptive-power of the
 orthogonal components is being completely outclassed by the Harel-parallel-regions
 drawing technique.
 
-Now imagine the orthogonal component diagram from this:
+Now imagine the orthogonal component diagram for this:
 
 .. image:: _static/xml_chart_4.svg
     :target: _static/xml_chart_4.pdf
@@ -284,25 +302,39 @@ Now imagine the orthogonal component diagram from this:
 
 I could draw it, but it would stop being useful.
 
-It seems that the orthogonal components technique can't be used to track
-topological context for even a design of moderate complexity.  Now imagine
-trying to draw the above using finite state machines? (Architectural state-space
-explosion)
+Now imagine trying to draw the above using finite state machines.  It may be
+possible, but I know I wouldn't want to do it, and I certainly wouldn't want to
+maintain the diagram and its code base.
 
-----
+.. _how_it_works-wtf-transitions-meta-events-and-transitions-across-parallel-regions:
 
-Here is a walk through of our first WFT event: ``E0``
+WTF Transitions, Meta Events and Transitions Across Parallel Regions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I named the transitions across parallel regions WTF transitions (or WTF events),
+because initially I had no idea how to implement them.  Eventually I discovered
+a way to get them working: I made events which carried other events which could
+react to custom event handlers written into many of the state functions.
+
+Since an event carrying information about another event in its payload is a kind
+of meta phenomenon, I decided to call these events, meta-events.
+
+.. _how_it_works-a-walk-through-of-a-wtf-transition,-case-1:
+
+A Walk through of a WTF Transition, Case 1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here is a walk through of our first WFT transition: ``E0``
 
 .. image:: _static/parallel_region_to_orthogonal_component_mapping_5.svg
     :target: _static/parallel_region_to_orthogonal_component_mapping_5.pdf
     :class: scale-to-fit
 
-A meta event is an event that has an event inside of it.  We will use meta
-events to pass messages in and out of orthogonal components.  As you walk
-through the code, remember that ``_post_fifo`` and ``_post_lifo`` only place
-events into the queues of all of the regions connected to those calls.
-``post_fifo`` and ``post_lifo`` place events and drive those events through
-their connected orthogonal components.
+We will use meta events to pass messages in and out of orthogonal components.
+As you walk through the code, remember that ``_post_fifo`` and ``_post_lifo``
+only place events into the queues of all of the regions connected to those
+calls.  ``post_fifo`` and ``post_lifo`` place events and drive those events
+through their connected orthogonal components.
 
 If we started the above chart in the outer_state and sent it an ``E0`` we would
 end up in the ``[['p_p11_s12', '...'], ['...']]`` states.
@@ -322,7 +354,20 @@ looks like this:
       if not _e is None:
         rr.post_fifo(_e)
 
-----
+.. note::
+
+  As I continued on the project, I extended the trouble shooting code included
+  with the miros python libray.  To have a meta-event trace appear in your logs,
+  look for the definition of ``events_to_investigate`` at the top of your
+  experiment file and assign the signal name of the meta event you want to
+  investigate:
+
+   .. code-block:: python
+
+     events_to_investigate = 'E1'
+
+A Walk through of a WTF Transition, Case 2
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Let's focus on something a bit more difficult, the ``G1`` WTF event (click to
 enlarge):
@@ -343,7 +388,8 @@ To summarize:
   [['p_p11_s12', 'p_p11_s21'], 'p_s21'] <- G1 \
     == ['p_r1_under_hidden_region', 'p_s22']
 
-----
+A Walk through of a WTF Transition, Case 3
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Let's focus on something a bit less difficult, the ``G0`` WTF event (click to
 enlarge):
@@ -365,24 +411,44 @@ To summarize:
     == [['p_p11_s12', 'p_p11_s21'], 'p_r2_under_hidden_region']
 
 
-----
+.. _how_it_works-creating-a-systematic-way-of-naming-wtf-events:
 
-I am going to support events which transition across regional and
-parallel boundaries.  To do this I need to consider which
-topologies to support:
+Creating a Systematic way of Naming WTF Events
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I am going to support events which transition across regional and parallel
+boundaries.  To do this I need to figure out how to build a small testing
+diagram from which I can test every supported transition type.  This testing
+diagram will serve as the specification for the parallel region feature of this
+library.
+
+To begin this theoretical work lets start by examining the topological diagrams
+taken from figure 4.6 on page 178 of Practical UML Statecharts in C/C++, Second
+Addition.  Here, Miro Samek demonstrates what family of graphs are supported by
+his event processor (then does a code walk through about how each graph is
+supported).
+
+.. image:: _static/xml_chart_5_guidance_graphs.svg
+    :target: _static/xml_chart_5_guidance_graphs.pdf
+    :class: noscale-center
+
+Here is a coloured and named list of transition classes which are being added by
+this library to provide the "parallel regions" feature:
+
+.. image:: _static/xml_chart_5_guidance_naming.svg
+    :target: _static/xml_chart_5_guidance_naming.pdf
+    :class: noscale-center
+
+To create a test pattern, I need to consider all combinations of the transition
+types with the topological sub-graphs.
 
 .. image:: _static/xml_chart_5_guidance.svg
     :target: _static/xml_chart_5_guidance.pdf
     :class: scale-to-fit
 
-The topological diagrams on the left (Z) are taken from figure 4.6 on
-page 178 of Practical UML Statecharts in C/C++, Second Addition.
-We are supporting 4 different types of transitions, so we
-consider which of these topological diagrams map onto which
-transition type.  Not all transitions make sense, and the
-transitions mapped onto a nominal statechart have already been
-verified; so instead of having to test 32 possible topologies, we
-only have to map (at a minimum) 17 types of transitions.
+Not all transitions make sense, and the transitions mapped onto a nominal
+statechart have already been verified; so instead of having to test 32 possible
+topologies, we only have to map (at a minimum) 17 types of transitions.
 
 These 17 types of transitions are mapped onto the following test
 pattern:
@@ -391,53 +457,22 @@ pattern:
     :target: _static/xml_chart_5.pdf
     :class: scale-to-fit
 
-Note that there are more than 17 different events being tested.
-Some of the events are there to conveniently transition from test
-to test and others are there for testing the edge conditions of
-the design.
+Note that there are more than 17 different events being tested.  Some of the
+events are there to conveniently transition from test to test and others are
+there for testing the edge conditions of the design.
 
 An event is named like this:
 
-* <transition-type topology-type number>
+``<transition-type topology-type number>``
 
-For example, PC1, is testing a parallel transition of the C
-topology type.  PC1 is the first event that is testing this type
-of transition, so it is post-pended with the number 1.
+For example, PC1, is testing a parallel transition of the PC topology type.  PC1
+is the first event that is testing this type of transition, so it is post-pended
+with the number 1.
 
-.. _how_it_works-context-and-terminology:
-
-Context and Terminology
-^^^^^^^^^^^^^^^^^^^^^^^
-
-    WTF events
-         Any event which crosses between regions.  See ``E0``, ``E1`` and ``E3``
-         in the following diagram
-
-         .. image:: _static/hidden_dynamics.svg
-             :target: _static/hidden_dynamics.pdf
-             :class: scale-to-fit
-
-         The WTF events are not supported within the miros event processing
-         algorithim.  This document was written, largely to understand how to
-         implement these events for the miros-xml parser.
-
-    META_INIT
-         An event which contains 0 or more META_INIT events and the state which
-         are intended to handle the event.  They are injected into the queue of
-         inner states so that the inner state's ``peel_meta`` methods can
-         programmatically initialize their region.
-
-    META_EXIT
-         An event which permits a WTF exit strategy
-
-    META_SIGNAL_PAYLOAD
-         The payload of a META event.
-
-         .. code-block:: python
-
-            META_SIGNAL_PAYLOAD = namedtuple(
-               "META_SIGNAL_PAYLOAD", ['event', 'state', 'source_event', 'region']
-            )
+The test pattern is a good first step for figuring out what has to be tested to
+build a robust feature.  At any time in the future, I can add more events (like
+the red hooks).  If you are reading this and see a major bug in my theory, email
+me and let me know.
 
 .. _how_it_works-reflection-and-logging:
 
