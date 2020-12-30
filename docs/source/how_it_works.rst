@@ -278,7 +278,7 @@ To get events into the inner regions of the chart you must pass them via the
     :class: noscale-center
 
 From the top diagram we can see how the bottom diagram should work.  If we start
-the chart in the outer_state, send a ``to_p``, then send an ``e``,  the active
+the chart in the outer_state, send a ``to_p``, then send an ``e1``,  the active
 states should be ``['p_s12', '...']``.
 
 Now look at how an event is injected into a parallel region inside of another parallel region:
@@ -416,7 +416,7 @@ To summarize:
 Creating a Systematic way of Naming WTF Events
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-I am going to support events which transition across regional and parallel
+This library will support events which transition across regional and parallel
 boundaries.  To do this I need to figure out how to build a small testing
 diagram from which I can test every supported transition type.  This testing
 diagram will serve as the specification for the parallel region feature of this
@@ -428,9 +428,12 @@ Addition.  Here, Miro Samek demonstrates what family of graphs are supported by
 his event processor (then does a code walk through about how each graph is
 supported).
 
-.. image:: _static/xml_chart_5_guidance_graphs.svg
-    :target: _static/xml_chart_5_guidance_graphs.pdf
-    :class: noscale-center
+.. figure:: _static/xml_chart_5_guidance_graphs.svg
+   :target: _static/xml_chart_5_guidance_graphs.pdf
+   :class: noscale-center
+
+   From page 178 of Practical UML Statecharts in C/C++, Second Addition
+
 
 Here is a coloured and named list of transition classes which are being added by
 this library to provide the "parallel regions" feature:
@@ -544,7 +547,7 @@ be able to see the outer most state holding the orthogonal regions; but it will
 not reach into this collection of orthogonal regions and report on the active state
 of each of them.
 
-To see all of the active states at once using the ``active_states`` method of
+To see all of the active states at once use the ``active_states`` method of
 the ``XmlChart`` class.
 
 .. image:: _static/xml_chart_4.svg
@@ -660,7 +663,7 @@ The functools partial method is used to prefill arguments to the ``post_fifo``,
 ``_post_fifo``, ``post_lifo``, ``_post_lifo`` and ``token_match`` methods.  A
 custom ``scribble`` function is written and returned as well.
 
-On line 1 we see that the result is cashed to speed up calls the
+On line 1 we see that the result is cached to speed up calls to the
 ``outmost_region_functions``.
 
 At the top of any injector you will see this ``outmost_region_functions``,

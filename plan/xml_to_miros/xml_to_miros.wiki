@@ -1,3 +1,4 @@
+[[../top]]
 *XML to Miros*
 = Observer ([[local:C:/Vim8.1/.vim/ooda.pdf|diagram]]) = 
 == Evidence ([[evidence.xml_to_miros|evidence]]) ==
@@ -7,7 +8,7 @@
 
  *Standards are wonderful, everyone should have one!*
 
- *Luck in the residue of design* -- Branch Rickey
+ *Luck is the residue of design* -- Branch Rickey
 
   *What defines Success?:* ([[subgoals.xml_to_miros|subgoals]])
 

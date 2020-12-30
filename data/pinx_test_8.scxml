@@ -5,7 +5,8 @@ This document demonstrates how to access serialized python code which is
 defined outside of this document.  It needs to be serialized if we intend
 on sending it across the wire.
 
-To build the required serialized code:
+To build the required serialized code (see build_payload.py
+function in this directory):
 
   # Beginning of python code required to make this document work
   import dill

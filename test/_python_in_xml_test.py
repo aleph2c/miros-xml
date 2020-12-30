@@ -9,16 +9,18 @@
 
 import os
 import sys
+import dill
 import time
 import pytest
 from pathlib import Path
-from miros_scxml.xml_to_miros import XmlToMiros    
+from collections import namedtuple
+from miros_scxml.xml_to_miros import XmlToMiros
 
 # RULE OF THUMB with pytest:  Don't rely on its auto-configuration magic.
 # Example: Pytest can't find its conftest.py file in this directory, so I have
 # to force its import into this testing package to get access to the common
 # testing functions.  As a rule, avoid any of these "batteries included" options
-# of pytest because they will just waste your time.  
+# of pytest because they will just waste your time.
 
 # Just force it to work and focus on the thing you care about instead of pytest.
 
@@ -27,6 +29,16 @@ sys.path.insert(0, dir_path)
 
 from conftest import get_log_as_stripped_string
 data_path = Path(dir_path) / '..' / 'data'
+
+try:
+  os.remove(str(Path(data_path / 'build_payload.p')))
+except:
+  pass
+def _build_payload():
+  Payload = namedtuple('Payload', ['proof'])
+  payload = Payload(proof=True)
+  return payload
+dill.dump(_build_payload, open(str(Path(data_path / "build_payload.p")), "wb"))
 
 @pytest.mark.pinx
 def test_anything_pinx():
@@ -299,6 +311,7 @@ def test_pinx_failing_attribute_variable():
 
   '''
   path = data_path / 'pinx_test_8.scxml'
+
   miros_code_path = data_path / 'pinx_test_8.py'
   xml_chart = XmlToMiros(path, miros_code_path=miros_code_path)
   ao = xml_chart.make()  # like calling ScxmlChart(...)

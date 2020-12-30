@@ -4,7 +4,11 @@
 == Evidence ([[evidence.docs|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.docs|subgoals]])
-    Jessica has built a new doc framework with a new theme
+    Write a minimal set of documents which
+
+    * can be used by someone else, to use the library
+    * can be used by me to make sense of this project after you have forgotten how it
+      was implemented (6 months).
 
   *What is the problem?*
     I need to port it from miros-xml, and I don't know how to use it.
@@ -80,7 +84,7 @@
     * [ ] What don't you know that you need to know?
 
   == Custom Questions: (>=5) ==
-    * [ ] 
+    * [ ] What don't I know which I need to know?
     * [ ] 
     * [ ] 
     * [ ] 
@@ -93,11 +97,14 @@
 
   [[#Questions]]
   *Idea/Hypotheses for Build in Jessica's doc system: >=5*
-  * [ ] 
-  * [ ] 
-  * [ ] 
-  * [ ] 
-  * [ ] 
+  * [ ] Need to explain why XML is being used in miros-xml
+  * [ ] Need to write someone on logging, remind yourself how the python log
+        works
+  * [ ] Find the active state
+  * [ ] Find what transitions occurred
+  * [ ] Trace/Spy in the log
+  * [ ] How the decorators work
+  * [ ] What the different types of state functions are
 
   *Chosen Research-Goal/Hypothesis*
     

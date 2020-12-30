@@ -6,13 +6,27 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    Have an understandable system, 6 months from now
+    You are looking for a kind of python c-style-preprocessor, or inheritance
+    with functions.
+
+    [[./docs]]
 
   *What is the problem?*
-    I don't remember what I have written, and how much of it is now wrong.
 
-    I have written a lot of new code and need to figure out what needs to be
-    documented.
+    We have different types of state functions which have different types of
+    implicit behavior.  For instance an injector state function needs to behave
+    one way and a region state function needs to behave another way.  Currently
+    I am copying and pasting a lot of code.  This means if I miss something, and
+    the file passes a test, then I use its technique to continue my work, then
+    there will be a nasty bug in the base of the system.  I don't want this to
+    happen and I can't trust myself to copy and paste things correctly (I have
+    already made a bunch of mistakes).
+
+    The problem with advanced techniques:  Anyone who uses typical Python will
+    be confused by the code (maybe this will include me).  The package will
+    become unreadable without external documentation (this is ok, just make sure
+    you document what you are doing).  I don't know how to draw pictures of
+    single-dispatch generics functions, so I might have to fake in some UML.
 
     ----
 
@@ -31,6 +45,16 @@
   *Discoveries:* ([[notes.xml_to_miros|notes]])
 
     [[notes.xml_to_miros|notes#Bestiary]]
+
+    Python functools and annotations:
+      [[https://docs.python.org/3.5/library/functools.html|functools]]
+      [[https://www.python.org/dev/peps/pep-3107/|annotations]]
+
+      A generic function is compose of multiple functions implimenting
+      the same operation for different input types.
+
+      A singledispatch function is a type of generic function where the
+      implimentation is based on a single argument.
 
     Python Logging notes:
 
@@ -336,13 +360,28 @@
 = Decide =
 
   *Research Needed For?:* ([[#Observe]], [[#Orient]])
-    * [ ] Read the XML docs
-    * [ ] Find a way to effortlessly update them
-    * [ ] Find a way to effortlessly read them
+    * [X] research functools signaldispatch and register
+    * [X] research function annotations
+    * [ ] study xml_chart_5.py for the different types of function needed by a
+          state function
+        * [ ] final_type
+        * [ ] under_hidden_region_type
+        * [ ] region_type
+        * [ ] over_hidden_region_type
+        * [ ] region_injector_type
+        * [ ] state_injector_type
+    * [ ] study how to wrap a signaldispatch with a decorator, so that state
+          and orthogonal state decorator will still work
 
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
+    * [ ] create a small experiment called singledispatch.py
+    * [ ] create the list of different function types needed by xml_chart_5.py
+    * [ ] draw a picture of what you want
+    * [ ] map the picture into the how it works file
+    * [ ] wrestle with the file until you get what you want
 
   *Chosen Research-Goal/Hypothesis*
+  
 
 == Plan ([[plan.parallel_example_4|plan]]) ==
 
