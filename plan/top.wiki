@@ -1,0 +1,90 @@
+*Top level plan dispatch for miros-xml*
+
+= Observer ([[local:C:/Vim8.2/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.top|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.top|subgoals]])
+
+    Backlog:
+      To get your head back in this project.
+      To build breadcrumbs into the project for the next time.
+
+  *Discoveries:* ([[notes.top|notes]])
+
+    Dispatch links into the project:
+
+    [[xml_to_miros/parallel]]
+    [[xml_to_miros/docs]]
+    [[xml_to_miros/xml_to_miros]]
+
+
+= Orient =
+  *Symptoms:* [[symptoms.top|symptoms]]
+
+== Questions ==
+
+  *Assumptions (at first invisible)*
+    To find your assumptions, look for two pieces of evidence that contradict
+    each other. (may have to wait a couple of loops)
+    * [ ] 
+
+  *Questions for miros-xml*
+  === Pre trouble-shooting questions ===k
+    * [ ] Do you have enough information?
+    * [ ] Is your information organized?
+    * [ ] Can you draw a diagram of the components and their interactions?
+    * [ ] Do you need to write some code to make it easier to see?
+    * [ ] Can you think of anyway to speed up your feedback cycle?
+
+    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
+          work somewhere else?  Yes: Repair, No: Pioneering.
+
+  === Repair (Complexity increases exponentially) ===
+    * [ ] Can you test the individual components to reduce complexity?
+    * [ ] Can you exchange components?
+    * [ ] Can you reduce the number of interactions?
+    * [ ] Are you continuing event though you know that something you have previously
+          tested isn't working?
+    * [ ] Has a thing you have previously tested fooled you into thinking it works,
+          when it doesn't work? (Never assume something is right before you have
+          checked it twice)
+
+  == Pioneering ==
+    * [ ] Has someone else solved this before (search)? Can you turn this into a
+          repair?
+    * [ ] Do you have something to baseline from?
+    * [ ] Looking under the problem, are you focused on the right goals?  Are you
+          stuck on solving a hard problem, when there is an easy problem?
+    * [ ] Do you understand how your existing system works?  If not, can you draw
+          diagrams and describe how it works before you continue?
+    * [ ] What don't you know that you need to know?
+
+  == Custom Questions: (>=5) ==
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for miros-xml: >=5*
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.top|plan]]) ==
+
+= Act =
+  
+
+
