@@ -17,6 +17,10 @@
     [[xml_to_miros/docs]]
     [[xml_to_miros/xml_to_miros]]
 
+    The pytests currently only test part of the project.  The majority of the
+    hard stuff is tested in the experiment folder.  Each file is a stand only
+    experiment and test.
+
 
 = Orient =
   *Symptoms:* [[symptoms.top|symptoms]]

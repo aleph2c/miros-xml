@@ -43,7 +43,7 @@
       
       
       
-    <link rel="next" title="Quick Start" href="quickstart.html">
+    <link rel="next" title="Getting Your Head in the Project" href="quickstart.html">
       
       
     <link rel="prev" title="Installation" href="installation.html">
@@ -102,7 +102,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#problem-the-tale-of-two-architectural-explosion-chambers">Problem - The Tale of Two Architectural Explosion Chambers</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Your Head in the Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How it Works</a></li>
 </ul>
@@ -164,28 +164,39 @@
 <span id="introduction-introduction"></span><h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">#</a></h1>
 <div class="section" id="problem-the-tale-of-two-architectural-explosion-chambers">
 <h2>Problem - The Tale of Two Architectural Explosion Chambers<a class="headerlink" href="#problem-the-tale-of-two-architectural-explosion-chambers" title="Permalink to this headline">#</a></h2>
-<p>Software engineers like to describe how their systems should behave with a
-picture. Often these pictures look like a bunch of circles connected by arrows.
-The circles represent the different system states and the arrows represent the
-things which cause change.  Pictures drawn like this are called finite state
-machines (FSMs).</p>
-<p>The problem with FSMs are that they are architectural time bombs.  As the number
-of requirements increase in your system, the number of bubbles and arrows
-required to model it, outpaces the number of requirements.  This
-effect is so dramatic, it has been given the name: “state-space-explosion”.</p>
-<p>Any useful engineering formalism (or way of drawing your problem) should
-compress complexity within the model, not make your model more complex than the
-real system.</p>
+<p>Engineers like to describe their software with pictures.  Often these pictures
+look like a bunch of blocks connected by arrows.  The blocks represent the
+different system states and the arrows represent the things which cause change.
+Pictures drawn like this are called finite state machines (FSMs).</p>
+<a class="reference external image-reference" href="_static/simple_fsm.pdf"><img alt="_images/simple_fsm.svg" class="noscale-center" src="_images/simple_fsm.svg" /></a>
+<p>Generally speaking if you follow some rules while you draw your picture, that
+drawing technique is called a formalism.</p>
+<p>The FSM formalism is an architectural time bomb.  The number of blocks and
+arrows needed to model a simple system is modest and understandable.  But there
+is an exponential relationship between the number of blocks and arrows and the
+system’s requirements.  As your requirements increase overtime, your drawing
+will quickly become a complex monstrosity.  This effect is so dramatic, it has
+been given the name: “state-space-explosion”.</p>
+<a class="reference external image-reference" href="_static/iterations_fsm.pdf"><img alt="_images/iterations_fsm.svg" class="noscale-center" src="_images/iterations_fsm.svg" /></a>
+<p>It follows then, that any useful engineering formalism should compress
+complexity within the model, not make your model more complex than the real
+system.</p>
 <a class="reference external image-reference" href="https://www.ocregister.com/2008/08/04/officials-explosive-could-have-blasted-4-homes/"><img alt="_images/bomb_disposal.jpg" class="noscale-center" src="_images/bomb_disposal.jpg" /></a>
-<p>In 1987, David Harel neatly solved “state space explosions” by
-inventing some new drawing rules for these circle-and-arrow type of pictures.
-He named these drawing rules: “hierarchical state machines” (HSMs) and “parallel
-regions”.  A hierarchical state machine allows for circles to be drawn within
-circles; an inner circle containing all of the behavior described by an outer
-circle.  A parallel region, is represented as a dashed line on a picture.  Each
-region marked off with this dashed line describes concurrent operation.</p>
+<p>In 1987 an applied mathematician, David Harel neatly solved “state space
+explosions” by inventing some new drawing rules for these block-and-arrow type
+of pictures.  He named these drawing rules: “hierarchical state machines” (HSMs)
+and “parallel regions”.  A HSM allows for blocks to be drawn within blocks; an
+inner block containing all of the behavior described by an outer block.  A
+parallel region, is represented as a line within a state’s block.  Each side of
+the line defines a region and a region describes a concurrent operation.  A
+diagram describing an HSM with or without parallel regions is called a
+statechart.</p>
+<a class="reference external image-reference" href="_static/hsm_and_parallel_regions.pdf"><img alt="_images/hsm_and_parallel_regions.svg" class="noscale-center" src="_images/hsm_and_parallel_regions.svg" /></a>
 <p>David Harel’s drawing rules ensnare tremendous amounts of behavioral complexity.
-If you model systems using his techniques you will end up with small and
+An HSM contains the rules of an FSM within it, so an FSM can be refactored into
+an HSM as your design progresses.</p>
+<a class="reference external image-reference" href="_static/iteration_refactor_fsm_to_hsm.pdf"><img alt="_images/iteration_refactor_fsm_to_hsm.svg" class="noscale-center" src="_images/iteration_refactor_fsm_to_hsm.svg" /></a>
+<p>If you model systems using his techniques you will end up with small and
 intuitive diagrams which can easily adapt to future requirements.</p>
 <p>When state machines are running in parallel regions they are running at the same
 time: both regions react to the events which are sent to the statechart.  This
@@ -195,27 +206,38 @@ to implement.  Regions can exist within regions, and each region represents a
 parallel execution of code, with access to common outer memory and a need to
 react to events managed by other parts of the program.  It is like applying
 topology to your system forks.</p>
-<p>To make the manifestation of such pictures easier for a software engineer, firms
-wrote tools to help draw these pictures then turn them into working software.
-The problem was that the tooling, though powerful, was expensive, added risk and
-produced programs outside of the direct control of the software developer.
-To get your code working, you had to ensure a third party tool was installed,
-could run properly, that its licence server was working and linked in your
-network, and so on.  The word for this is Vender-lock-in.  If the firm you
-depended on failed, your entire software system could become moot.</p>
-<p>Miro Samek liberated statecharts from Vender-lock-in with his
-2000 paper titled <a class="reference external" href="https://www.embedded.com/state-oriented-programming/">State-Oriented Programming</a>.  His algorithm
-supported the bubble within bubble part of the statemachine picture, but it did
-not support the dashed line: parallel regions. He went about addressing the
-“state space explosion” problem in a different way, he invented the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal
+<p>Companies started writing statechart picture-to-program compilers to help
+engineers.  David Harel was in such a company.  They built tools that would take
+a picture, apply a grammar to it, then generate code and then a working program.
+Standards were made, and standards were broken as the various companies tried to
+extract as much profit as possible by locking in their customers.</p>
+<p>If you pay for a compiler and the computer language you are using only works
+with one vendor’s technology, that vendor has an incentive to keep their prices
+low, wait for you to get profitable, then jack their prices and extract a rent
+from your firm.  This is called vendor-lock-in.</p>
+<p>In the year 2000, Miro Samek liberated statecharts from vendor-lock-in with his
+paper titled <a class="reference external" href="https://www.embedded.com/state-oriented-programming/">State-Oriented Programming</a>.  His algorithm
+supported the block within block part of the statemachine picture, but it did
+not support the block-line: parallel regions. He went about addressing the
+“concurrency problem” in a different way, he invented the <a class="reference external" href="https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component">orthogonal
 component pattern</a>:
-an HSM running within another HSM.</p>
-<p>Miro Samek’s approach was built for small processors, and it ran fast and used
-very few resources.  It was not as pictorially expressive as the parallel
-region, but it was comprehensible by the software developer who was using it.
-To use his software, an engineer would port it onto their processor, just as
-they would with a real-time operating system (RTOS).  In fact, with his software
-you didn’t need an RTOS anymore.</p>
+an HSM running within another HSM (HHSM).</p>
+<p>Not only did Miro Samek describe how to write a statechart’s event processing
+engine, he provided the C and C++ code to do it.  He wrote books to support
+these code bases: <a class="reference external" href="https://www.amazon.com/gp/product/B07CT8QTP4/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i1">Practical Statecharts in C/C++: Quantum Programming for
+Embedded Systems</a>
+and <a class="reference external" href="https://www.amazon.com/gp/product/B07BFSH86J/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0">Practical UML Statecharts in C/C++: Event-Driven Programming for Embedded
+Systems</a>
+(one of the best computer books I have ever read).</p>
+<p>Since the event processor was written in C/C++ a firm’s statechart designs became
+completely free from vendors, since compiler’s had already become open source by
+that time.  The library itself was written in such a way that you could draw a
+picture in Umlet, then translate the drawing into your C/C++ code without a lot
+of mental effort.</p>
+<p>Miro Samek’s code was built for small processors, and it ran fast and used very
+few resources.  To use his software, an engineer would port it onto their
+processor, just as they would with a real-time operating system (RTOS).  In
+fact, with his software you didn’t need an RTOS anymore.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><a class="reference external" href="https://www.state-machine.com/">Miro Samek’s business model was interesting too</a>.  He provided his code and his
@@ -227,23 +249,26 @@ see that his firm gets paid, so they will research the licences on his webpage
 and make sure he gets his money.  In doing so they establish a relationship
 which could save them months in development time.</p>
 </div>
-<p>Both David Harel and Miro Samek went about containing the architecture “state
-space explosion” caused from FSMs.  One method was practical from an
+<p>Both David Harel and Miro Samek went about containing the architectural “state
+space explosion” caused by FSMs.  One method was practical from an
 implementation perspective and the other was more pictorially expressive in how
 it described concurrency.</p>
+<p>At some point an industry standard was established for mapping statechart
+pictures into XML: SCXML.  The idea being that you could move your XML between
+statechart engines, or send serialized specifications of behavior over the wire.</p>
 <p>This project is about having cake and eating it too.  The library this project
-is dependent upon uses Miro Samek’s algorithm and thereby doesn’t implicitly
-support parallel regions, but it does support the orthogonal component pattern.
-So I will use the orthogonal component as a kind of assembly language.  I will
-map a parallel region described within an XML document (within a &lt;p&gt; tag) onto a
-set of orthogonal regions.  One orthogonal region may contain 0 or more other
-orthogonal regions, in a kind of hierarchy of hierarchical state machines
-(HHSM).  An event will be able to cause transitions between these orthogonal
-regions. From the outside, it will look like parallel region’s are supported.
-So this library is about bringing parallel regions to the Miro Samek algorithm.</p>
-<p>The drawing rule to make these HHSMs will just be those described by David
-Harel, and yet the code will follow the Miro Samek philosophy of being
-comprehensible and accessible.</p>
+is <a class="reference external" href="https://aleph2c.github.io/miros/html/index.html">dependent upon</a> uses Miro
+Samek’s algorithm and thereby doesn’t implicitly support parallel regions, but
+it does support the orthogonal component pattern.  So I will use the orthogonal
+component as a kind of assembly language.  To specify how a statechart should be
+drawn, I will implement an XML to statechart parser to do this I will use a subset of
+the SCXML standard.</p>
+<p>To summarize: this library is about bringing parallel regions to the Miro Samek
+algorithm.  The drawing rule to make these HHSMs will just be those described by
+David Harel, and yet the code will follow the Miro Samek philosophy of being
+comprehensible and accessible.  There will be no picture drawing tool, instead
+the library will consume XML, which could easily be written by a picture drawing
+tool if someone wanted to write one.</p>
 <span class="target" id="introduction-what-this-documentation-will-provide"></span></div>
 </div>
 
@@ -267,7 +292,7 @@ comprehensible and accessible.</p>
           </div>
           <div>
             
-             <a class="relational-link" href="quickstart.html" title="next chapter">Quick Start</a> →
+             <a class="relational-link" href="quickstart.html" title="next chapter">Getting Your Head in the Project</a> →
             
           </div>
         </div>
@@ -282,7 +307,7 @@ comprehensible and accessible.</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Dec 30, 2020 8:56 AM</span>
+          <span class="time">Dec 31, 2020 11:34 AM</span>
         </div>
         
         

@@ -10,17 +10,23 @@ windows:
     - deactivate
     - . ./venv/bin/activate
     - clear
+    - cd ./experiment/
+    - tail -f xml_chart_5.log
   - focus: 'true'
     shell_command:
     - cd /mnt/c/github/miros-xml
     - deactivate
     - . ./venv/bin/activate
     - clear
+    - cd ./experiment/
+    - while inotifywait -e modify xml_chart_5.py logger_config.yaml; do python xml_chart_5.py; done
   - shell_command:
     - cd /mnt/c/github/miros-xml
     - deactivate
     - . ./venv/bin/activate
     - clear
+    - cd ./experiment/
+    - vim xml_chart_5.py
   window_name: experiment
 - options:
     automatic-rename: 'off'
