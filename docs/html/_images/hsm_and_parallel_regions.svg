@@ -117,7 +117,9 @@
       /><text x="166" font-size="13px" y="17.0469" clip-path="url(#clipPath3)" font-family="sans-serif" stroke="none" font-weight="bold" xml:space="preserve"
       >p</text
       ><path fill="none" d="M1 23.0469 L339 23.0469" clip-path="url(#clipPath3)"
-      /><path fill="none" d="M1 118.3281 L339 118.3281" clip-path="url(#clipPath3)"
+    /></g
+    ><g stroke-miterlimit="5" font-size="13px" stroke-dasharray="8,5" font-family="sans-serif" transform="translate(480,300)" stroke-linecap="butt"
+    ><path fill="none" d="M1 118.3281 L339 118.3281" clip-path="url(#clipPath3)"
     /></g
     ><g fill="rgb(255,255,255)" fill-opacity="0" transform="translate(420,260)" stroke-opacity="0" stroke="rgb(255,255,255)"
     ><rect x="0.5" y="0.5" clip-path="url(#clipPath4)" width="428.5" rx="20" ry="20" height="288.5" stroke="none"

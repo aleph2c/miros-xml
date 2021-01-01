@@ -3,8 +3,7 @@
 Getting Your Head in the Project
 ================================
 
-Here is how to pick up this project after leaving it for a
-long time.
+Here is how to pick up this project after leaving it for a long time.
 
 .. contents::
   :depth: 2
@@ -94,13 +93,16 @@ This will contain the latest experiment.  To understand to architecture, read th
 
 .. _quickstart-pushing-past-latest-stage-of-the-experiment:
 
-Pushing Past Latest Stage of the Experiment
--------------------------------------------
+Pushing Past the Latest Stage of the Experiment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To safely re-engage with your project create a git branch with the date name in it:
 
 .. code-block:: python
 
-  echo "re-engage $(date)" | xargs git checkout -b
+  echo "$(date '+re-engaged_%m/%d/%y')" | xargs git checkout -b
+  Switching to a new branch 're-engaged_01/01/21'
+
+Go to the latest experiment, then open the :ref:`beastiary <how_it_works-beastiary>`.
 
 

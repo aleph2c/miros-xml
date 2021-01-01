@@ -477,6 +477,543 @@ build a robust feature.  At any time in the future, I can add more events (like
 the red hooks).  If you are reading this and see a major bug in my theory, email
 me and let me know.
 
+.. _how_it_works-beastiary:
+
+Beastiary
+^^^^^^^^^
+
+.. image:: _static/xml_chart_5.svg
+    :target: _static/xml_chart_5.pdf
+    :class: scale-to-fit
+
+.. list-table::
+  :widths: 20 30
+  :header-rows: 1
+  :align: left
+
+  * - Transition Type
+    - Name
+  * - R: Transitions within inner orthogonal regions
+    -
+      :ref:`RA1 <RA1>`
+      :ref:`RB1 <RB1>`
+      :ref:`RC1 <RC1>`
+      :ref:`RC2 <RC2>`
+      :ref:`RD1 <RD1>`
+      :ref:`RE1 <RE1>`
+      :ref:`RF1 <RF1>`
+      :ref:`RG1 <RG1>`
+      :ref:`RH1 <RH1>`
+  * - SR: Transitions between the bounds of the orthogonal region and outer statechart
+    - 
+      :ref:`SRB1 <SRB1>`
+      :ref:`SRD1 <SRD1>`
+      :ref:`SRD2 <SRD2>`
+      :ref:`SRE1 <SRE1>`
+      :ref:`SRE2 <SRE2>`
+      :ref:`SRE3 <SRE3>`
+      :ref:`SRF1 <SRF1>`
+      :ref:`SRG1 <SRG1>`
+  * - P: Transitions across parallel regions
+    -
+      :ref:`PC1 <PC1>`
+      :ref:`PF1 <PF1>`
+      :ref:`PG1 <PG1>`
+      :ref:`PG2 <PG2>`
+  * - H: Hooks and transitions
+    -
+      :ref:`H1 <H1>`
+      :ref:`H2 <H2>`
+  * - S: Standard Transitions
+    -
+      :ref:`SA1 <SA1>`
+      :ref:`SB1 <SB1>`
+      :ref:`SC1 <SC1>`
+      :ref:`SD1 <SD1>`
+      :ref:`SH1 <SH1>`
+  * - final: An SCXML addon.  When all regions of a state transition to their final pseudostate, create then post an artificial event with the signal name equal to the outer state holding the regions, with the string "_final" post pended to the signal's name.
+    - 
+      :ref:`p_p11_final <p_p11_final>`
+      :ref:`p_p12_final <p_p12_final>`
+      :ref:`p_p22_final <p_p22_final>`
+
+.. list-table::
+  :widths: 5 15 15 25 6
+  :header-rows: 1
+  :align: left
+
+  * - Event Name
+    - Where to look
+    - Transition Type
+    - Topological Type or Notes
+    - ✓/✗
+  * - RA1
+    - p_p11 to p_p11
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/a_t.svg
+          :target: _static/a_t.pdf
+          :class: noscale-center
+    - .. _RA1:
+
+      ✓
+  * - RB1
+    - p_p12 to p_p12_p11
+    - R
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/b_t.svg
+          :target: _static/b_t.pdf
+          :class: noscale-center
+    - .. _RB1:
+
+      ✓
+  * - RC1
+    - p_p11 to p_p12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/c_t.svg
+          :target: _static/c_t.pdf
+          :class: noscale-center
+    - .. _RC1:
+
+      ✓
+  * - RC2
+    - p_p22 to p_s21
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/c_t.svg
+          :target: _static/c_t.pdf
+          :class: noscale-center
+    - .. _RC2:
+
+      ✓
+  * - RD1
+    - p_p12_p11 to p_p12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/d_t.svg
+          :target: _static/d_t.pdf
+          :class: noscale-center
+    - .. _RD1:
+
+      ✓
+  * - RE1
+    - p_p12 to p_p12_p11_s12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/e_t.svg
+          :target: _static/e_t.pdf
+          :class: noscale-center
+    - .. _RE1:
+
+      ✓
+  * - RF1
+    - p_p11 to p_p12_p11_p12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/f_t.svg
+          :target: _static/f_t.pdf
+          :class: noscale-center
+    - .. _RF1:
+
+      ✓
+  * - RG1
+    - p_p12_p11_s21 to p_p11_s12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/g_t.svg
+          :target: _static/g_t.pdf
+          :class: noscale-center
+    - .. _RG1:
+
+      ✓
+  * - RH1
+    - p_p12_p11_s12 to p_p12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _RH1:
+
+      ✓
+  * -
+    -
+    -
+    -
+    -
+  * - SRB1
+    - p to p_p22
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/b_t.svg
+          :target: _static/b_t.pdf
+          :class: noscale-center
+    - .. _SRB1:
+
+      ✓
+  * - SRD1
+    - p_p22 to p
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/d_t.svg
+          :target: _static/d_t.pdf
+          :class: noscale-center
+    - .. _SRD1:
+
+      ✓
+  * - SRD2
+    - p_s21 to p
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/d_t.svg
+          :target: _static/d_t.pdf
+          :class: noscale-center
+    - .. _SRD2:
+
+      ✓
+  * - SRE1
+    - middle to p_p11
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/e_t.svg
+          :target: _static/e_t.pdf
+          :class: noscale-center
+    - .. _SRE1:
+
+      ✓
+  * - SRE2
+    - p to p_p11_s12
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/e_t.svg
+          :target: _static/e_t.pdf
+          :class: noscale-center
+    - .. _SRE2:
+
+      ✓
+  * - SRE3
+    - outer to p_p22_s22
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/e_t.svg
+          :target: _static/e_t.pdf
+          :class: noscale-center
+    - .. _SRE3:
+
+      ✓
+  * - SRF1
+    - s to p_p22_s21
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/f_t.svg
+          :target: _static/f_t.pdf
+          :class: noscale-center
+    - .. _SRF1:
+
+      ✓
+  * - SRG1
+    - p_p22_s21 to s_s1
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/g_t.svg
+          :target: _static/g_t.pdf
+          :class: noscale-center
+    - .. _SRG1:
+
+      ✓
+  * - SRH1
+    - p_s21 to outer
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _SRH1:
+
+      ✓
+  * - SRH2
+    - p_p11 to middle
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _SRH2:
+
+      ✓
+  * - SRH3
+    - p_p11_s12 to p
+    - SR: Transition between the bounds of the orthogonal region and outer statechart
+
+      .. image:: _static/sr_transition_class.svg
+          :target: _static/sr_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _SRH3:
+
+      ✓
+  * -
+    -
+    -
+    -
+    -
+  * - PC1 
+    - p_p11 to p_s21
+    - P: Transitions across parallel regions
+
+      .. image:: _static/p_transition_class.svg
+          :target: _static/p_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/c_t.svg
+          :target: _static/c_t.pdf
+          :class: noscale-center
+    - .. _PC1:
+
+      ✓
+  * - PF1 
+    - p_s21 to p_p12_p11_s21
+    - P: Transitions across parallel regions
+
+      .. image:: _static/p_transition_class.svg
+          :target: _static/p_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/f_t.svg
+          :target: _static/f_t.pdf
+          :class: noscale-center
+    - .. _PF1:
+
+      ✓
+  * - PG1 
+    - p_p12_p11_s21 to p_p22_s11
+    - P: Transitions across parallel regions
+
+      .. image:: _static/p_transition_class.svg
+          :target: _static/p_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/g_t.svg
+          :target: _static/g_t.pdf
+          :class: noscale-center
+    - .. _PG1:
+
+      ✓
+  * - PG2 
+    - p_p11_s22 to p_s21
+    - P: Transitions across parallel regions
+
+      .. image:: _static/p_transition_class.svg
+          :target: _static/p_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/g_t.svg
+          :target: _static/g_t.pdf
+          :class: noscale-center
+    - .. _PG2:
+
+      ✓
+  * -
+    -
+    -
+    -
+    -
+  * - H1
+    - p to middle, p_p12, p_p11, p_p12_s21
+    - hook
+    - hook
+    - .. _H1:
+
+      ✓
+  * - H2
+    - p_p22_s11
+    - hook
+    - hook
+    - .. _H2:
+
+      ✓
+  * -
+    -
+    -
+    -
+    -
+  * - SA1
+    - middle to p
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/a_t.svg
+          :target: _static/a_t.pdf
+          :class: noscale-center
+    - .. _SA1:
+
+      ✓
+  * - SB1
+    - middle to p
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/b_t.svg
+          :target: _static/b_t.pdf
+          :class: noscale-center
+    - .. _SB1:
+
+      ✓
+  * - SC1
+    - p to s
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/c_t.svg
+          :target: _static/c_t.pdf
+          :class: noscale-center
+    - .. _SC1:
+
+      ✓
+  * - SD1
+    - p to middle
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/d_t.svg
+          :target: _static/d_t.pdf
+          :class: noscale-center
+    - .. _SD1:
+
+      ✓
+  * - SH1
+    - outer to p
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _SH1:
+
+      ✓
+  * -
+    -
+    -
+    -
+    -
+  * - p_p11_final
+    - p_p11 to p_p12
+    - final: SCXML addon
+    - Any topology
+    - .. _p_p11_final:
+
+      ✓
+  * - p_p12_final
+    - p_p12 to final pseudostate inside of r1 of p
+    - final: SCXML addon
+    - Any topology
+    - .. _p_p12_final:
+
+      ✓
+  * - p_p22_final
+    - p_p22 to final pseudostate inside of r2 of p
+    - final: SCXML addon
+    - Any topology
+    - .. _p_p22_final:
+
+      ✓
+
 .. _how_it_works-reflection-and-logging:
 
 Reflection and Logging

@@ -104,6 +104,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#finding-the-plan">Finding the Plan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#finding-and-generating-the-docs">Finding and Generating the Docs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-something-running">Getting Something Running</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pushing-past-the-latest-stage-of-the-experiment">Pushing Past the Latest Stage of the Experiment</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
@@ -159,18 +160,14 @@
           
   <div class="section" id="getting-your-head-in-the-project">
 <span id="quickstart-quick-start"></span><h1>Getting Your Head in the Project<a class="headerlink" href="#getting-your-head-in-the-project" title="Permalink to this headline">#</a></h1>
-<p>Here is how to pick up this project after leaving it for a
-long time.</p>
+<p>Here is how to pick up this project after leaving it for a long time.</p>
 <div class="contents local topic" id="contents">
 <ul class="simple">
 <li><p><a class="reference internal" href="#baselining" id="id1">Baselining</a></p></li>
 <li><p><a class="reference internal" href="#finding-the-plan" id="id2">Finding the Plan</a></p></li>
 <li><p><a class="reference internal" href="#finding-and-generating-the-docs" id="id3">Finding and Generating the Docs</a></p></li>
-<li><p><a class="reference internal" href="#getting-something-running" id="id4">Getting Something Running</a></p>
-<ul>
-<li><p><a class="reference internal" href="#pushing-past-latest-stage-of-the-experiment" id="id5">Pushing Past Latest Stage of the Experiment</a></p></li>
-</ul>
-</li>
+<li><p><a class="reference internal" href="#getting-something-running" id="id4">Getting Something Running</a></p></li>
+<li><p><a class="reference internal" href="#pushing-past-the-latest-stage-of-the-experiment" id="id5">Pushing Past the Latest Stage of the Experiment</a></p></li>
 </ul>
 </div>
 <div class="section" id="baselining">
@@ -233,13 +230,15 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
 </div>
 <p>This will contain the latest experiment.  To understand to architecture, read the
 <a class="reference internal" href="how_it_works.html#how-it-works"><span class="std std-ref">how it works</span></a> section.</p>
-<div class="section" id="pushing-past-latest-stage-of-the-experiment">
-<span id="quickstart-pushing-past-latest-stage-of-the-experiment"></span><h3>Pushing Past Latest Stage of the Experiment<a class="headerlink" href="#pushing-past-latest-stage-of-the-experiment" title="Permalink to this headline">#</a></h3>
+</div>
+<div class="section" id="pushing-past-the-latest-stage-of-the-experiment">
+<span id="quickstart-pushing-past-latest-stage-of-the-experiment"></span><h2>Pushing Past the Latest Stage of the Experiment<a class="headerlink" href="#pushing-past-the-latest-stage-of-the-experiment" title="Permalink to this headline">#</a></h2>
 <p>To safely re-engage with your project create a git branch with the date name in it:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;re-engage $(date)&quot;</span> <span class="o">|</span> <span class="n">xargs</span> <span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;$(date &#39;+re-engaged_%m/</span><span class="si">%d</span><span class="s2">/%y&#39;)&quot;</span> <span class="o">|</span> <span class="n">xargs</span> <span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span>
+<span class="n">Switching</span> <span class="n">to</span> <span class="n">a</span> <span class="n">new</span> <span class="n">branch</span> <span class="s1">&#39;re-engaged_01/01/21&#39;</span>
 </pre></div>
 </div>
-</div>
+<p>Go to the latest experiment, then open the <a class="reference internal" href="how_it_works.html#how-it-works-beastiary"><span class="std std-ref">beastiary</span></a>.</p>
 </div>
 </div>
 
@@ -278,7 +277,7 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jan 01, 2021 7:48 AM</span>
+          <span class="time">Jan 01, 2021 3:20 PM</span>
         </div>
         
         

@@ -113,6 +113,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-2">A Walk through of a WTF Transition, Case 2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-3">A Walk through of a WTF Transition, Case 3</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#creating-a-systematic-way-of-naming-wtf-events">Creating a Systematic way of Naming WTF Events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#beastiary">Beastiary</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reflection-and-logging">Reflection and Logging</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#building-a-subregion">Building a Subregion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#writing-wtf-events-across-regions">Writing WTF Events Across Regions</a></li>
@@ -194,26 +195,27 @@ firm understanding of the miros library.</p>
 <li><p><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-2" id="id13">A Walk through of a WTF Transition, Case 2</a></p></li>
 <li><p><a class="reference internal" href="#a-walk-through-of-a-wtf-transition-case-3" id="id14">A Walk through of a WTF Transition, Case 3</a></p></li>
 <li><p><a class="reference internal" href="#creating-a-systematic-way-of-naming-wtf-events" id="id15">Creating a Systematic way of Naming WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#reflection-and-logging" id="id16">Reflection and Logging</a></p>
+<li><p><a class="reference internal" href="#beastiary" id="id16">Beastiary</a></p></li>
+<li><p><a class="reference internal" href="#reflection-and-logging" id="id17">Reflection and Logging</a></p>
 <ul>
-<li><p><a class="reference internal" href="#souped-up-spy" id="id17">Souped Up Spy</a></p></li>
-<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id18">Souped Up State Name Reflection</a></p></li>
-<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id19">Simplifying the Inner Injector Functions</a></p></li>
-<li><p><a class="reference internal" href="#reading-the-log-file" id="id20">Reading the Log File</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-spy" id="id18">Souped Up Spy</a></p></li>
+<li><p><a class="reference internal" href="#souped-up-state-name-reflection" id="id19">Souped Up State Name Reflection</a></p></li>
+<li><p><a class="reference internal" href="#simplifying-the-inner-injector-functions" id="id20">Simplifying the Inner Injector Functions</a></p></li>
+<li><p><a class="reference internal" href="#reading-the-log-file" id="id21">Reading the Log File</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#building-a-subregion" id="id21">Building a Subregion</a></p></li>
-<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id22">Writing WTF Events Across Regions</a></p>
+<li><p><a class="reference internal" href="#building-a-subregion" id="id22">Building a Subregion</a></p></li>
+<li><p><a class="reference internal" href="#writing-wtf-events-across-regions" id="id23">Writing WTF Events Across Regions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#e-wtf-events" id="id23">E WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#e0-wtf-event" id="id24">E0 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e1-wtf-event" id="id25">E1 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#e2-wtf-event" id="id26">E2 WTF Event</a></p></li>
-<li><p><a class="reference internal" href="#c-wtf-events" id="id27">C WTF Events</a></p></li>
-<li><p><a class="reference internal" href="#c0-wtf-event" id="id28">C0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e-wtf-events" id="id24">E WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#e0-wtf-event" id="id25">E0 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e1-wtf-event" id="id26">E1 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#e2-wtf-event" id="id27">E2 WTF Event</a></p></li>
+<li><p><a class="reference internal" href="#c-wtf-events" id="id28">C WTF Events</a></p></li>
+<li><p><a class="reference internal" href="#c0-wtf-event" id="id29">C0 WTF Event</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#hidden-dynamics" id="id29">Hidden Dynamics</a></p></li>
+<li><p><a class="reference internal" href="#hidden-dynamics" id="id30">Hidden Dynamics</a></p></li>
 </ul>
 </div>
 <div class="section" id="context-and-design-goal">
@@ -529,6 +531,440 @@ with the number 1.</p>
 build a robust feature.  At any time in the future, I can add more events (like
 the red hooks).  If you are reading this and see a major bug in my theory, email
 me and let me know.</p>
+</div>
+<div class="section" id="beastiary">
+<span id="how-it-works-beastiary"></span><h2>Beastiary<a class="headerlink" href="#beastiary" title="Permalink to this headline">#</a></h2>
+<a class="reference external image-reference" href="_static/xml_chart_5.pdf"><img alt="_images/xml_chart_5.svg" class="scale-to-fit" src="_images/xml_chart_5.svg" /></a>
+<table class="colwidths-given docutils align-left">
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Transition Type</p></th>
+<th class="head"><p>Name</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>R: Transitions within inner orthogonal regions</p></td>
+<td><p><a class="reference internal" href="#ra1"><span class="std std-ref">RA1</span></a>
+<a class="reference internal" href="#rb1"><span class="std std-ref">RB1</span></a>
+<a class="reference internal" href="#rc1"><span class="std std-ref">RC1</span></a>
+<a class="reference internal" href="#rc2"><span class="std std-ref">RC2</span></a>
+<a class="reference internal" href="#rd1"><span class="std std-ref">RD1</span></a>
+<a class="reference internal" href="#re1"><span class="std std-ref">RE1</span></a>
+<a class="reference internal" href="#rf1"><span class="std std-ref">RF1</span></a>
+<a class="reference internal" href="#rg1"><span class="std std-ref">RG1</span></a>
+<a class="reference internal" href="#rh1"><span class="std std-ref">RH1</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>SR: Transitions between the bounds of the orthogonal region and outer statechart</p></td>
+<td><p><a class="reference internal" href="#srb1"><span class="std std-ref">SRB1</span></a>
+<a class="reference internal" href="#srd1"><span class="std std-ref">SRD1</span></a>
+<a class="reference internal" href="#srd2"><span class="std std-ref">SRD2</span></a>
+<a class="reference internal" href="#sre1"><span class="std std-ref">SRE1</span></a>
+<a class="reference internal" href="#sre2"><span class="std std-ref">SRE2</span></a>
+<a class="reference internal" href="#sre3"><span class="std std-ref">SRE3</span></a>
+<a class="reference internal" href="#srf1"><span class="std std-ref">SRF1</span></a>
+<a class="reference internal" href="#srg1"><span class="std std-ref">SRG1</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>P: Transitions across parallel regions</p></td>
+<td><p><a class="reference internal" href="#pc1"><span class="std std-ref">PC1</span></a>
+<a class="reference internal" href="#pf1"><span class="std std-ref">PF1</span></a>
+<a class="reference internal" href="#pg1"><span class="std std-ref">PG1</span></a>
+<a class="reference internal" href="#pg2"><span class="std std-ref">PG2</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>H: Hooks and transitions</p></td>
+<td><p><a class="reference internal" href="#h1"><span class="std std-ref">H1</span></a>
+<a class="reference internal" href="#h2"><span class="std std-ref">H2</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>S: Standard Transitions</p></td>
+<td><p><a class="reference internal" href="#sa1"><span class="std std-ref">SA1</span></a>
+<a class="reference internal" href="#sb1"><span class="std std-ref">SB1</span></a>
+<a class="reference internal" href="#sc1"><span class="std std-ref">SC1</span></a>
+<a class="reference internal" href="#sd1"><span class="std std-ref">SD1</span></a>
+<a class="reference internal" href="#sh1"><span class="std std-ref">SH1</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>final: An SCXML addon.  When all regions of a state transition to their final pseudostate, create then post an artificial event with the signal name equal to the outer state holding the regions, with the string “_final” post pended to the signal’s name.</p></td>
+<td><p><a class="reference internal" href="#p-p11-final"><span class="std std-ref">p_p11_final</span></a>
+<a class="reference internal" href="#p-p12-final"><span class="std std-ref">p_p12_final</span></a>
+<a class="reference internal" href="#p-p22-final"><span class="std std-ref">p_p22_final</span></a></p></td>
+</tr>
+</tbody>
+</table>
+<table class="colwidths-given docutils align-left">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 23%" />
+<col style="width: 23%" />
+<col style="width: 38%" />
+<col style="width: 9%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Event Name</p></th>
+<th class="head"><p>Where to look</p></th>
+<th class="head"><p>Transition Type</p></th>
+<th class="head"><p>Topological Type or Notes</p></th>
+<th class="head"><p>✓/✗</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>RA1</p></td>
+<td><p>p_p11 to p_p11</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/a_t.pdf"><img alt="_images/a_t.svg" class="noscale-center" src="_images/a_t.svg" /></a>
+</td>
+<td><p id="ra1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>RB1</p></td>
+<td><p>p_p12 to p_p12_p11</p></td>
+<td><p>R</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/b_t.pdf"><img alt="_images/b_t.svg" class="noscale-center" src="_images/b_t.svg" /></a>
+</td>
+<td><p id="rb1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>RC1</p></td>
+<td><p>p_p11 to p_p12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/c_t.pdf"><img alt="_images/c_t.svg" class="noscale-center" src="_images/c_t.svg" /></a>
+</td>
+<td><p id="rc1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>RC2</p></td>
+<td><p>p_p22 to p_s21</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/c_t.pdf"><img alt="_images/c_t.svg" class="noscale-center" src="_images/c_t.svg" /></a>
+</td>
+<td><p id="rc2">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>RD1</p></td>
+<td><p>p_p12_p11 to p_p12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/d_t.pdf"><img alt="_images/d_t.svg" class="noscale-center" src="_images/d_t.svg" /></a>
+</td>
+<td><p id="rd1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>RE1</p></td>
+<td><p>p_p12 to p_p12_p11_s12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/e_t.pdf"><img alt="_images/e_t.svg" class="noscale-center" src="_images/e_t.svg" /></a>
+</td>
+<td><p id="re1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>RF1</p></td>
+<td><p>p_p11 to p_p12_p11_p12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/f_t.pdf"><img alt="_images/f_t.svg" class="noscale-center" src="_images/f_t.svg" /></a>
+</td>
+<td><p id="rf1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>RG1</p></td>
+<td><p>p_p12_p11_s21 to p_p11_s12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/g_t.pdf"><img alt="_images/g_t.svg" class="noscale-center" src="_images/g_t.svg" /></a>
+</td>
+<td><p id="rg1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>RH1</p></td>
+<td><p>p_p12_p11_s12 to p_p12</p></td>
+<td><p>R: transitions within inner orthogonal regions</p>
+<a class="reference external image-reference" href="_static/r_transition_class.pdf"><img alt="_images/r_transition_class.svg" class="noscale-center" src="_images/r_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/h_t.pdf"><img alt="_images/h_t.svg" class="noscale-center" src="_images/h_t.svg" /></a>
+</td>
+<td><p id="rh1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>SRB1</p></td>
+<td><p>p to p_p22</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/b_t.pdf"><img alt="_images/b_t.svg" class="noscale-center" src="_images/b_t.svg" /></a>
+</td>
+<td><p id="srb1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SRD1</p></td>
+<td><p>p_p22 to p</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/d_t.pdf"><img alt="_images/d_t.svg" class="noscale-center" src="_images/d_t.svg" /></a>
+</td>
+<td><p id="srd1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SRD2</p></td>
+<td><p>p_s21 to p</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/d_t.pdf"><img alt="_images/d_t.svg" class="noscale-center" src="_images/d_t.svg" /></a>
+</td>
+<td><p id="srd2">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SRE1</p></td>
+<td><p>middle to p_p11</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/e_t.pdf"><img alt="_images/e_t.svg" class="noscale-center" src="_images/e_t.svg" /></a>
+</td>
+<td><p id="sre1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SRE2</p></td>
+<td><p>p to p_p11_s12</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/e_t.pdf"><img alt="_images/e_t.svg" class="noscale-center" src="_images/e_t.svg" /></a>
+</td>
+<td><p id="sre2">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SRE3</p></td>
+<td><p>outer to p_p22_s22</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/e_t.pdf"><img alt="_images/e_t.svg" class="noscale-center" src="_images/e_t.svg" /></a>
+</td>
+<td><p id="sre3">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SRF1</p></td>
+<td><p>s to p_p22_s21</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/f_t.pdf"><img alt="_images/f_t.svg" class="noscale-center" src="_images/f_t.svg" /></a>
+</td>
+<td><p id="srf1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SRG1</p></td>
+<td><p>p_p22_s21 to s_s1</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/g_t.pdf"><img alt="_images/g_t.svg" class="noscale-center" src="_images/g_t.svg" /></a>
+</td>
+<td><p id="srg1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SRH1</p></td>
+<td><p>p_s21 to outer</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/h_t.pdf"><img alt="_images/h_t.svg" class="noscale-center" src="_images/h_t.svg" /></a>
+</td>
+<td><p id="srh1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SRH2</p></td>
+<td><p>p_p11 to middle</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/h_t.pdf"><img alt="_images/h_t.svg" class="noscale-center" src="_images/h_t.svg" /></a>
+</td>
+<td><p id="srh2">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SRH3</p></td>
+<td><p>p_p11_s12 to p</p></td>
+<td><p>SR: Transition between the bounds of the orthogonal region and outer statechart</p>
+<a class="reference external image-reference" href="_static/sr_transition_class.pdf"><img alt="_images/sr_transition_class.svg" class="noscale-center" src="_images/sr_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/h_t.pdf"><img alt="_images/h_t.svg" class="noscale-center" src="_images/h_t.svg" /></a>
+</td>
+<td><p id="srh3">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>PC1</p></td>
+<td><p>p_p11 to p_s21</p></td>
+<td><p>P: Transitions across parallel regions</p>
+<a class="reference external image-reference" href="_static/p_transition_class.pdf"><img alt="_images/p_transition_class.svg" class="noscale-center" src="_images/p_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/c_t.pdf"><img alt="_images/c_t.svg" class="noscale-center" src="_images/c_t.svg" /></a>
+</td>
+<td><p id="pc1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>PF1</p></td>
+<td><p>p_s21 to p_p12_p11_s21</p></td>
+<td><p>P: Transitions across parallel regions</p>
+<a class="reference external image-reference" href="_static/p_transition_class.pdf"><img alt="_images/p_transition_class.svg" class="noscale-center" src="_images/p_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/f_t.pdf"><img alt="_images/f_t.svg" class="noscale-center" src="_images/f_t.svg" /></a>
+</td>
+<td><p id="pf1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>PG1</p></td>
+<td><p>p_p12_p11_s21 to p_p22_s11</p></td>
+<td><p>P: Transitions across parallel regions</p>
+<a class="reference external image-reference" href="_static/p_transition_class.pdf"><img alt="_images/p_transition_class.svg" class="noscale-center" src="_images/p_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/g_t.pdf"><img alt="_images/g_t.svg" class="noscale-center" src="_images/g_t.svg" /></a>
+</td>
+<td><p id="pg1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>PG2</p></td>
+<td><p>p_p11_s22 to p_s21</p></td>
+<td><p>P: Transitions across parallel regions</p>
+<a class="reference external image-reference" href="_static/p_transition_class.pdf"><img alt="_images/p_transition_class.svg" class="noscale-center" src="_images/p_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/g_t.pdf"><img alt="_images/g_t.svg" class="noscale-center" src="_images/g_t.svg" /></a>
+</td>
+<td><p id="pg2">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>H1</p></td>
+<td><p>p to middle, p_p12, p_p11, p_p12_s21</p></td>
+<td><p>hook</p></td>
+<td><p>hook</p></td>
+<td><p id="h1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>H2</p></td>
+<td><p>p_p22_s11</p></td>
+<td><p>hook</p></td>
+<td><p>hook</p></td>
+<td><p id="h2">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>SA1</p></td>
+<td><p>middle to p</p></td>
+<td><p>S: Standard transition</p>
+<a class="reference external image-reference" href="_static/s_transition_class.pdf"><img alt="_images/s_transition_class.svg" class="noscale-center" src="_images/s_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/a_t.pdf"><img alt="_images/a_t.svg" class="noscale-center" src="_images/a_t.svg" /></a>
+</td>
+<td><p id="sa1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SB1</p></td>
+<td><p>middle to p</p></td>
+<td><p>S: Standard transition</p>
+<a class="reference external image-reference" href="_static/s_transition_class.pdf"><img alt="_images/s_transition_class.svg" class="noscale-center" src="_images/s_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/b_t.pdf"><img alt="_images/b_t.svg" class="noscale-center" src="_images/b_t.svg" /></a>
+</td>
+<td><p id="sb1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SC1</p></td>
+<td><p>p to s</p></td>
+<td><p>S: Standard transition</p>
+<a class="reference external image-reference" href="_static/s_transition_class.pdf"><img alt="_images/s_transition_class.svg" class="noscale-center" src="_images/s_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/c_t.pdf"><img alt="_images/c_t.svg" class="noscale-center" src="_images/c_t.svg" /></a>
+</td>
+<td><p id="sc1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>SD1</p></td>
+<td><p>p to middle</p></td>
+<td><p>S: Standard transition</p>
+<a class="reference external image-reference" href="_static/s_transition_class.pdf"><img alt="_images/s_transition_class.svg" class="noscale-center" src="_images/s_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/d_t.pdf"><img alt="_images/d_t.svg" class="noscale-center" src="_images/d_t.svg" /></a>
+</td>
+<td><p id="sd1">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>SH1</p></td>
+<td><p>outer to p</p></td>
+<td><p>S: Standard transition</p>
+<a class="reference external image-reference" href="_static/s_transition_class.pdf"><img alt="_images/s_transition_class.svg" class="noscale-center" src="_images/s_transition_class.svg" /></a>
+</td>
+<td><a class="reference external image-reference" href="_static/h_t.pdf"><img alt="_images/h_t.svg" class="noscale-center" src="_images/h_t.svg" /></a>
+</td>
+<td><p id="sh1">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>p_p11_final</p></td>
+<td><p>p_p11 to p_p12</p></td>
+<td><p>final: SCXML addon</p></td>
+<td><p>Any topology</p></td>
+<td><p id="p-p11-final">✓</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>p_p12_final</p></td>
+<td><p>p_p12 to final pseudostate inside of r1 of p</p></td>
+<td><p>final: SCXML addon</p></td>
+<td><p>Any topology</p></td>
+<td><p id="p-p12-final">✓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>p_p22_final</p></td>
+<td><p>p_p22 to final pseudostate inside of r2 of p</p></td>
+<td><p>final: SCXML addon</p></td>
+<td><p>Any topology</p></td>
+<td><p id="p-p22-final">✓</p>
+</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section" id="reflection-and-logging">
 <span id="how-it-works-reflection-and-logging"></span><h2>Reflection and Logging<a class="headerlink" href="#reflection-and-logging" title="Permalink to this headline">#</a></h2>
@@ -2009,7 +2445,7 @@ this:</p>
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jan 01, 2021 7:48 AM</span>
+          <span class="time">Jan 01, 2021 3:20 PM</span>
         </div>
         
         

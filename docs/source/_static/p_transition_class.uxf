@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>790</x>
+      <y>470</y>
+      <w>80</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>P
+
+halign=left
+bg=blue
+fg=white</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

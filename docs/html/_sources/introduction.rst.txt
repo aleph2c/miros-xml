@@ -46,22 +46,21 @@ system.
     :class: noscale-center
 
 In 1987 an applied mathematician, David Harel neatly solved "state space
-explosions" by inventing some new drawing rules for these block-and-arrow type
-of pictures.  He named these drawing rules: "hierarchical state machines" (HSMs)
-and "parallel regions".  A HSM allows for blocks to be drawn within blocks; an
-inner block containing all of the behavior described by an outer block.  A
-parallel region, is represented as a line within a state's block.  Each side of
-the line defines a region and a region describes a concurrent operation.  A
-diagram describing an HSM with or without parallel regions is called a
-statechart.
+explosions" by inventing some new drawing rules.  He named these drawing rules:
+"hierarchical state machines" (HSMs) and "parallel regions".  A HSM allows for
+blocks to be drawn within blocks; an inner block containing all of the behavior
+described by an outer block.  A parallel region, is represented as a dashed line
+within a state's block.  Each side of the dashed line defines a region and a
+region describes a concurrent operation.  A diagram describing an HSM with or
+without parallel regions is called a statechart.
 
 .. image:: _static/hsm_and_parallel_regions.svg
     :target: _static/hsm_and_parallel_regions.pdf
     :class: noscale-center
 
-David Harel's drawing rules ensnare tremendous amounts of behavioral complexity.
-An HSM contains the rules of an FSM within it, so an FSM can be refactored into
-an HSM as your design progresses.
+David Harel's drawing rules ensnare tremendous amounts of complexity.  An HSM
+contains the rules of an FSM within it, so an FSM can be refactored into an HSM
+as your design progresses.
 
 .. image:: _static/iteration_refactor_fsm_to_hsm.svg
     :target: _static/iteration_refactor_fsm_to_hsm.pdf
@@ -79,22 +78,17 @@ parallel execution of code, with access to common outer memory and a need to
 react to events managed by other parts of the program.  It is like applying
 topology to your system forks.
 
-Companies started writing statechart picture-to-program compilers to help
-engineers.  David Harel was in such a company.  They built tools that would take
-a picture, apply a grammar to it, then generate code and then a working program.
-Standards were made, and standards were broken as the various companies tried to
-extract as much profit as possible by locking in their customers.
-
-If you pay for a compiler and the computer language you are using only works
-with one vendor's technology, that vendor has an incentive to keep their prices
-low, wait for you to get profitable, then jack their prices and extract a rent
-from your firm.  This is called vendor-lock-in.
+In the 1990s a number of firms offered proprietary statechart picture/compiler
+programs.  But if you pay for a compiler and the computer language you are using
+only works with one vendor's technology, that vendor has an incentive to keep
+their prices low, wait for you to get profitable, then jack their prices and
+extract a rent from your firm.  This is called vendor-lock-in.
 
 In the year 2000, Miro Samek liberated statecharts from vendor-lock-in with his
 paper titled `State-Oriented Programming
 <https://www.embedded.com/state-oriented-programming/>`_.  His algorithm
 supported the block within block part of the statemachine picture, but it did
-not support the block-line: parallel regions. He went about addressing the
+not support the dashed line: parallel regions. He went about addressing the
 "concurrency problem" in a different way, he invented the `orthogonal
 component pattern
 <https://aleph2c.github.io/miros/patterns.html#patterns-orthogonal-component>`_:
@@ -110,28 +104,11 @@ Systems
 <https://www.amazon.com/gp/product/B07BFSH86J/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0>`_
 (one of the best computer books I have ever read).
 
-Since the event processor was written in C/C++ a firm's statechart designs became
-completely free from vendors, since compiler's had already become open source by
-that time.  The library itself was written in such a way that you could draw a
-picture in Umlet, then translate the drawing into your C/C++ code without a lot
-of mental effort.
-
-Miro Samek's code was built for small processors, and it ran fast and used very
-few resources.  To use his software, an engineer would port it onto their
-processor, just as they would with a real-time operating system (RTOS).  In
-fact, with his software you didn't need an RTOS anymore.
-
-.. note::
-
-  `Miro Samek's business model was interesting too
-  <https://www.state-machine.com/>`_.  He provided his code and his
-  understanding for free under an open source licence, and had another licence
-  for commercial products.  For this reason there is no Vender-lock-in, you can
-  just go an get his code and build it into your system directly.  His business
-  innovation was based on trust:  Engineers working within large firms want to
-  see that his firm gets paid, so they will research the licences on his webpage
-  and make sure he gets his money.  In doing so they establish a relationship
-  which could save them months in development time.
+Since the event processor was written in C/C++ a firm's statechart designs
+became completely free from vendor-lock-in, since compiler's had already become
+open source by that time.  The library itself was written in such a way that you
+could draw a picture in Umlet, then translate the drawing into your C/C++ code
+without a lot of effort.
 
 Both David Harel and Miro Samek went about containing the architectural "state
 space explosion" caused by FSMs.  One method was practical from an
