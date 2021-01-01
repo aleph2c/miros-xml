@@ -92,4 +92,15 @@ instance the ``xml_chart_5.py`` file tells us to test it with:
 This will contain the latest experiment.  To understand to architecture, read the
 :ref:`how it works <how_it_works>` section.
 
+.. _quickstart-pushing-past-latest-stage-of-the-experiment:
+
+Pushing Past Latest Stage of the Experiment
+-------------------------------------------
+
+To safely re-engage with your project create a git branch with the date name in it:
+
+.. code-block:: python
+
+  echo "re-engage $(date)" | xargs git checkout -b
+
 

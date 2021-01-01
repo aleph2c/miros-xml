@@ -166,7 +166,11 @@ long time.</p>
 <li><p><a class="reference internal" href="#baselining" id="id1">Baselining</a></p></li>
 <li><p><a class="reference internal" href="#finding-the-plan" id="id2">Finding the Plan</a></p></li>
 <li><p><a class="reference internal" href="#finding-and-generating-the-docs" id="id3">Finding and Generating the Docs</a></p></li>
-<li><p><a class="reference internal" href="#getting-something-running" id="id4">Getting Something Running</a></p></li>
+<li><p><a class="reference internal" href="#getting-something-running" id="id4">Getting Something Running</a></p>
+<ul>
+<li><p><a class="reference internal" href="#pushing-past-latest-stage-of-the-experiment" id="id5">Pushing Past Latest Stage of the Experiment</a></p></li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="section" id="baselining">
@@ -229,6 +233,13 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
 </div>
 <p>This will contain the latest experiment.  To understand to architecture, read the
 <a class="reference internal" href="how_it_works.html#how-it-works"><span class="std std-ref">how it works</span></a> section.</p>
+<div class="section" id="pushing-past-latest-stage-of-the-experiment">
+<span id="quickstart-pushing-past-latest-stage-of-the-experiment"></span><h3>Pushing Past Latest Stage of the Experiment<a class="headerlink" href="#pushing-past-latest-stage-of-the-experiment" title="Permalink to this headline">#</a></h3>
+<p>To safely re-engage with your project create a git branch with the date name in it:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;re-engage $(date)&quot;</span> <span class="o">|</span> <span class="n">xargs</span> <span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span>
+</pre></div>
+</div>
+</div>
 </div>
 </div>
 
@@ -267,7 +278,7 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Dec 31, 2020 11:34 AM</span>
+          <span class="time">Jan 01, 2021 7:48 AM</span>
         </div>
         
         
