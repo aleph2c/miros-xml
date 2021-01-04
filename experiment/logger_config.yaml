@@ -20,14 +20,14 @@ handlers:
     level: DEBUG  # at what level to set the console
     class: logging.handlers.RotatingFileHandler
     formatter: simple  # Use formatter defined above
-    filename: ./xml_chart_5.log
+    filename: ./xml_chart_5.1.log
     maxBytes: 10485760 # 10MB
     backupCount: 10
     encoding: utf8
   xml_chart_5_handler_extended:  # handler which will log into file
     class: logging.handlers.RotatingFileHandler
     formatter: extended  # Use formatter defined above
-    filename: ./xml_chart_5.log
+    filename: ./xml_chart_5.1.log
     maxBytes: 10485760 # 10MB
     backupCount: 10
     encoding: utf8

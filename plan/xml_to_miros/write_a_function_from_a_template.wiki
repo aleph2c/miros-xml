@@ -1,0 +1,176 @@
+[[subgoals.parallel|back]]
+
+*Write A Function From A Template*
+
+= Observer ([[local:/home/scott/.vimrc/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.write_a_function_from_a_template|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
+
+    You are looking for a kind of python c-style-preprocessor, or inheritance
+    with functions.
+
+    The region function will need special handling and its own OODA loop
+
+    [[./docs]]
+
+  *What is the problem?*
+
+    I am copying and pasting a lot of code into specifically named functions
+    which are linked to a region.  I would like to dry this up.
+
+    Moreover, I am manually adding an elif clause to inject the signals which
+    need to be driven into an inner part of the chart.  Syntax to take care of
+    this would be nice.
+
+    You will be making the code more complex with these abstractions.  You need
+    a way to easily back out of your changes.
+
+  *Discoveries:* ([[notes.xml_to_miros|notes]])
+
+   [[https://aleph2c.github.io/miros-xml/html/how_it_works.html#hidden-states-and-what-they-are-for|hidden state drawing]]
+
+   There is already meta programming happening in this code, the Regions
+   __init__ function creates the "_region", "_under_hidden_region" and
+   "_over_hidden_region" function references, ensures they are callable, then
+   links them into a Region. (they don't create the _final names)
+
+   The Regions __init__ is called from within the XmlChart class.  It feeds in
+   the regions names like:
+   * 'p'
+   * 'p_r1'
+   * 'p_r2'
+   * 'p_p11_r1'
+   * ...
+
+  Currently I'm following a coding convention, a region function has
+  "r<num>_region" post pended to it, but this convention will not be followed
+  within the XML.  However, a second convention is followed, the following names
+  are post pended onto the base function name:
+
+    * "_over_hidden_region"
+    * "_region"
+    * "_under_hidden_region"
+    * "_final"
+
+
+  Technique 1:
+  
+    # at the top of the file get the name space
+    module_namespace = sys.modules[__name__]
+
+    # depends on over_region_state_function
+    def template_final(r, e, *, over_region_state_name=None, **kwargs):
+      status = return_status.UNHANDLED
+      over_region_fn = module_namespace[over_region_state_name]
+
+      if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+        r.temp.fun = over_region_state_function
+        return return_status.SUPER
+
+      if(e.signal == signals.ENTRY_SIGNAL):
+        r.p_spy(e)
+        r.final = True
+        r.post_p_final_to_outmost_if_ready()
+        status = return_status.HANDLED
+      elif(e.signal == signals.EXIT_SIGNAL):
+        r.p_spy(e)
+        r.final = False
+        status = return_status.HANDLED
+      else:
+        r.temp.fun = over_region_state_function
+        status = return_status.SUPER
+      return status
+
+    region_f = eval(region_s)
+    under_f = lambda r, e: e
+    over_f = lambda r, e: e
+    final_f = lambda r, e: e
+
+    _ = partial(
+      template_final,
+      under_region_state_function=under_f,
+      region_state_function=region_f,
+      over_region_state_function=over_f
+    )
+    _ = update_wrapper(_, template_final)
+    _.__name__ = final_s
+    _.__closure__ = None
+    setattr(
+      module_namespace,
+      final_s,
+      orthogonal_state(_)
+    )
+    final_f = _
+
+= Orient =
+  *Symptoms:* [[symptoms.write_a_function_from_a_template|symptoms]]
+
+  *Assumptions (at first invisible)*
+    To find your assumptions, look for two pieces of evidence that contradict
+    each other. (may have to wait a couple of loops)
+    * [ ] 
+
+== Questions ==
+
+  Blue   - Organization
+  White  - Information
+  Red    - Feelings and Emotions
+  Black  - Negative
+  Yellow - Positive
+  Green  - Lateral Thinking
+
+  *Questions for Write A Function From A Template*
+  === Pre trouble-shooting questions ===
+    * [X] Can you draw a diagram of the components and their interactions?
+    * [ ] Can you think of anyway to speed up your feedback cycle?
+
+    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
+          work somewhere else?  Yes: Repair, No: Pioneering.
+
+  == Custom Questions: (>=5) ==
+    * [ ] Can you make a very small version of what you want?
+    * [ ] Can you try a couple of different techniques on how to do this?
+    * [ ] Can you think of a nice way to inject the signals using the above
+          approaches?
+    * [ ] Is the use of a meta class appropriate?
+    * [ ] Are you using any C style way of programming that would be better
+          suited with python style programming?
+
+= Decide =
+  *Research Needed For?:*
+
+  *Idea/Hypotheses for Write A Function From A Template: >=5*
+
+  * [X] Uprev the source/log files, ensure tests are passing
+  * [X] Read funtools docs
+  * [X] Read the decorator section of the recipes book
+  * [X] Read the meta class portion of the recipes book
+  * [X] Analyze the existing code
+  * [X] Use partials to implement feature
+
+  *Chosen Research-Goal/Hypothesis*
+
+    XML -> XmlChart -> (meta-programming) -> Regions -> Region
+
+    The names described in the XML will have "_<purpose_of_state>" post pended to
+    the end.  The meta-programming can be done using a partial.
+
+    The region function will need special handling and its own OODA loop
+
+    In add of XmlChart:
+    * [ ] create the names (under, region, over, final) using the new naming functions
+    * [ ] create the functions using partials, eval with the names (do final first)
+    * [ ] for each created partial, go into your code and delete their family's hard
+          coded functions, re-run the test and confirm the system is working
+    * [ ] document what is going on, and write an escape procedure... what to do
+          if there is a fault with the meta-events related to the autogenerated
+          functions. (unwind to xml_chart_5, fix it, the add the corrections to
+          the templates, iterate until the framework is working).
+
+
+== Plan ([[plan.write_a_function_from_a_template|plan]]) ==
+
+= Act =
+  
+
