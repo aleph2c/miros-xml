@@ -224,8 +224,8 @@ look for is the latest <code class="docutils literal notranslate"><span class="p
 test in the <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">__name__</span> <span class="pre">==</span> <span class="pre">'__main__'</span></code> code block at the bottom of the file.
 To work on a given experiment, look to the top of its file, you will see
 instructions on how to have it automatically test itself if you change it.  For
-instance the <code class="docutils literal notranslate"><span class="pre">xml_chart_5.py</span></code> file tells us to test it with:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="k">while</span> inotifywait -e modify xml_chart_5.py logger_config.yaml<span class="p">;</span> <span class="k">do</span> python xml_chart_5.py<span class="p">;</span> <span class="k">done</span>
+instance the <code class="docutils literal notranslate"><span class="pre">xml_chart_5.1.py</span></code> file tells us to test it with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="k">while</span> inotifywait -e modify xml_chart_5.1.py logger_config.yaml<span class="p">;</span> <span class="k">do</span> python xml_chart_5.1.py<span class="p">;</span> <span class="k">done</span>
 </pre></div>
 </div>
 <p>This will contain the latest experiment.  To understand to architecture, read the
@@ -277,7 +277,7 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jan 04, 2021 10:45 AM</span>
+          <span class="time">Jan 05, 2021 6:55 PM</span>
         </div>
         
         

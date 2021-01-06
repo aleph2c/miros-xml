@@ -82,11 +82,11 @@ look for is the latest ``xml_chart_<num>.py`` file.  The file contains its own
 test in the ``if __name__ == '__main__'`` code block at the bottom of the file.
 To work on a given experiment, look to the top of its file, you will see
 instructions on how to have it automatically test itself if you change it.  For
-instance the ``xml_chart_5.py`` file tells us to test it with:
+instance the ``xml_chart_5.1.py`` file tells us to test it with:
 
 .. code-block:: bash
 
-  while inotifywait -e modify xml_chart_5.py logger_config.yaml; do python xml_chart_5.py; done
+  while inotifywait -e modify xml_chart_5.1.py logger_config.yaml; do python xml_chart_5.1.py; done
 
 This will contain the latest experiment.  To understand to architecture, read the
 :ref:`how it works <how_it_works>` section.

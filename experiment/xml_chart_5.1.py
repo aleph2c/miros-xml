@@ -26,10 +26,47 @@ from miros import return_status
 from miros import HsmWithQueues
 
 # To create a deconstruction of a given event:
-event_to_investigate = '_H2'
+event_to_investigate = '_SRE2'
 
 # 'module_namespace' will be used to add functions to the globals() namespace
 module_namespace = sys.modules[__name__]
+
+def find_decorators(target):
+  '''find a method/function's decorators
+
+  **Note**:
+    This function will not work for function's built from templates
+
+     Solution provided by Shane Holloway on `stackoverflow
+     <https://stackoverflow.com/a/9580006>`_
+
+  **Args**:
+    | ``target`` (callable): the function/method
+
+
+  **Returns**:
+    (dict): key/value pair, key is the function/method the value is array
+    |        of decorators
+
+  **Example(s)**:
+
+  .. code-block:: python
+
+     find_decorators(p_p22_s22)  \
+         # => {'p_p22_s22': ["Name(id='orthogonal_state', ctx=Load())"]
+
+     find_decorators(p)  # => {'p': ["Name(id='state', ctx=Load())"]
+
+  '''
+  import ast, inspect
+  res = {}
+  def visit_FunctionDef(node):
+    res[node.name] = [ast.dump(e) for e in node.decorator_list]
+
+  V = ast.NodeVisitor()
+  V.visit_FunctionDef = visit_FunctionDef
+  V.visit(compile(inspect.getsource(target), "?", 'exec', ast.PyCF_ONLY_AST))
+  return res
 
 def pp(item):
   xprint.pprint(item)
@@ -301,13 +338,12 @@ def over_hidden_region_function_name(region_name):
 def final_region_function_name(region_name):
   return region_name + "_final"
 
-def template_under_hidden_region(r, e, *, under_region_state_name=None, region_state_name=None, **kwargs):
+def template_under_hidden_region(r, e, *, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
   __super__ = r.bottom
-  r.state_name = under_region_state_name
 
   region_state_function = \
-    orthogonal_state(getattr(module_namespace, region_state_name))
+    getattr(module_namespace, region_state_name)
 
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
@@ -333,9 +369,7 @@ def template_under_hidden_region(r, e, *, under_region_state_name=None, region_s
 def template_over_hidden_region(r, e, *, over_region_state_name=None, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  region_state_function = \
-    orthogonal_state(getattr(module_namespace, region_state_name))
-  r.state_name = over_region_state_name
+  region_state_function = getattr(module_namespace, region_state_name)
 
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = region_state_function
@@ -343,7 +377,7 @@ def template_over_hidden_region(r, e, *, over_region_state_name=None, region_sta
 
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
-    status = r.trans(region_fn)
+    status = r.trans(region_state_function)
   elif(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -363,7 +397,6 @@ def template_final(r, e, *, over_region_state_name=None, final_state_name=None, 
 
   over_region_state_function = \
     orthogonal_state(getattr(module_namespace, over_region_state_name))
-  r.state_name = final_state_name
 
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = over_region_state_function
@@ -776,7 +809,7 @@ class Regions():
 
     self.p_regions.append(
       Region(
-        name='s1_r',
+        name='p_r1',
         starting_state=p_r2_under_hidden_region,
         outmost=self,
         final_event=Event(signal=signals.p_final)
@@ -784,7 +817,7 @@ class Regions():
     )
     self.p_regions.append(
       Region(
-        name='s2_r',
+        name='p_r2',
         starting_state=p_r2_under_hidden_region,
         outmost=self,
         final_event=Event(signal=signals.p_final)
@@ -798,7 +831,12 @@ class Regions():
 
   With this:
 
-    self.p_regions = Regions(name='p', outmost=self).add('s1_r').add('s2_r').regions
+    outer = self
+    self.regions['p'] = Regions(
+      name='p',
+      outmost=self)\
+    .add('p_r1', outer=outer)\
+    .add('p_r2', outer=outer).link()
 
   '''
   def __init__(self, name, outmost):
@@ -831,76 +869,64 @@ class Regions():
     over_s = over_hidden_region_function_name(region_name)
     final_s = final_region_function_name(region_name)
 
-    # these will be removed shortly
-
-    # The state functions depend on each other, so
-    # iterate over and over until all of the definitions are stamped in
-    # properly
-    _ = partial(
+    # purposely leaving this code flat to make it easy to debug
+    # begin function definitions
+    final_state = partial(
       template_final,
       under_region_state_name=under_s,
       region_state_name=region_s,
       over_region_state_name=over_s,
       final_state_name=final_s,
     )
-    _ = update_wrapper(_, template_final)
-    _.__name__ = final_s
-    _.__closure__ = None
+    final_state = update_wrapper(final_state, template_final)
+    final_state = orthogonal_state(final_state)
+    final_state.__name__ = final_s
     setattr(
       module_namespace,
       final_s,
-      orthogonal_state(_)
+      orthogonal_state(final_state)
     )
-    final_f = _
+    assert(final_state.__name__ == final_s)
 
-    #_ = partial(
-    #  template_under_hidden_region,
-    #  under_region_state_name=under_s,
-    #  region_state_name=region_s,
-    #  over_region_state_name=over_s
-    #)
-    #_ = update_wrapper(_, template_under_hidden_region)
-    #_.__name__ = under_s
-    #_.__closure__ = None
-    #setattr(
-    #  module_namespace,
-    #  under_s,
-    #  orthogonal_state(_)
-    #)
-    #under_f = _
+    under_hidden_state_function = partial(
+      template_under_hidden_region,
+      region_state_name=region_s,
+    )
+    under_hidden_state_function = update_wrapper(under_hidden_state_function,
+        template_under_hidden_region)
+    under_hidden_state_function.__name__ = under_s
 
-    #_ = partial(
-    #  template_over_hidden_region,
-    #  under_region_state_name=under_s,
-    #  region_state_name=region_s,
-    #  over_region_state_name=over_s
-    #)
-    #_ = update_wrapper(_, template_over_hidden_region)
-    #_.__name__ = over_s
-    #_.__closure__ = None
-    #setattr(
-    #  module_namespace,
-    #  over_s,
-    #  orthogonal_state(_)
-    #)
-    #over_f = _
-    #########################################################################
-    #                       OVER HIDDEN STATE FUNCTIONS                     #
-    #########################################################################
+    under_hidden_state_function = orthogonal_state(under_hidden_state_function)
+    setattr(
+      module_namespace,
+      under_s,
+      under_hidden_state_function,
+    )
+    assert(under_hidden_state_function.__name__ == under_s)
 
-    #assert callable(under_hidden_state_function)
+    over_hidden_state_function = partial(
+      template_over_hidden_region,
+      over_region_state_name=over_s,
+      region_state_name=region_s,
+    )
+    over_hidden_state_function = update_wrapper(over_hidden_state_function,
+        template_over_hidden_region)
+    over_hidden_state_function.__name__ = over_s
+    over_hidden_state_function = orthogonal_state(over_hidden_state_function)
+    setattr(
+      module_namespace,
+      over_s,
+      over_hidden_state_function,
+    )
+    assert(over_hidden_state_function.__name__ == over_s)
 
-    region_f = eval(region_s)
-    over_f = eval(over_s)
-    under_f = eval(under_s)
-
-    under_hidden_state_function = under_f
-    over_hidden_state_function = over_f
+    region_f = getattr(module_namespace, region_s)
     region_state_function = region_f
 
     assert callable(under_hidden_state_function)
     assert callable(region_state_function)
     assert callable(over_hidden_state_function)
+    # end function definitions
 
     region =\
       Region(
@@ -1073,7 +1099,7 @@ class XmlChart(InstrumentedActiveObject):
     #self.queue.wait()
     # store the active states of this hhsm
     self.last_rtc_active_states = [
-      eval(sfn) for sfn in flatten(self.active_states())
+      getattr(module_namespace, sfn) for sfn in flatten(self.active_states())
     ]
 
 
@@ -1200,6 +1226,8 @@ class XmlChart(InstrumentedActiveObject):
 
     # parallel state names
     psn = self.regions.keys()
+
+    # import pdb; pdb.set_trace()
 
     result = []
     for n, regions in self.regions.items():
@@ -1328,7 +1356,7 @@ class XmlChart(InstrumentedActiveObject):
         for r in rs._regions:
           has_state = r.has_state(state)
           if has_state:
-            outer_function_state_holds_the_region = eval(rs.name)
+            outer_function_state_holds_the_region = getattr(module_namespace, rs.name)
             region_obj = r
             break
       if region_obj:
@@ -1767,29 +1795,6 @@ class XmlChart(InstrumentedActiveObject):
 #                          STATE MACHINE                                       #
 ################################################################################
 @orthogonal_state
-def p_r1_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_r1_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_r1_region(r, e):
   status = return_status.UNHANDLED
   __super__ = p_r1_under_hidden_region
@@ -1850,32 +1855,6 @@ def p_r1_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_r1_under_hidden_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_r1_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r1_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_r1_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2019,32 +1998,6 @@ def p_p11(r, e):
   return status
 
 @orthogonal_state
-def p_p11_r1_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p11_r1_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_p11_r1_region(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r1_under_hidden_region
@@ -2106,32 +2059,6 @@ def p_p11_r1_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p11_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p11_r1_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p11_r1_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p11_r1_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2208,32 +2135,6 @@ def p_p11_s12(r, e):
   return status
 
 @orthogonal_state
-def p_p11_r2_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p11_r2_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_p11_r2_region(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r2_under_hidden_region
@@ -2288,32 +2189,6 @@ def p_p11_r2_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p11_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p11_r2_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p11_r2_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p11_r2_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2522,33 +2397,6 @@ def p_p12(r, e):
 
 # inner parallel
 @orthogonal_state
-def p_p12_r1_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p12_r1_region)
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-# inner parallel
-@orthogonal_state
 def p_p12_r1_region(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_r1_under_hidden_region
@@ -2609,32 +2457,6 @@ def p_p12_r1_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p12_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_r1_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_r1_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p12_r1_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -2744,26 +2566,6 @@ def p_p12_p11(r, e):
   return status
 
 @orthogonal_state
-def p_p12_p11_r1_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    status = r.trans(p_p12_p11_r1_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_p12_p11_r1_region(r, e):
   status = return_status.UNHANDLED
 
@@ -2834,32 +2636,6 @@ def p_p12_p11_r1_region(r, e):
   return status
 
 @orthogonal_state
-def p_p12_p11_r1_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_p11_r1_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p12_p11_r1_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_p12_p11_s11(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_p11_r1_over_hidden_region
@@ -2913,31 +2689,6 @@ def p_p12_p11_s12(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_p11_r2_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    status = r.trans(p_p12_p11_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    (_e, _state) = e.payload.event, e.payload.state
-    if r.within(p_p12_p11_r2_region, _state):
-      r.outer._post_fifo(_e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3004,32 +2755,6 @@ def p_p12_p11_r2_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p12_p11_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_p11_r2_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_p11_r2_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p12_p11_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3106,33 +2831,6 @@ def p_p12_s12(r, e):
     status = return_status.SUPER
   return status
 
-
-@orthogonal_state
-def p_p12_r2_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p12_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
 # inner parallel
 @orthogonal_state
 def p_p12_r2_region(r, e):
@@ -3195,32 +2893,6 @@ def p_p12_r2_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p12_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_r2_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_r2_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p12_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3311,32 +2983,6 @@ def p_p12_s22(r, e):
 ## inner parallel
 
 @orthogonal_state
-def p_r2_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_r2_region(r, e):
   status = return_status.UNHANDLED
   __super__ = p_r2_under_hidden_region
@@ -3397,32 +3043,6 @@ def p_r2_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_r2_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r2_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -3602,32 +3222,6 @@ def p_p22(r, e):
     status = return_status.SUPER
   return status
 
-# inner parallel
-@orthogonal_state
-def p_p22_r1_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p22_r1_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
 
 @orthogonal_state
 def p_p22_r1_region(r, e):
@@ -3680,31 +3274,6 @@ def p_p22_r1_region(r, e):
     r._p_spy(e)
     status = r.trans(p_p22_r1_under_hidden_region)
   elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p22_r1_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p22_r1_region
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p22_r1_under_hidden_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
@@ -3783,31 +3352,6 @@ def p_p22_s12(r, e):
   return status
 
 # inner parallel
-@orthogonal_state
-def p_p22_r2_under_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = r.bottom
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(r.token_match(e.signal_name, "enter_region")):
-    r._p_spy(e)
-    status = r.trans(p_p22_r2_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
 
 @orthogonal_state
 def p_p22_r2_region(r, e):
@@ -3870,32 +3414,6 @@ def p_p22_r2_region(r, e):
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
     status = r.trans(p_p22_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p22_r2_over_hidden_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p22_r2_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.force_region_init):
-    r._p_spy(e)
-    status = r.trans(p_p22_r2_under_hidden_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -4422,8 +3940,8 @@ if __name__ == '__main__':
     active_states = example.active_states()
     old_results = example.active_states()[:]
 
-    print(example.regions['p']._regions[0].final_signal_name)
-    print(example.regions['p_p11'].final_signal_name)
+    #print(example.regions['p']._regions[0].final_signal_name)
+    #print(example.regions['p_p11'].final_signal_name)
 
     #example.clear_log()
     old_results = build_test(
@@ -5038,6 +4556,10 @@ if __name__ == '__main__':
       old_result=old_results,
       duration=0.2
     )
+
+    print(find_decorators(p_p22_s22)) \
+        # comment
+    print(find_decorators(p))
 
     exit(0)
 

@@ -3,6 +3,7 @@
 # To continuously test:
 # while inotifywait -e modify xml_chart_5.py logger_config.yaml; do python xml_chart_5.py; done
 import re
+import sys
 import time
 import yaml
 import inspect
@@ -25,6 +26,21 @@ from miros import HsmWithQueues
 
 # To create a deconstruction of a given event:
 event_to_investigate = '_H2'
+
+# 'module_namespace' will be used to add functions to the globals() namespace
+module_namespace = sys.modules[__name__]
+
+# credit: https://stackoverflow.com/a/9580006 (Shane Holloway)
+def find_decorators(target):
+  import ast, inspect
+  res = {}
+  def visit_FunctionDef(node):
+    res[node.name] = [ast.dump(e) for e in node.decorator_list]
+
+  V = ast.NodeVisitor()
+  V.visit_FunctionDef = visit_FunctionDef
+  V.visit(compile(inspect.getsource(target), "?", 'exec', ast.PyCF_ONLY_AST))
+  return res
 
 def pp(item):
   xprint.pprint(item)
@@ -716,9 +732,12 @@ class Regions():
     for the EXIT_META_SIGNAL signal.
 
     '''
-    under_hidden_state_function = eval(region_name + "_under_hidden_region")
-    region_state_function = eval(region_name + "_region")
-    over_hidden_state_function = eval(region_name + "_over_hidden_region")
+    under_s = region_name + "_under_hidden_region"
+    region_s = region_name + "_region"
+    over_s = region_name + "_over_hidden_region"
+    under_hidden_state_function = getattr(module_namespace, under_s)
+    region_state_function = getattr(module_namespace, region_s)
+    over_hidden_state_function = getattr(module_namespace, over_s)
 
     assert callable(under_hidden_state_function)
     assert callable(region_state_function)
@@ -895,7 +914,7 @@ class XmlChart(InstrumentedActiveObject):
     #self.queue.wait()
     # store the active states of this hhsm
     self.last_rtc_active_states = [
-      eval(sfn) for sfn in flatten(self.active_states())
+      getattr(module_namespace, sfn) for sfn in flatten(self.active_states())
     ]
 
 
@@ -1150,7 +1169,7 @@ class XmlChart(InstrumentedActiveObject):
         for r in rs._regions:
           has_state = r.has_state(state)
           if has_state:
-            outer_function_state_holds_the_region = eval(rs.name)
+            outer_function_state_holds_the_region = getattr(module_namespace, rs.name)
             region_obj = r
             break
       if region_obj:
