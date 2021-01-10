@@ -86,8 +86,8 @@ using the Python ``setattr/getattr`` builtins.
    getattr(module_namespace, 'p_r1_under_hidden_region')()
 
 Before we make something that writes functions, we will type one out by hand,
-have a full regression test pass, then identify the parts of the function we
-want to change:
+pass a full regression test, then identify the parts of the function we want to
+change:
 
 .. code-block:: python
   :emphasize-lines: 2, 12
@@ -164,7 +164,8 @@ call the function.  This function is used on line 16.
 
 If ``region_state_name`` was set to ``p_r1_region``, our function would behave
 the same as the one we wrote out by hand.  Notice, that the template does not
-have an ``orthogonal`` wrapper, this will be added later.
+have an ``orthogonal`` decorator, but our handwritten function did. This
+decorator will be added later.
 
 Now we want to create a new function based on some naming conventions:
 
@@ -253,7 +254,7 @@ name it on line 52.
 
 Once our function is named, we wrap its orthogonal_state decorator, line 58.  On lines 62
 to 66 we add this named function to the module's namespace.  At this point we
-can call ``p_r1_under_hidden_region`` as it we wrote it by hand.
+can call ``p_r1_under_hidden_region`` as if we wrote it by hand.
 
 The ``p_r1_under_hidden_region`` function has been programmatically created, so
 we delete the one we made by hand, the rerun our regression to ensure the system

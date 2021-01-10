@@ -12,6 +12,9 @@
     [[./docs]]
 
   *What is the problem?*
+  
+    I don't understand how to read the debug output from the "investigate"
+    feature.  You will need this skill ongoing.
 
     We have different types of state functions which have different types of
     implicit behavior.  For instance an injector state function needs to behave
@@ -360,25 +363,12 @@
 = Decide =
 
   *Research Needed For?:* ([[#Observe]], [[#Orient]])
-    * [X] research functools signaldispatch and register
-    * [X] research function annotations
-    * [ ] study xml_chart_5.py for the different types of function needed by a
-          state function
-        * [ ] final_type
-        * [ ] under_hidden_region_type
-        * [ ] region_type
-        * [ ] over_hidden_region_type
-        * [ ] region_injector_type
-        * [ ] state_injector_type
-    * [ ] study how to wrap a signaldispatch with a decorator, so that state
-          and orthogonal state decorator will still work
+    * why don't you understand how your debug tools work?
+    * can you understand them by looking at SRE3?
 
   *Idea/Hypotheses: >=5* ([[#Observe]], [[#Orient]], [[#Future Goals]])
-    * [ ] create a small experiment called singledispatch.py
-    * [ ] create the list of different function types needed by xml_chart_5.py
-    * [ ] draw a picture of what you want
-    * [ ] map the picture into the how it works file
-    * [ ] wrestle with the file until you get what you want
+    * [ ] write up how to use the debug tools, add it to the "Getting your head
+          back in the project"
 
   *Chosen Research-Goal/Hypothesis*
   

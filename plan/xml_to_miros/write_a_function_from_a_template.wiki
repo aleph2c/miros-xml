@@ -7,10 +7,7 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    You are looking for a kind of python c-style-preprocessor, or inheritance
-    with functions.
-
-    The region function will need special handling and its own OODA loop
+    The region functions need to be built from a template
 
     [[./docs]]
 
@@ -45,12 +42,15 @@
 
   *Idea/Hypotheses for Write A Function From A Template: >=5*
 
-  * [X] Uprev the source/log files, ensure tests are passing
-  * [X] Read funtools docs
-  * [X] Read the decorator section of the recipes book
-  * [X] Read the meta class portion of the recipes book
-  * [X] Analyze the existing code
-  * [X] Use partials to implement feature
+  * [ ] Adjust the add method to include an initial state
+  * [ ] Adjust feeder to this add method to include the initial state
+  * [ ] Run regression
+  * [ ] Create a template
+  * [ ] Implement the template
+  * [ ] Remove hand coded region functions
+  * [ ] Update docstrings, reference function_reflection.py for example
+  * [ ] Write code to clean up the construction of the hidden functions
+  * [ ] Add/Update documentation if required
 
   *Chosen Research-Goal/Hypothesis*
 

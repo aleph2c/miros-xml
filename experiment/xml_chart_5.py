@@ -25,7 +25,7 @@ from miros import return_status
 from miros import HsmWithQueues
 
 # To create a deconstruction of a given event:
-event_to_investigate = '_H2'
+event_to_investigate = '_SRE3'
 
 # 'module_namespace' will be used to add functions to the globals() namespace
 module_namespace = sys.modules[__name__]
@@ -4609,6 +4609,9 @@ if __name__ == '__main__':
       old_result= old_results,
       duration=0.2
     )
+
+    time.sleep(1)
+    exit(0)
 
     # p_p11 has an H1 hook
     assert(

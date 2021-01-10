@@ -105,6 +105,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#finding-and-generating-the-docs">Finding and Generating the Docs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-something-running">Getting Something Running</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pushing-past-the-latest-stage-of-the-experiment">Pushing Past the Latest Stage of the Experiment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#find-the-map">Find the Map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#investigating-a-wtf-event">Investigating a WTF event</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recipes.html">Recipes</a></li>
@@ -168,6 +170,8 @@
 <li><p><a class="reference internal" href="#finding-and-generating-the-docs" id="id3">Finding and Generating the Docs</a></p></li>
 <li><p><a class="reference internal" href="#getting-something-running" id="id4">Getting Something Running</a></p></li>
 <li><p><a class="reference internal" href="#pushing-past-the-latest-stage-of-the-experiment" id="id5">Pushing Past the Latest Stage of the Experiment</a></p></li>
+<li><p><a class="reference internal" href="#find-the-map" id="id6">Find the Map</a></p></li>
+<li><p><a class="reference internal" href="#investigating-a-wtf-event" id="id7">Investigating a WTF event</a></p></li>
 </ul>
 </div>
 <div class="section" id="baselining">
@@ -240,6 +244,364 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
 </div>
 <p>Go to the latest experiment, then open the <a class="reference internal" href="how_it_works.html#how-it-works-beastiary"><span class="std std-ref">beastiary</span></a>.</p>
 </div>
+<div class="section" id="find-the-map">
+<span id="quickstart-find-the-map"></span><h2>Find the Map<a class="headerlink" href="#find-the-map" title="Permalink to this headline">#</a></h2>
+<p>The diagrams can be found in <code class="docutils literal notranslate"><span class="pre">experiment</span></code>.  To work without a diagram is
+folly, if you don’t have one, create one.  Currently you are working on
+<code class="docutils literal notranslate"><span class="pre">xml_chart_5.pdf</span></code></p>
+</div>
+<div class="section" id="investigating-a-wtf-event">
+<span id="quickstart-investigating-a-wtf-event"></span><h2>Investigating a WTF event<a class="headerlink" href="#investigating-a-wtf-event" title="Permalink to this headline">#</a></h2>
+<p>To trace a WTF event across its orthogonal component boundaries, label it as
+<code class="docutils literal notranslate"><span class="pre">event_to_investigate</span></code> and the top of the file, run your test, then look to
+the cli output or log file.  For instance, I will investigate the <code class="docutils literal notranslate"><span class="pre">SRE3</span></code>
+event, starting from the <code class="docutils literal notranslate"><span class="pre">['middle']</span></code> state.</p>
+<a class="reference external image-reference" href="_static/xml_chart_5.pdf"><img alt="_images/xml_chart_5.svg" class="noscale-center" src="_images/xml_chart_5.svg" /></a>
+<p>From the diagram and given <code class="docutils literal notranslate"><span class="pre">SRE3</span> <span class="pre">-&gt;</span> <span class="pre">['middle']</span></code>, I would expect to see:</p>
+<ul class="simple">
+<li><p>middle exit</p></li>
+<li><p>middle entry</p></li>
+<li><p>p entry</p></li>
+<li><p>p init</p></li>
+<li><p>p_p11 entry</p></li>
+<li><p>p_p11 init</p></li>
+<li><p>p_p11_s11 entry</p></li>
+<li><p>p_p11_s11 init</p></li>
+<li><p>p_p11_s21 entry</p></li>
+<li><p>p_p11_s21 init</p></li>
+<li><p>p_p22 entry</p></li>
+<li><p>p_p22 init</p></li>
+<li><p>p_p_p22_s11 entry</p></li>
+<li><p>p_p_p22_s11 init</p></li>
+<li><p>p_p_p22_s21 entry</p></li>
+<li><p>p_p_p22_s21 init</p></li>
+</ul>
+<p>The log files are almost unusable considering things are out of order.  The
+trace looks like this:</p>
+<div class="highlight-bash notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 12
+ 13
+ 14
+ 15
+ 16
+ 17
+ 18
+ 19
+ 20
+ 21
+ 22
+ 23
+ 24
+ 25
+ 26
+ 27
+ 28
+ 29
+ 30
+ 31
+ 32
+ 33
+ 34
+ 35
+ 36
+ 37
+ 38
+ 39
+ 40
+ 41
+ 42
+ 43
+ 44
+ 45
+ 46
+ 47
+ 48
+ 49
+ 50
+ 51
+ 52
+ 53
+ 54
+ 55
+ 56
+ 57
+ 58
+ 59
+ 60
+ 61
+ 62
+ 63
+ 64
+ 65
+ 66
+ 67
+ 68
+ 69
+ 70
+ 71
+ 72
+ 73
+ 74
+ 75
+ 76
+ 77
+ 78
+ 79
+ 80
+ 81
+ 82
+ 83
+ 84
+ 85
+ 86
+ 87
+ 88
+ 89
+ 90
+ 91
+ 92
+ 93
+ 94
+ 95
+ 96
+ 97
+ 98
+ 99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="hll">  <span class="o">[</span><span class="m">07</span><span class="o">]</span> R: --- <span class="o">[[</span><span class="s1">&#39;p_p11_s11&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_s21&#39;</span><span class="o">]</span> &lt;- <span class="nv">SRH2</span> <span class="o">==</span> <span class="o">[</span><span class="s1">&#39;middle&#39;</span><span class="o">]</span>
+</span>  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: <span class="o">[</span><span class="s1">&#39;p_r2_under_hidden_region&#39;</span><span class="o">]</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> SRE3:outer
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: SRE3
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:outer <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">0</span><span class="o">]</span>::SRE3:outer -&gt;
+    <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:p_r2_region -&gt;
+      <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: &gt;&gt;&gt;&gt; outer <span class="m">3696</span> <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>&lt;&lt;
+  ---------------------------------------
+  p_r1:p_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_r2:p_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r1:p_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r2:p_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r1:p_p12_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r2:p_p12_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r1:p_p22_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r2:p_p22_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r1_region<span class="o">]</span> <span class="m">3</span>: <span class="o">[</span><span class="s1">&#39;p_r1_region&#39;</span>, <span class="s1">&#39;p_s21&#39;</span><span class="o">]</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> EXIT_SIGNAL:middle
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r1_region<span class="o">]</span> <span class="m">3</span>: INIT_SIGNAL
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:middle
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r1_region<span class="o">]</span> <span class="m">3</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r1_region<span class="o">]</span> <span class="m">3</span>: &gt;&gt;&gt;&gt; p_r1_region <span class="m">1992</span> <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>&lt;&lt;
+  ---------------------------------------
+  p_r1:p_r1_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_r2:p_s21, <span class="nv">ql</span><span class="o">=</span><span class="m">2</span>:
+  <span class="m">0</span>: force_region_init
+  <span class="m">1</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:p_r2_region -&gt;
+    <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  ---------------------------------------
+  p_p11_r1:p_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r2:p_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r1:p_p12_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r2:p_p12_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r1:p_p22_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r2:p_p22_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r2_region<span class="o">]</span> <span class="m">3</span>: <span class="o">[[</span><span class="s1">&#39;p_p11_s11&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="s1">&#39;p_r2_region&#39;</span><span class="o">]</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r2_region<span class="o">]</span> <span class="m">3</span>: INIT_SIGNAL
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r2_region<span class="o">]</span> <span class="m">3</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> POST_FIFO:BOUNCE_SAME_META_SIGNAL
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> &lt;- Queued:<span class="o">(</span><span class="m">1</span><span class="o">)</span> Deferred:<span class="o">(</span><span class="m">0</span><span class="o">)</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> BOUNCE_SAME_META_SIGNAL:p
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>p_r2_region<span class="o">]</span> <span class="m">3</span>: &gt;&gt;&gt;&gt; p_r2_region <span class="m">523</span> <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+  ---------------------------------------
+  p_r1:p_p11, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_r2:p_r2_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r1:p_p11_s11, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r2:p_p11_s21, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r1:p_p12_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r2:p_p12_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r1:p_p22_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r2:p_p22_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> EXIT_SIGNAL:p_p11_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: <span class="o">[[</span><span class="s1">&#39;p_p11_s11&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="o">[</span><span class="s1">&#39;p_p22_s11&#39;</span>, <span class="s1">&#39;p_p22_s21&#39;</span><span class="o">]]</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> EXIT_SIGNAL:p_p11_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:outer <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">0</span><span class="o">]</span>::SRE3:outer -&gt;
+    <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:p_r2_region -&gt;
+      <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> EXIT_SIGNAL:p_p11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">]</span>::BOUNCE_SAME_META_SIGNAL:p_r2_region -&gt;
+    <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">3</span><span class="o">]</span>::INIT_META_SIGNAL:p_p22 <span class="o">[</span><span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="o">]</span>::INIT_META_SIGNAL:p_r2_region -&gt;
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p11_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="m">1</span>: &gt;&gt;&gt;&gt; p <span class="m">3962</span> <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+  ---------------------------------------
+  p_r1:p_p11, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_r2:p_p22, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r1:p_p11_s11, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p11_r2:p_p11_s21, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r1:p_p12_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_r2:p_p12_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r1:p_p22_s11, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  p_p22_r2:p_p22_s21, <span class="nv">ql</span><span class="o">=</span><span class="m">0</span>: <span class="o">{}</span>
+  ---------------------------------------
+  <span class="o">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
+
+
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> EXIT_SIGNAL:p_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p22
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p22_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p22_s11
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> ENTRY_SIGNAL:p_p22_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p22_s21
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> INIT_SIGNAL:p_p22
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> S: <span class="o">[</span>x<span class="o">]</span> &lt;- Queued:<span class="o">(</span><span class="m">0</span><span class="o">)</span> Deferred:<span class="o">(</span><span class="m">0</span><span class="o">)</span>
+  <span class="o">[</span><span class="m">07</span><span class="o">]</span> R: --- <span class="o">[</span><span class="s1">&#39;middle&#39;</span><span class="o">]</span> &lt;- <span class="nv">SRE3</span> <span class="o">==</span> <span class="o">[[</span><span class="s1">&#39;p_p11_s11&#39;</span>, <span class="s1">&#39;p_p11_s21&#39;</span><span class="o">]</span>, <span class="o">[</span><span class="s1">&#39;p_p22_s11&#39;</span>, <span class="s1">&#39;p_p22_s21&#39;</span><span class="o">]]</span>
+</pre></div>
+</td></tr></table></div>
+</div>
 </div>
 
 
@@ -277,7 +639,7 @@ instance the <code class="docutils literal notranslate"><span class="pre">xml_ch
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jan 05, 2021 6:55 PM</span>
+          <span class="time">Jan 10, 2021 9:15 AM</span>
         </div>
         
         

@@ -105,4 +105,213 @@ To safely re-engage with your project create a git branch with the date name in 
 
 Go to the latest experiment, then open the :ref:`beastiary <how_it_works-beastiary>`.
 
+.. _quickstart-find-the-map:
+
+Find the Map
+^^^^^^^^^^^^
+The diagrams can be found in ``experiment``.  To work without a diagram is
+folly, if you don't have one, create one.  Currently you are working on
+``xml_chart_5.pdf``
+
+.. _quickstart-investigating-a-wtf-event:
+
+Investigating a WTF event
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To trace a WTF event across its orthogonal component boundaries, label it as
+``event_to_investigate`` and the top of the file, run your test, then look to
+the cli output or log file.  For instance, I will investigate the ``SRE3``
+event, starting from the ``['middle']`` state.
+
+.. image:: _static/xml_chart_5.svg
+    :target: _static/xml_chart_5.pdf
+    :class: noscale-center
+
+From the diagram and given ``SRE3 -> ['middle']``, I would expect to see:
+
+* middle exit
+* middle entry
+* p entry
+* p init
+* p_p11 entry
+* p_p11 init
+* p_p11_s11 entry
+* p_p11_s11 init
+* p_p11_s21 entry
+* p_p11_s21 init
+* p_p22 entry
+* p_p22 init
+* p_p_p22_s11 entry
+* p_p_p22_s11 init
+* p_p_p22_s21 entry
+* p_p_p22_s21 init
+
+The log files are almost unusable considering things are out of order.  The
+trace looks like this:
+
+.. code-block:: bash
+  :emphasize-lines: 1
+  :linenos:
+
+    [07] R: --- [['p_p11_s11', 'p_p11_s21'], 'p_s21'] <- SRH2 == ['middle']
+    [07] S: 1: ['p_r2_under_hidden_region']
+    [07] S: [x] SRE3:outer
+    [07] S: 1: SRE3
+    [07] S: 1: [n=1]::BOUNCE_SAME_META_SIGNAL:outer [n=0]::SRE3:outer ->
+      [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+        [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    [07] S: 1: >>>> outer 3696 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ---------------------------------------
+    p_r1:p_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_r2:p_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p11_r1:p_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p11_r2:p_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r1:p_p12_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r2:p_p12_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r1:p_p22_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r2:p_p22_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+    [07] S: [p_r1_region] 3: ['p_r1_region', 'p_s21']
+    [07] S: [x] EXIT_SIGNAL:middle
+    [07] S: [p_r1_region] 3: INIT_SIGNAL
+    [07] S: [x] ENTRY_SIGNAL:middle
+    [07] S: [p_r1_region] 3: [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    [07] S: [x] ENTRY_SIGNAL:p
+    [07] S: [x] ENTRY_SIGNAL:p_p11
+    [07] S: [x] ENTRY_SIGNAL:p_p11_s11
+    [07] S: [x] INIT_SIGNAL:p_p11_s11
+    [07] S: [x] ENTRY_SIGNAL:p_p11_s21
+    [07] S: [p_r1_region] 3: >>>> p_r1_region 1992 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ---------------------------------------
+    p_r1:p_r1_region, ql=0: {}
+    ---------------------------------------
+    p_r2:p_s21, ql=2:
+    0: force_region_init
+    1: [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+      [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    ---------------------------------------
+    p_p11_r1:p_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p11_r2:p_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r1:p_p12_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r2:p_p12_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r1:p_p22_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r2:p_p22_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+    [07] S: [x] INIT_SIGNAL:p_p11_s21
+    [07] S: [p_r2_region] 3: [['p_p11_s11', 'p_p11_s21'], 'p_r2_region']
+    [07] S: [x] INIT_SIGNAL:p_p11
+    [07] S: [p_r2_region] 3: INIT_SIGNAL
+    [07] S: [x] ENTRY_SIGNAL:p_s21
+    [07] S: [p_r2_region] 3: [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    [07] S: [x] INIT_SIGNAL:p_s21
+    [07] S: [x] INIT_SIGNAL:p
+    [07] S: [x] POST_FIFO:BOUNCE_SAME_META_SIGNAL
+    [07] S: [x] <- Queued:(1) Deferred:(0)
+    [07] S: [x] BOUNCE_SAME_META_SIGNAL:p
+    [07] S: [p_r2_region] 3: >>>> p_r2_region 523 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ---------------------------------------
+    p_r1:p_p11, ql=0: {}
+    ---------------------------------------
+    p_r2:p_r2_region, ql=0: {}
+    ---------------------------------------
+    p_p11_r1:p_p11_s11, ql=0: {}
+    ---------------------------------------
+    p_p11_r2:p_p11_s21, ql=0: {}
+    ---------------------------------------
+    p_p12_r1:p_p12_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r2:p_p12_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r1:p_p22_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r2:p_p22_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+    [07] S: [x] EXIT_SIGNAL:p_p11_s11
+    [07] S: 1: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]
+    [07] S: [x] EXIT_SIGNAL:p_p11_s21
+    [07] S: 1: [n=1]::BOUNCE_SAME_META_SIGNAL:outer [n=0]::SRE3:outer ->
+      [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+        [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    [07] S: [x] EXIT_SIGNAL:p_p11
+    [07] S: 1: [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+      [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+    [07] S: [x] ENTRY_SIGNAL:p_p11
+    [07] S: [x] ENTRY_SIGNAL:p_p11_s11
+    [07] S: [x] INIT_SIGNAL:p_p11_s11
+    [07] S: [x] ENTRY_SIGNAL:p_p11_s21
+    [07] S: [x] INIT_SIGNAL:p_p11_s21
+    [07] S: 1: >>>> p 3962 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ---------------------------------------
+    p_r1:p_p11, ql=0: {}
+    ---------------------------------------
+    p_r2:p_p22, ql=0: {}
+    ---------------------------------------
+    p_p11_r1:p_p11_s11, ql=0: {}
+    ---------------------------------------
+    p_p11_r2:p_p11_s21, ql=0: {}
+    ---------------------------------------
+    p_p12_r1:p_p12_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_r2:p_p12_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r1:p_p12_p11_r1_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p12_p11_r2:p_p12_p11_r2_under_hidden_region, ql=0: {}
+    ---------------------------------------
+    p_p22_r1:p_p22_s11, ql=0: {}
+    ---------------------------------------
+    p_p22_r2:p_p22_s21, ql=0: {}
+    ---------------------------------------
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+    [07] S: [x] INIT_SIGNAL:p_p11
+    [07] S: [x] EXIT_SIGNAL:p_s21
+    [07] S: [x] ENTRY_SIGNAL:p_p22
+    [07] S: [x] ENTRY_SIGNAL:p_p22_s11
+    [07] S: [x] INIT_SIGNAL:p_p22_s11
+    [07] S: [x] ENTRY_SIGNAL:p_p22_s21
+    [07] S: [x] INIT_SIGNAL:p_p22_s21
+    [07] S: [x] INIT_SIGNAL:p_p22
+    [07] S: [x] <- Queued:(0) Deferred:(0)
+    [07] R: --- ['middle'] <- SRE3 == [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]
 

@@ -228,8 +228,8 @@ using the Python <code class="docutils literal notranslate"><span class="pre">se
 </pre></div>
 </div>
 <p>Before we make something that writes functions, we will type one out by hand,
-have a full regression test pass, then identify the parts of the function we
-want to change:</p>
+pass a full regression test, then identify the parts of the function we want to
+change:</p>
 <div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -346,7 +346,8 @@ that require a name; <code class="docutils literal notranslate"><span class="pre
 call the function.  This function is used on line 16.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">region_state_name</span></code> was set to <code class="docutils literal notranslate"><span class="pre">p_r1_region</span></code>, our function would behave
 the same as the one we wrote out by hand.  Notice, that the template does not
-have an <code class="docutils literal notranslate"><span class="pre">orthogonal</span></code> wrapper, this will be added later.</p>
+have an <code class="docutils literal notranslate"><span class="pre">orthogonal</span></code> decorator, but our handwritten function did. This
+decorator will be added later.</p>
 <p>Now we want to create a new function based on some naming conventions:</p>
 <div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -500,7 +501,7 @@ the <code class="docutils literal notranslate"><span class="pre">template_under_
 name it on line 52.</p>
 <p>Once our function is named, we wrap its orthogonal_state decorator, line 58.  On lines 62
 to 66 we add this named function to the module’s namespace.  At this point we
-can call <code class="docutils literal notranslate"><span class="pre">p_r1_under_hidden_region</span></code> as it we wrote it by hand.</p>
+can call <code class="docutils literal notranslate"><span class="pre">p_r1_under_hidden_region</span></code> as if we wrote it by hand.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">p_r1_under_hidden_region</span></code> function has been programmatically created, so
 we delete the one we made by hand, the rerun our regression to ensure the system
 still works.</p>
@@ -549,7 +550,7 @@ to get access to the function.  This will destroy the function’s <code class="
         
         <div class="last-updated">
           <span class="prefix">Last updated:</span>
-          <span class="time">Jan 05, 2021 6:55 PM</span>
+          <span class="time">Jan 10, 2021 9:15 AM</span>
         </div>
         
         
