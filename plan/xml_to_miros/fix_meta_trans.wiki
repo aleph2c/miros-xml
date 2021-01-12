@@ -1,0 +1,97 @@
+[[subgoals.parallel|back]]
+*Fix Meta Trans*
+= Observer ([[local:C:/Vim8.2/.vim/ooda.pdf|diagram]]) = 
+== Evidence ([[evidence.fix_meta_trans|evidence]]) ==
+
+  *What defines Success?:* ([[subgoals.fix_meta_trans|subgoals]])
+    Have a cleaner meta_trans routine
+
+  *What is the problem?*
+    The meta_trans was developed using 6 or more designs and then mashed
+    together using the test pattern.  It is a gordian knot.
+
+  *Discoveries:* ([[notes.fix_meta_trans|notes]])
+
+    Properties of meta_trans:
+
+      def meta_trans(hsm, e, s, t):
+        fn = example.meta_hooked(
+          s=s,
+          e=e
+        )
+        if fn is not None:
+          status = fn(hsm, e)
+        elif(hsm.outmost.in_same_hsm(source=s, target=t)):
+          status = hsm.trans(t)
+        else:
+          _state, _e = hsm.outmost._meta_trans(
+            hsm,
+            t=t,
+            s=s,
+            sig=e.signal_name)
+          if _state:
+            status = hsm.trans(_state)
+            hsm.same._post_fifo(_e)
+            investigate(hsm, e, _e)
+          else:
+            status = return_status.HANDLED
+            investigate(hsm, e, _e)
+            hsm.same.post_fifo(_e)
+        return status
+
+  properties:
+    * type of thing calling, XmlChart, or Region
+    * least common ancestor
+    * s
+    * t
+    * exit_onion
+    * entry_onion
+  targets:
+    EXIT_META_SIGNAL
+    BOUNCE_SAME_META_SIGNAL
+    BOUNCE_ACROSS_META_SIGNAL
+    INIT_META_SIGNAL
+    OUTER_TRANS_REQUIRED
+
+  RA1
+  RA2?
+    
+
+= Orient =
+  *Symptoms:* [[symptoms.fix_meta_trans|symptoms]]
+
+== Questions ==
+
+  *Assumptions (at first invisible)*
+
+  *Questions for Fix Meta Trans*
+
+  == Custom Questions: (>=5) ==
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+    * [ ] 
+
+= Decide =
+  [[#Questions]]
+  *Research Needed For?:*
+    
+
+  [[#Questions]]
+  *Idea/Hypotheses for Fix Meta Trans: >=5*
+  * [ ] Identify the different types of properities that are extracted from
+        meta_trans
+  * [ ] 
+  * [ ] 
+  * [ ] 
+  * [ ] 
+
+  *Chosen Research-Goal/Hypothesis*
+    
+
+== Plan ([[plan.fix_meta_trans|plan]]) ==
+
+= Act =
+  
+

@@ -8,83 +8,115 @@
     transition into the p_s21 state, then an exit from the state, only then to
     climb into the correct final states.
 
-    Creation of a true regression test to confirm the intermediate states as the
-    system transitions from one set of states to another.  (without this,
-    process will be slow and risky)
-
   *What is the problem?*
     It appears that the init code of the p_r2_region is allowing it to
     transition into the p_s21 state.  However a secondary mechanism fixes this
     transition and allows the system to setting into its final correct state.
 
   *Discoveries:* ([[notes.SRE3bug|notes]])
-  
+
+    Looked back to commit 4901f and the bug was still there, the project has
+    advanced too far since this time.  The bug will be fixed as the code is now,
+    not to what it was before.
+
+    SRE3 is creating a BOUNCE_SAME_META_SIGNAL to an outside state 'outer'
+    SRF1 is creating a BOUNCE_SAME_META_SIGNAL to an outside state 's'
+
+    The BOUNCE_SAME_META_SIGNAL is caught within a region, an orthogonal state
+    and p.
+
+    In the old code we see SR type WTF events setup using the meta_init ->
+    META_INIT, there is a signal called the INIT_META_SIGNAL
+
+SRE3:
+  [58:13] R: --- [['p_p11_s11', 'p_p11_s21'], 'p_s21'] <- SRH2 == ['middle']
+  [58:13] S: [x] SRE3:outer
+  [58:13] S: [x] EXIT_SIGNAL:middle
+  [58:13] S: [x] ENTRY_SIGNAL:middle
+  [58:13] S: [x] ENTRY_SIGNAL:p
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11_s11
+  [58:13] S: [x] INIT_SIGNAL:p_p11_s11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p11_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p11
+  [58:13] S: [x] ENTRY_SIGNAL:p_s21
+  [58:13] S: [x] INIT_SIGNAL:p_s21
+  [58:13] S: [x] INIT_SIGNAL:p
+  [58:13] S: [x] POST_FIFO:BOUNCE_SAME_META_SIGNAL
+  [58:13] S: [x] <- Queued:(1) Deferred:(0)
+  [58:13] S: [x] BOUNCE_SAME_META_SIGNAL:p
+  [58:13] S: [x] EXIT_SIGNAL:p_p11_s11
+  [58:13] S: [x] EXIT_SIGNAL:p_p11_s21
+  [58:13] S: [x] EXIT_SIGNAL:p_p11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11_s11
+  [58:13] S: [x] INIT_SIGNAL:p_p11_s11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p11_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p11_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p11
+  [58:13] S: [x] EXIT_SIGNAL:p_s21
+  [58:13] S: [x] ENTRY_SIGNAL:p_p22
+  [58:13] S: [x] ENTRY_SIGNAL:p_p22_s11
+  [58:13] S: [x] INIT_SIGNAL:p_p22_s11
+  [58:13] S: [x] ENTRY_SIGNAL:p_p22_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p22_s21
+  [58:13] S: [x] INIT_SIGNAL:p_p22
+  [58:13] S: [x] <- Queued:(0) Deferred:(0)
+  [58:13] R: --- ['middle'] <- SRE3 == [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]  
+
 = Orient =
   *Symptoms:* [[symptoms.SRE3bug|symptoms]]
 
 == Questions ==
 
-  *Assumptions (at first invisible)*
-    To find your assumptions, look for two pieces of evidence that contradict
-    each other. (may have to wait a couple of loops)
-    * [ ] 
 
   *Questions for SRE3 Bug*
-  === Pre trouble-shooting questions ===
-    * [ ] Do you have enough information?
-    * [ ] Is your information organized?
-    * [ ] Can you draw a diagram of the components and their interactions?
-    * [ ] Do you need to write some code to make it easier to see?
-    * [ ] Can you think of anyway to speed up your feedback cycle?
-
-    * [ ] Is it a repair or a pioneering problem?  Did it work once before, or did it
-          work somewhere else?  Yes: Repair, No: Pioneering.
-
-  === Repair (Complexity increases exponentially) ===
-    * [ ] Can you test the individual components to reduce complexity?
-    * [ ] Can you exchange components?
-    * [ ] Can you reduce the number of interactions?
-    * [ ] Are you continuing event though you know that something you have previously
-          tested isn't working?
-    * [ ] Has a thing you have previously tested fooled you into thinking it works,
-          when it doesn't work? (Never assume something is right before you have
-          checked it twice)
-
-  == Pioneering ==
-    * [ ] Has someone else solved this before (search)? Can you turn this into a
-          repair?
-    * [ ] Do you have something to baseline from?
-    * [ ] Looking under the problem, are you focused on the right goals?  Are you
-          stuck on solving a hard problem, when there is an easy problem?
-    * [ ] Do you understand how your existing system works?  If not, can you draw
-          diagrams and describe how it works before you continue?
-    * [ ] What don't you know that you need to know?
-
-  == Custom Questions: (>=5) ==
-    * [ ] Are there other WTF events which also have broken intermediate states?
-    * [ ] Did you break this with a recent code change?
-    * [ ] 
-    * [ ] 
-    * [ ] 
+  * [ ] What is the purpose of the BOUNCE_SAME_META_SIGNAL?
+  * [ ] Can you speed up your feedback?
+  * [ ] Can you shink the size of your test?
+  * [ ] Could the problem be fixed by adding BOUNCE_SAME_META_SIGNAL to s, and
+        outer and middle and s1?
+  * [ ] What does the SRE2 look like?
 
 = Decide =
   [[#Questions]]
   *Research Needed For?:*
-    
 
   [[#Questions]]
   *Idea/Hypotheses for SRE3 Bug: >=5*
+  * [ ] Check to see if other WTF events have broken intermediate states
+  * [X] Hypothesis A (a call to rqs before an default transition doesn't show
+        anything in the queue, hypothesis disproven)
+  * [ ] Hypothesis B
   * [ ] 
-  * [ ] 
-  * [ ] 
-  * [ ] 
-  * [ ] 
+
+  ----
+
+  Hypothesis C:
+
+  It looks like the ENTRY_SIGNAL of p looks for INIT_META_SIGNAL, but not
+  BOUNCE_SAME_META_SIGNAL.
+
+  The ``self.inner.post_lifo(Event(signal=signals.enter_region))`` is causing
+  the issue.  If a INIT_META_SIGNAL had been found, the inner states would have
+  recieved the meta event from the:
+
+    if _state:
+       self.inner._post_file(_e)
+
+  The meta trans should stip this shit off
 
   *Chosen Research-Goal/Hypothesis*
-    
+
 
 == Plan ([[plan.SRE3bug|plan]]) ==
-
+  Plan to disprove Hypothesis A:
+    - isolate the test, to SRE3
+    - drop a break point in the INIT of the p_r2_region code, watch what it does
+    
 = Act =
   
+   The investigate of p_r2_region will be clocked since the springer of the
+   force_region_init is None
 

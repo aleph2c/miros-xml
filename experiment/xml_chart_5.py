@@ -27,11 +27,100 @@ from miros import HsmWithQueues
 # To create a deconstruction of a given event:
 event_to_investigate = '_SRE3'
 
+reduce_test_size = True
+
 # 'module_namespace' will be used to add functions to the globals() namespace
 module_namespace = sys.modules[__name__]
 
+# used for testing
+state_memory = []
+
+def csm():
+  '''clear state memory (TESTING FUNCTION)'''
+  global state_memory
+  state_memory = []
+
+def rsm(state, event):
+  '''record state memory (TESTING FUNCTION)'''
+  state_memory.append((state.__name__, event.signal_name))
+
+def diff_state_memory(expected, observed):
+  '''diff expected and observed state memory
+
+    **Note**:
+
+       This diff the contents of the expected state/signal_name memory
+       against the observed state/signal_name memory (TESTING FUNCTION)
+
+    **Args**:
+       | ``expected`` (list): a list of state to signal_name tuples
+       | ``observed``   (list): a list of state to signal_name tuples
+
+
+    **Returns**:
+       (tuple): (result (True if matched, False otherwise),
+                 diff,
+                 observed,
+                 expected)
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+        state_memory =\
+          [('p_p11_s21', 'EXIT_SIGNAL'),
+           ('p_p11_s22', 'ENTRY_SIGNAL'),
+           ('p_p11_s22', 'INIT_SIGNAL')]
+        expected =\
+          [('p_p11_s21', 'EXIT_SIGNAL'),
+           ('p_p11_s22', 'INIT_SIGNAL')]
+
+        result, diff, observed, expected = diff_state_memory(
+          expected_rtc_state_signal_pairs)
+
+        assert(result==False)
+        assert(diff==[('p_p11_s22', 'ENTRY_SIGNAL')])
+        assert(observed==\
+          [('p_p11_s21', 'EXIT_SIGNAL'),
+           ('p_p11_s22', 'ENTRY_SIGNAL'),
+           ('p_p11_s22', 'INIT_SIGNAL')])
+        assert(expected_rtc_state_signal_pairs==\
+          [('p_p11_s21', 'EXIT_SIGNAL'),
+           ('p_p11_s22', 'INIT_SIGNAL')])
+
+  '''
+  global state_memory
+  expected_rtc_set = set(expected)
+  observed_rtc = observed
+  #diff = [x for x in observed_rtc if x not in expected_rtc_set]
+
+  diff = []
+
+  largest = observed[:] if len(observed) >= len(expected) else expected[:]
+  for i in range(len(largest)):
+    if i < len(observed) and i < len(expected):
+      observed_state, observed_signal = observed[i]
+      expected_state, expected_signal = expected[i]
+      if(observed_state != expected_state or
+         observed_signal != observed_signal):
+        diff.append((observed_state, observed_signal))
+
+    if i >= len(observed):
+      # missing items from observed
+      expected_state, expected_signal = expected[i]
+      diff.append(("too_little_in_observed----" + expected_state, expected_signal))
+    elif i >= len(expected):
+      diff.append(("too_much_in_observed++++" + observed_state, observed_signal))
+
+  # return (True/False, observed, expected)
+  # True if expected_rtc and observed_rtc lists of tuples match
+  return (True, diff, observed_rtc, expected) if \
+      (len(diff) == 0 and len(expected) == len(observed)) else \
+      (False, diff, observed_rtc, expected)
+
 # credit: https://stackoverflow.com/a/9580006 (Shane Holloway)
 def find_decorators(target):
+  '''DESIGN HELPER FUNCTION, NOT USED IN PRODUCTION CODE'''
   import ast, inspect
   res = {}
   def visit_FunctionDef(node):
@@ -43,6 +132,7 @@ def find_decorators(target):
   return res
 
 def pp(item):
+  '''DESIGN HELPER FUNCTION, NOT USED IN PRODUCTION CODE'''
   xprint.pprint(item)
 
 META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
@@ -74,8 +164,6 @@ def flatten(l, a=None):
   return a
 
 def meta_trans(hsm, e, s, t):
-  #if e.signal_name == "H2":
-  #  import pdb; pdb.set_trace()
   fn = example.meta_hooked(
     s=s,
     e=e
@@ -146,11 +234,14 @@ def proto_investigate(r, e, _e=None, springer=None):
   '''
   if springer is not None:
     springer_in_event = None
-    if (hasattr(e, 'payload') and hasattr(e.payload, 'springer')):
-      springer_in_event = e.payload.springer
     if (hasattr(_e, 'payload') and hasattr(_e.payload, 'springer')):
       springer_in_event = _e.payload.springer
-    if springer_in_event == springer:
+
+    springer_in_event = "" if springer_in_event is None else \
+      str(springer_in_event)
+
+    matched = re.match(springer, springer_in_event)
+    if matched:
       if hasattr(e, 'payload') and hasattr(e.payload, 'n'):
         n = e.payload.n
       else:
@@ -158,11 +249,14 @@ def proto_investigate(r, e, _e=None, springer=None):
           n = _e.payload.n
         else:
           n = 0
+      r.scribble("{}: {}".format(n, r.outmost.rqs()))
+      r.scribble('--'*10)
       r.scribble("{}: {}".format(n, r.outmost.active_states()))
+      r.scribble('--'*10)
       r.scribble("{}: {}".format(n, ps(e)))
       if _e is not None:
         r.scribble("{}: {}".format(n, ps(_e)))
-      r.scribble("{}: {}".format(n, r.outmost.rqs()))
+      r.scribble('--'*10)
 
 investigate = partial(proto_investigate, springer=event_to_investigate)
 
@@ -1215,7 +1309,7 @@ class XmlChart(InstrumentedActiveObject):
       t=t,
     )
 
-  @lru_cache(maxsize=64)
+  @lru_cache(maxsize=128)
   def _meta_trans(self, r, s, t, sig):
     '''Create an event onion which can be passed over zero or one orthogonal
     components.
@@ -1268,6 +1362,14 @@ class XmlChart(InstrumentedActiveObject):
     target = t
     lca = self.lca(source, target)
 
+    profile = ""
+    profile += "self: {}\n".format(self)
+    profile += "r: {}\n".format(r)
+    profile += "s: {}\n".format(s)
+    profile += "t: {}\n".format(t)
+    profile += "sig: {}\n".format(sig)
+    profile += "lca: {}\n".format(lca)
+
     outer_injector = None
     if lca.__name__ == 'top':
       outer_injector = self.build_onion(target, sig=None)[-1]
@@ -1278,6 +1380,8 @@ class XmlChart(InstrumentedActiveObject):
           t=source,
           s=lca,
           sig=sig)
+
+    profile += "exit_onion1: {}\n".format(exit_onion1)
 
     if len(exit_onion1) >= 1:
       exit_onion = exit_onion1[1:]
@@ -1307,6 +1411,9 @@ class XmlChart(InstrumentedActiveObject):
     # last layer of the outer part of the INIT_META_SIGNAL need to reference an
     # even more outer part of the onion, the meta exit details.
     event = None
+
+    profile += "entry_onion: {}\n".format(entry_onion)
+    profile += "exit_onion: {}\n".format(exit_onion)
 
     if entry_onion != [] and exit_onion != [] and entry_onion[-1] == exit_onion[0]:
       bounce_type = signals.BOUNCE_SAME_META_SIGNAL
@@ -1445,7 +1552,11 @@ class XmlChart(InstrumentedActiveObject):
         previous_state = bounce_onion[index]
         previous_state = bounce_onion[0]
         previous_signal = sig
-        signal_name = signals.BOUNCE_SAME_META_SIGNAL
+        # here is the issue for SRE2
+        if outer_injector is not None:
+          signal_name = signals.INIT_META_SIGNAL
+        else:
+          signal_name = signals.BOUNCE_SAME_META_SIGNAL
 
         event = Event(
           signal=signal_name,
@@ -1468,6 +1579,8 @@ class XmlChart(InstrumentedActiveObject):
 
     r.inner = inner
     r.current_function_name = current_function_name
+    profile += "ps: \n{}\n".format(ps(event))
+    self.logger.critical(profile)
     return (_state, event)
 
   @lru_cache(maxsize=32)
@@ -1744,15 +1857,17 @@ def p_p11(r, e):
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11, e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11, e)
+    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -1852,6 +1967,7 @@ def p_p11(r, e):
     status = r.trans(p_r1_under_hidden_region)
   elif e.signal == signals.EXIT_SIGNAL:
     r.inner.post_lifo(Event(signal=signals.exit_region))
+    rsm(p_p11, e)
     r.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -1992,9 +2108,11 @@ def p_p11_s11(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s11, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s11, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
@@ -2005,6 +2123,7 @@ def p_p11_s11(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s11, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2022,8 +2141,10 @@ def p_p11_s12(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s12, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    rsm(p_p11_s12, e)
     r.p_spy(e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "SRH3"):
@@ -2041,6 +2162,7 @@ def p_p11_s12(r, e):
       t=p_p11_r1_final,
     )
   elif(e.signal == signals.EXIT_SIGNAL):
+    rsm(p_p11_s12, e)
     r.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -2061,9 +2183,11 @@ def p_p11_r1_final(r, e):
     r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
+    rsm(p_p11_r1_final, e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_r1_final, e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -2197,9 +2321,11 @@ def p_p11_s21(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s21, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     status = r.meta_trans(
@@ -2209,6 +2335,7 @@ def p_p11_s21(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s21, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2226,9 +2353,11 @@ def p_p11_s22(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s22, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s22, e)
     status = return_status.HANDLED
   elif(e.signal == signals.PG2):
     r.p_spy(e)
@@ -2249,6 +2378,7 @@ def p_p11_s22(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p11_s22, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2268,10 +2398,12 @@ def p_p11_r2_final(r, e):
     r.p_spy(e)
     r.final = True
     r.post_p_final_to_outmost_if_ready()
+    rsm(p_p11_r2_final, e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     r.final = False
+    rsm(p_p11_r2_final, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2290,10 +2422,12 @@ def p_r1_final(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
+    rsm(p_r1_final, e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_r1_final, e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -2317,15 +2451,17 @@ def p_p12(r, e):
   # Enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12, e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12, e)
+    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # Any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -2380,6 +2516,13 @@ def p_p12(r, e):
       s=p_p12,
       t=p_p12_p11_s12,
     )
+  elif(r.token_match(e.signal_name, "RA2")):
+    r.p_spy(e)
+    status = r.meta_trans(
+      e=e,
+      s=p_p12,
+      t=p_p12,
+    )
   elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
     r._p_spy(e)
     _state, _e = e.payload.state, e.payload.event
@@ -2423,6 +2566,7 @@ def p_p12(r, e):
     status = r.trans(p_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
+    rsm(p_p12, e)
     r.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -2567,11 +2711,17 @@ def p_p12_p11(r, e):
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11, e)
+
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    r.p_spy(e)
+    rsm(p_p12_p11, e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "RG1") or
@@ -2646,6 +2796,7 @@ def p_p12_p11(r, e):
     status = r.trans(p_p12_r1_under_hidden_region)
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
+    rsm(p_p12_p11, e)
     r.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -2780,9 +2931,11 @@ def p_p12_p11_s11(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s11, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s11, e)
     status = return_status.HANDLED
   elif(e.signal == signals.e1):
     r.p_spy(e)
@@ -2793,6 +2946,7 @@ def p_p12_p11_s11(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s11, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2810,9 +2964,11 @@ def p_p12_p11_s12(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s12, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s12, e)
     status = return_status.HANDLED
   elif r.token_match(e.signal_name, "RH1"):
     r.p_spy(e)
@@ -2823,6 +2979,7 @@ def p_p12_p11_s12(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s12, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2959,9 +3116,11 @@ def p_p12_p11_s21(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.RG1):
     r.p_spy(e)
@@ -2979,6 +3138,7 @@ def p_p12_p11_s21(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_p11_s21, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2997,9 +3157,11 @@ def p_p12_s12(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s12, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s12, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
@@ -3010,6 +3172,7 @@ def p_p12_s12(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s12, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3029,10 +3192,13 @@ def p_p12_r1_final(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
+    rsm(p_p12_r1_final, e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_r1_final, e)
+    r.post_p_final_to_outmost_if_ready()
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3178,9 +3344,11 @@ def p_p12_s21(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s21, e)
     status = return_status.HANDLED
   elif(
     r.token_match(e.signal_name, "H1") or
@@ -3197,6 +3365,7 @@ def p_p12_s21(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s21, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3215,9 +3384,11 @@ def p_p12_s22(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s22, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s22, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
@@ -3235,6 +3406,7 @@ def p_p12_s22(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_s22, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3254,10 +3426,13 @@ def p_p12_r2_final(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
+    rsm(p_p12_r2_final, e)
+    r.post_p_final_to_outmost_if_ready()
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p12_r2_final, e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3397,9 +3572,11 @@ def p_s21(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_s21, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "RC1")):
     r.p_spy(e)
@@ -3439,6 +3616,7 @@ def p_s21(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_s21, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3457,15 +3635,17 @@ def p_p22(r, e):
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22, e)
     # search for INIT_META_SIGNAL
     (_e, _state) = r.meta_peel(e)
     investigate(r, e, _e)
     if _state:
       r.inner._post_fifo(_e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22, e)
+    r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(r.token_match(e.signal_name, "e1") or
@@ -3550,6 +3730,7 @@ def p_p22(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.inner.post_lifo(Event(signal=signals.exit_region))
+    rsm(p_p22, e)
     r.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -3685,12 +3866,14 @@ def p_p22_s11(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s11, e)
+    status = return_status.HANDLED
+  elif(e.signal == signals.INIT_SIGNAL):
+    rsm(p_p22_s11, e)
+    r.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.H2):
     r.scribble('p_p22_s11 hook')
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r.p_spy(e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
@@ -3701,6 +3884,7 @@ def p_p22_s11(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s11, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3718,9 +3902,12 @@ def p_p22_s12(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s12, e)
+    status = return_status.HANDLED
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s12, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
@@ -3731,6 +3918,7 @@ def p_p22_s12(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s12, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3750,10 +3938,12 @@ def p_p22_r1_final(r, e):
     r.p_spy(e)
     status = return_status.HANDLED
     r.final = True
+    rsm(p_p22_r1_final, e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_r1_final, e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3895,9 +4085,11 @@ def p_p22_s21(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s21, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s21, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e1")):
     r.p_spy(e)
@@ -3915,6 +4107,7 @@ def p_p22_s21(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s21, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3932,9 +4125,11 @@ def p_p22_s22(r, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s22, e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s22, e)
     status = return_status.HANDLED
   elif(r.token_match(e.signal_name, "e2")):
     r.p_spy(e)
@@ -3945,6 +4140,7 @@ def p_p22_s22(r, e):
     )
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_s22, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3963,10 +4159,12 @@ def p_p22_r2_final(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
+    rsm(p_p22_r2_final, e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
+    rsm(p_p22_r2_final, e)
     r.final = False
     status = return_status.HANDLED
   else:
@@ -3986,11 +4184,13 @@ def p_r2_final(r, e):
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
+    rsm(p_r2_final, e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     r.final = False
+    rsm(p_r2_final, e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -4007,10 +4207,12 @@ def outer(self, e):
 
   if(e.signal == signals.ENTRY_SIGNAL):
     self.p_spy(e)
+    rsm(outer, e)
     #
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     self.p_spy(e)
+    rsm(outer, e)
     status = return_status.HANDLED
   elif(self.token_match(e.signal_name, "SH1")):
     self.p_spy(e)
@@ -4018,6 +4220,13 @@ def outer(self, e):
       e=e,
       s=outer,
       t=p,
+    )
+  elif(self.token_match(e.signal_name, "SH2")):
+    self.p_spy(e)
+    status = self.meta_trans(
+      e=e,
+      s=outer,
+      t=middle,
     )
   elif(self.token_match(e.signal_name, "SRE3")):
     self.p_spy(e)
@@ -4035,6 +4244,7 @@ def outer(self, e):
       status = return_status.UNHANDLED
 
   elif(e.signal == signals.EXIT_SIGNAL):
+    rsm(outer, e)
     self.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -4051,18 +4261,13 @@ def middle(self, e):
     return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
+    rsm(middle, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
     self.p_spy(e)
+    rsm(middle, e)
     status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "SH1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=middle,
-      t=p,
-    )
   elif(self.token_match(e.signal_name, "SB1")):
     self.p_spy(e)
     status = self.meta_trans(
@@ -4078,6 +4283,7 @@ def middle(self, e):
       t=p_p11,
     )
   elif(e.signal == signals.EXIT_SIGNAL):
+    rsm(middle, e)
     self.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -4094,12 +4300,15 @@ def s(self, e):
     return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
+    rsm(s, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    rsm(s, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
+    rsm(s, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.SD2):
@@ -4130,12 +4339,15 @@ def s_s1(self, e):
     return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
+    rsm(s_s1, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    rsm(s_s1, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
+    rsm(s_s1, e)
     self.p_spy(e)
     status = return_status.HANDLED
   else:
@@ -4153,14 +4365,16 @@ def p(self, e):
 
   # enter all regions
   if(e.signal == signals.ENTRY_SIGNAL):
+    rsm(p, e)
     self.p_spy(e)
     (_e, _state) = self.meta_peel(e)  # search for INIT_META_SIGNAL
     if _state:
       self.inner._post_fifo(_e)
-    self.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   elif(e.signal == signals.INIT_SIGNAL):
+    rsm(p, e)
     self.p_spy(e)
+    self.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
   elif(type(self.regions) == dict and (
@@ -4178,6 +4392,7 @@ def p(self, e):
       self.token_match(e.signal_name, "SRH3") or
       self.token_match(e.signal_name, "RE1") or
       self.token_match(e.signal_name, "RA1") or
+      self.token_match(e.signal_name, "RA2") or
       self.token_match(e.signal_name, "PC1") or
       self.token_match(e.signal_name, "PF1") or
       self.token_match(e.signal_name, "RG1") or
@@ -4292,11 +4507,13 @@ def p(self, e):
     self.p_spy(e)
     _state, _e = e.payload.state, e.payload.event
     self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.inner.post_fifo(_e)
+    self.inner._post_fifo(_e)
     investigate(self, e, _e)
+    self.inner._complete_circuit()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     self.inner.post_lifo(Event(signal=signals.exit_region))
+    rsm(p, e)
     self.p_spy(e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -4333,44 +4550,117 @@ if __name__ == '__main__':
   example.report("starting regression")
 
   if regression:
-    def build_test(sig, expected_result, old_result, duration=0.2):
-      '''test function, so it can be slow'''
+    def build_test(sig, expected_end_states, old_result, *, wait_sec=0.2, expected_rtc_state_signal_pairs=None):
+      '''build a test, wait, then run the test
+
+        **Notes**:
+           The test is in two parts, the end-states are checked, then the
+           intermediate transitions are checked.  If the end-states test fail
+           the user will be informed of the 
+
+           * line number of which the test failed
+           * the signal_name as it is applied to the old_result
+           * the Expected result
+           * the Observed result
+           * a Diff of the expected and the observed
+
+
+        **Args**:
+           | ``sig`` (string): signal_name of the event being tested
+           | ``expected_end_states`` (recursive list): expected end-states of test
+           | ``old_result`` (recursive list): the starting-states before the
+           |                                  test is run
+           | ``wait_sec=0.2`` (float): wait wait_sec between setting up the test and
+           |                           running it
+           | ``expected_rtc_state_signal_pairs=None`` (list of tuples): the expected
+           |                           state and signal_name pairs that should have
+           |                           occured during the test
+
+
+        **Returns**:
+           | (list):  the end states of the test as a recursive list (this can be used
+           |          as the old_result for the next test)
+
+        **Example(s)**:
+
+        .. code-block:: python
+
+          old_results = [['p_p11_s11', 'p_p11_s21'], 'p_s21']
+          old_results = build_test(
+            sig='SD1',
+            expected_end_states=['middle'],
+            old_result=old_results,
+            wait_sec=0.2,
+            expected_rtc_state_signal_pairs=\
+              [('p_p11_s11', 'EXIT_SIGNAL'),
+                ('p_p11_s21', 'EXIT_SIGNAL'),
+                ('p_p11', 'EXIT_SIGNAL'),
+                ('p_s21', 'EXIT_SIGNAL'),
+                ('p', 'EXIT_SIGNAL'),
+                ('middle', 'INIT_SIGNAL')]
+          )
+
+      '''
       example.post_fifo(Event(signal=sig))
-      time.sleep(duration)
+      time.sleep(wait_sec)
       active_states = example.active_states()[:]
       string2 = "{} <- {} == {}".format(str(old_result), sig, str(active_states))
       example.report(string2)
 
-      if active_states != expected_result:
+      if active_states != expected_end_states:
         previous_frame = inspect.currentframe().f_back
         fdata = FrameData(*inspect.getframeinfo(previous_frame))
         function_name = '__main__'
         line_number   = fdata.line_number
-        example.logger.critical("Assert error from {}:{}".format(function_name, line_number))
-        example.logger.critical("From: {}->{}".format(sig, old_result))
-        example.logger.critical("Expecting: {}".format(expected_result))
-        example.logger.critical("Observed:  {}".format(active_states))
+        example.logger.critical("="*80)
+        example.logger.critical("{}:{}".format(function_name, line_number))
+        example.logger.critical("END STATE PROBLEM: {}->{}".format(sig, old_result))
+        example.logger.critical("EXPECTED: {}".format(expected_end_states))
+        example.logger.critical("OBSERVED:  {}".format(active_states))
         example.logger.critical(example.active_states())
-        time.sleep(60 * 3)
+        example.logger.critical("="*80)
+        time.sleep(60 * 8)
         #time.sleep(5)
         exit(1)
-      #assert active_states == expected_result
+
+      if expected_rtc_state_signal_pairs:
+        matched, diff, observed, expected =\
+          diff_state_memory(
+            expected=expected_rtc_state_signal_pairs,
+            observed=state_memory[:])
+        csm()
+        try:
+          assert(matched)
+        except:
+          print("="*80)
+          previous_frame = inspect.currentframe().f_back
+          fdata = FrameData(*inspect.getframeinfo(previous_frame))
+          function_name = '__main__'
+          line_number   = fdata.line_number
+          example.logger.critical("="*80)
+          example.logger.critical("{}:{}".format(function_name, line_number))
+          example.logger.critical("ORDERING PROBLEM: {} <- {}".format(old_results, sig))
+          example.logger.critical("DIFF:")
+          example.logger.critical(diff)
+          example.logger.critical("EXPECTED:")
+          pp(expected)
+          #example.logger.critical(expected)
+          example.logger.critical("OBSERVED:")
+          pp(observed)
+          #example.logger.critical(observed)
+          example.logger.critical("="*80)
+          exit(0)
+
+      #assert active_states == expected_end_states
       return active_states
 
-    def build_reflect(sig, expected_result, old_result, duration=0.2):
+    def build_reflect(sig, expected_end_states, old_result, wait_sec=0.2):
       '''test function, so it can be slow'''
       example.post_fifo(Event(signal=sig))
-      #if sig == 'G1':
-      #  active_states = example.active_states()[:]
-      #  string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
-      #  print(string1)
-      time.sleep(duration)
+      time.sleep(wait_sec)
       active_states = example.active_states()[:]
-      #string1 = "{:>39}{:>5} <-> {:<80}".format(str(old_result), sig, str(active_states))
       string2 = "\n{} <- {} == {}\n".format(str(old_result), sig, str(active_states))
-      #print(string1)
       example.report(string2)
-      #assert active_states == expected_result
       return active_states
 
     assert(
@@ -4447,16 +4737,31 @@ if __name__ == '__main__':
     active_states = example.active_states()
     old_results = example.active_states()[:]
 
-    print(example.regions['p']._regions[0].final_signal_name)
-    print(example.regions['p_p11'].final_signal_name)
+    # print(example.regions['p']._regions[0].final_signal_name)
+    # print(example.regions['p_p11'].final_signal_name)
 
     #example.clear_log()
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result= old_results,
-      duration=0.2
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('outer', 'ENTRY_SIGNAL'),
+         ('outer', 'INIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
+
     assert(
       example.meta_hooked(
         s=p,
@@ -4466,11 +4771,19 @@ if __name__ == '__main__':
 
     # SD1
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21']
     old_results = build_test(
       sig='SD1',
-      expected_result=['middle'],
-      old_result= old_results,
-      duration=0.2
+      expected_end_states=['middle'],
+      old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+          ('p_p11_s21', 'EXIT_SIGNAL'),
+          ('p_p11', 'EXIT_SIGNAL'),
+          ('p_s21', 'EXIT_SIGNAL'),
+          ('p', 'EXIT_SIGNAL'),
+          ('middle', 'INIT_SIGNAL')]
     )
 
     # confirm we cannot find any hooks
@@ -4489,11 +4802,26 @@ if __name__ == '__main__':
 
     # SH1
     #example.clear_log()
+    # starting: ['middle'],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [
+         ('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     assert(
@@ -4510,11 +4838,20 @@ if __name__ == '__main__':
       ) is None
     )
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SC1',
-      expected_result=['s'],
+      expected_end_states=['s'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('s', 'ENTRY_SIGNAL'),
+         ('s', 'INIT_SIGNAL')]
     )
     assert(
       example.meta_hooked(
@@ -4530,89 +4867,202 @@ if __name__ == '__main__':
     )
 
     #example.clear_log()
+    # starting: ['s'],
     old_results = build_test(
       sig='SD2',
-      expected_result=['middle'],
+      expected_end_states=['middle'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s', 'EXIT_SIGNAL'), ('middle', 'INIT_SIGNAL')]
     )
 
-
     #example.clear_log()
+    # starting: ['middle'],
     old_results = build_test(
       sig='SB1',
-      expected_result=['s'],
+      expected_end_states=['s'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s', 'ENTRY_SIGNAL'), ('s', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['s'],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s', 'EXIT_SIGNAL'),
+         ('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SRE2',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s12', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),  # unusable by client
+         ('p_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p11_s12', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s12', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SD1',
-      expected_result=['middle'],
+      expected_end_states=['middle'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('middle', 'INIT_SIGNAL')]
     )
 
-    #example.clear_log()
+    # example.clear_log()
+    # starting: ['middle']
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21']
     old_results = build_test(
       sig='SRE1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21']
     old_results = build_test(
       sig='SRH2',
-      expected_result=['middle'],
+      expected_end_states=['middle'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('middle', 'INIT_SIGNAL')]
     )
 
-    #example.clear_log()
+
+    # example.clear_log()
+    # starting: ['middle']
     old_results = build_test(
       sig='SRE3',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
-      old_result= old_results,
-      duration=0.2
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
-
-    time.sleep(1)
-    exit(0)
-
     # p_p11 has an H1 hook
     assert(
       example.meta_hooked(
@@ -4630,258 +5080,697 @@ if __name__ == '__main__':
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]
     old_results = build_test(
       sig='e4',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p11_s12', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s12', 'ENTRY_SIGNAL'),
+         ('p_p22_s12', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']]
     old_results = build_test(
       sig='SRH3',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p22_s12', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SRD2',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SRH1',
-      expected_result=['middle'],
+      expected_end_states=['middle'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+          ('p_p11_s21', 'EXIT_SIGNAL'),
+          ('p_p11', 'EXIT_SIGNAL'),
+          ('p_s21', 'EXIT_SIGNAL'),
+          ('p', 'EXIT_SIGNAL'),
+          ('middle', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['middle'],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21']
     old_results = build_test(
       sig='SRB1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SRB1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='SRD1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='SB1',
-      expected_result=['s'],
+      expected_end_states=['s'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('s', 'ENTRY_SIGNAL'),
+         ('s', 'INIT_SIGNAL')]
     )
 
-    example.clear_log()
+    # example.clear_log()
+    # starting: ['s'],
     old_results = build_test(
       sig='SRF1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='SRG1',
-      expected_result=['s_s1'],
+      expected_end_states=['s_s1'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('s', 'ENTRY_SIGNAL'),
+         ('s_s1', 'ENTRY_SIGNAL'),
+         ('s_s1', 'INIT_SIGNAL')]
     )
 
+    # starting: ['s_s1'],
     old_results = build_test(
       sig='SRF1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s_s1', 'EXIT_SIGNAL'),
+         ('s', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='e4',
-      expected_result=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
+      expected_end_states=[['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p11_s12', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s12', 'ENTRY_SIGNAL'),
+         ('p_p22_s12', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s12', 'p_p11_s21'], ['p_p22_s12', 'p_p22_s21']],
     old_results = build_test(
       sig='e1',
-      expected_result=[['p_p11_r1_final', 'p_p11_s22'], ['p_p22_r1_final', 'p_p22_s22']],
+      expected_end_states=[['p_p11_r1_final', 'p_p11_s22'], ['p_p22_r1_final', 'p_p22_s22']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p11_r1_final', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'ENTRY_SIGNAL'),
+         ('p_p11_s22', 'INIT_SIGNAL'),
+         ('p_p22_s12', 'EXIT_SIGNAL'),
+         ('p_p22_r1_final', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22_s22', 'ENTRY_SIGNAL'),
+         ('p_p22_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_r1_final', 'p_p11_s22'], ['p_p22_r1_final', 'p_p22_s22']],
     old_results = build_test(
       sig='e2',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_final'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_final'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s22', 'EXIT_SIGNAL'),
+         ('p_p11_r2_final', 'ENTRY_SIGNAL'),
+         ('p_p22_s22', 'EXIT_SIGNAL'),
+         ('p_p22_r2_final', 'ENTRY_SIGNAL'),
+         ('p_p11_r1_final', 'EXIT_SIGNAL'),
+         ('p_p11_r2_final', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_p22_r1_final', 'EXIT_SIGNAL'),
+         ('p_p22_r2_final', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p_r2_final', 'ENTRY_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_final'],
     old_results = build_test(
       sig='e5',
-      expected_result=['s_s1'],
+      expected_end_states=['s_s1'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_r1_final', 'ENTRY_SIGNAL'),
+         ('p_r1_final', 'EXIT_SIGNAL'),
+         ('p_r2_final', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('s', 'ENTRY_SIGNAL'),
+         ('s_s1', 'ENTRY_SIGNAL'),
+         ('s_s1', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['s_s1'],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('s_s1', 'EXIT_SIGNAL'),
+         ('s', 'EXIT_SIGNAL'),
+         ('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'ENTRY_SIGNAL'),
+         ('p_p11_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s22'], 'p_s21'],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='RF1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'ENTRY_SIGNAL'),
+         ('p_p11_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s22'], 'p_s21'],
     old_results = build_test(
       sig='PG2',
-      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      expected_end_states=['p_r1_under_hidden_region', 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+        ('p_p11_s22', 'EXIT_SIGNAL'),
+        ('p_p11', 'EXIT_SIGNAL'),
+        ('p_s21', 'EXIT_SIGNAL'),
+        ('p_s21', 'ENTRY_SIGNAL'),
+        ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['p_r1_under_hidden_region', 'p_s21'],
     old_results = build_test(
       sig='PF1',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),      # usable by client
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),  # usuable by client
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL')]
     )
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_r2_under_hidden_region'],
     old_results = build_test(
       sig='RG1',
-      expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='PC1',
-      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      expected_end_states=['p_r1_under_hidden_region', 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['p_r1_under_hidden_region', 'p_s21'],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='RC1',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result = old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='RC2',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'ENTRY_SIGNAL'),
+         ('p_p12_s22', 'INIT_SIGNAL')]
     )
 
     assert(
@@ -4899,175 +5788,461 @@ if __name__ == '__main__':
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
     old_results = build_test(
       sig='RB1',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s22', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'ENTRY_SIGNAL'),
+         ('p_p12_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
     old_results = build_test(
       sig='RE1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s22', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
     )
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='RH1',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'ENTRY_SIGNAL'),
+         ('p_p12_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], 'p_s21'],
     old_results = build_test(
       sig='RD1',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='SA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result= old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='e1',
-      expected_result=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s22'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'ENTRY_SIGNAL'),
+         ('p_p11_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s22'], 'p_s21'],
     old_results = build_test(
       sig='RA1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s22', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='p_p11_final',
-      expected_result=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], 'p_s21'],
     old_results = build_test(
       sig='PG1',
-      expected_result=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #########################################################################
     #                              HOOK TESTS                               #
     #########################################################################
     #example.clear_log()
+    # starting: ['p_r1_under_hidden_region', ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p', 'EXIT_SIGNAL'),
+         ('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='PC1',
-      expected_result=['p_r1_under_hidden_region', 'p_s21'],
+      expected_end_states=['p_r1_under_hidden_region', 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     # confirm transition works to middle from p
     #example.clear_log()
+    # starting: ['p_r1_under_hidden_region', 'p_s21'],
     old_results = build_test(
       sig='H1',
-      expected_result=['middle'],
+      expected_end_states=['middle'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_s21', 'EXIT_SIGNAL'), ('p', 'EXIT_SIGNAL'), ('middle', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: ['middle'],
     old_results = build_test(
       sig='SH1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('middle', 'EXIT_SIGNAL'),
+         ('middle', 'ENTRY_SIGNAL'),
+         ('p', 'ENTRY_SIGNAL'),
+         ('p', 'INIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='H1',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        []
     )
 
     #example.clear_log()
+    # starting: [['p_p11_s11', 'p_p11_s21'], 'p_s21'],
     old_results = build_test(
       sig='RF1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']],
     old_results = build_test(
       sig='e1',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'ENTRY_SIGNAL'),
+         ('p_p12_s22', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'EXIT_SIGNAL'),
+         ('p_p22_s22', 'ENTRY_SIGNAL'),
+         ('p_p22_s22', 'INIT_SIGNAL')]
     )
 
     #example.clear_log()
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
     old_results = build_test(
       sig='H2',
-      expected_result=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        []
     )
 
+    # starting: [[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s22'], ['p_p22_s11', 'p_p22_s22']],
     old_results = build_test(
       sig='e4',
-      expected_result=[['p_p12_s12', 'p_p12_s22'], ['p_p22_s12', 'p_p22_s22']],
+      expected_end_states=[['p_p12_s12', 'p_p12_s22'], ['p_p22_s12', 'p_p22_s22']],
       old_result=old_results,
-      duration=0.2
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_s12', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'EXIT_SIGNAL'),
+         ('p_p22_s12', 'ENTRY_SIGNAL'),
+         ('p_p22_s12', 'INIT_SIGNAL')]
+    )
+
+    # starting: [['p_p12_s12', 'p_p12_s22'], ['p_p22_s12', 'p_p22_s22']],
+    old_results = build_test(
+      sig='H2',
+      expected_end_states=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
+      old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_s12', 'EXIT_SIGNAL'),
+         ('p_p12_s22', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_p22_s12', 'EXIT_SIGNAL'),
+         ('p_p22_s22', 'EXIT_SIGNAL'),
+         ('p_p22', 'EXIT_SIGNAL'),
+         ('p_p11', 'ENTRY_SIGNAL'),
+         ('p_p11', 'INIT_SIGNAL'),
+         ('p_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p11_s11', 'INIT_SIGNAL'),
+         ('p_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p11_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'ENTRY_SIGNAL'),
+         ('p_s21', 'INIT_SIGNAL')]
     )
 
     old_results = build_test(
-      sig='H2',
-      expected_result=[['p_p11_s11', 'p_p11_s21'], 'p_s21'],
-      old_result=old_results,
-      duration=0.2
+      sig='RF1',
+      expected_end_states=[[['p_p12_p11_s12', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']], old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p11_s11', 'EXIT_SIGNAL'),
+         ('p_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p11', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s12', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s12', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL'),
+         ('p_s21', 'EXIT_SIGNAL'),
+         ('p_p22', 'ENTRY_SIGNAL'),
+         ('p_p22', 'INIT_SIGNAL'),
+         ('p_p22_s11', 'ENTRY_SIGNAL'),
+         ('p_p22_s11', 'INIT_SIGNAL'),
+         ('p_p22_s21', 'ENTRY_SIGNAL'),
+         ('p_p22_s21', 'INIT_SIGNAL')]
     )
 
-    exit(0)
-
-
+    old_results = build_test(
+      sig='RA2',
+      expected_end_states=[[['p_p12_p11_s11', 'p_p12_p11_s21'], 'p_p12_s21'], ['p_p22_s11', 'p_p22_s21']], old_result=old_results,
+      wait_sec=0.2,
+      expected_rtc_state_signal_pairs=\
+        [('p_p12_p11_s12', 'EXIT_SIGNAL'),
+         ('p_p12_p11_s21', 'EXIT_SIGNAL'),
+         ('p_p12_p11', 'EXIT_SIGNAL'),
+         ('p_p12_s21', 'EXIT_SIGNAL'),
+         ('p_p12', 'EXIT_SIGNAL'),
+         ('p_p12', 'ENTRY_SIGNAL'),
+         ('p_p12', 'INIT_SIGNAL'),
+         ('p_p12_p11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s11', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s11', 'INIT_SIGNAL'),
+         ('p_p12_p11_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_p11_s21', 'INIT_SIGNAL'),
+         ('p_p12_s21', 'ENTRY_SIGNAL'),
+         ('p_p12_s21', 'INIT_SIGNAL')]
+    )
 
