@@ -496,6 +496,7 @@ Beastiary
   * - R: Transitions within inner orthogonal regions
     -
       :ref:`RA1 <RA1>`
+      :ref:`RA2 <RA2>`
       :ref:`RB1 <RB1>`
       :ref:`RC1 <RC1>`
       :ref:`RC2 <RC2>`
@@ -531,6 +532,7 @@ Beastiary
       :ref:`SC1 <SC1>`
       :ref:`SD1 <SD1>`
       :ref:`SH1 <SH1>`
+      :ref:`SH2 <SH2>`
   * - final: An SCXML addon.  When all regions of a state transition to their final pseudostate, create then post an artificial event with the signal name equal to the outer state holding the regions, with the string "_final" post pended to the signal's name.
     - 
       :ref:`p_p11_final <p_p11_final>`
@@ -559,6 +561,20 @@ Beastiary
           :target: _static/a_t.pdf
           :class: noscale-center
     - .. _RA1:
+
+      ✓
+  * - RA2
+    - p_p12 to p_p12
+    - R: transitions within inner orthogonal regions
+
+      .. image:: _static/r_transition_class.svg
+          :target: _static/r_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/a_t.svg
+          :target: _static/a_t.pdf
+          :class: noscale-center
+    - .. _RA2:
 
       ✓
   * - RB1
@@ -985,6 +1001,20 @@ Beastiary
           :target: _static/h_t.pdf
           :class: noscale-center
     - .. _SH1:
+
+      ✓
+  * - SH2
+    - outer to middle
+    - S: Standard transition
+
+      .. image:: _static/s_transition_class.svg
+          :target: _static/s_transition_class.pdf
+          :class: noscale-center
+    - 
+      .. image:: _static/h_t.svg
+          :target: _static/h_t.pdf
+          :class: noscale-center
+    - .. _SH2:
 
       ✓
   * -
