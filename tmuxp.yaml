@@ -19,7 +19,7 @@ windows:
     - . ./venv/bin/activate
     - clear
     - cd ./experiment/
-    - while inotifywait -e modify xml_chart_5.1.py logger_config.yaml; do python xml_chart_5.1.py; done
+    - while inotifywait -e modify xml_chart_5.2.py logger_config.yaml; do python xml_chart_5.2.py; done
   - shell_command:
     - cd /mnt/c/github/miros-xml
     - deactivate

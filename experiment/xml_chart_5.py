@@ -164,7 +164,7 @@ def flatten(l, a=None):
   return a
 
 def meta_trans(hsm, e, s, t):
-  fn = example.meta_hooked(
+  fn = hsm.outmost.meta_hooked(
     s=s,
     e=e
   )
@@ -940,7 +940,7 @@ class Regions():
 STXRef = namedtuple('STXRef', ['send_id', 'thread_id'])
 
 class XmlChart(InstrumentedActiveObject):
-  def __init__(self, name, log_config, live_spy=None, live_trace=None):
+  def __init__(self, name, log_config, starting_state, live_spy=None, live_trace=None):
 
     super().__init__(name, log_config)
     if live_spy is not None:
@@ -996,6 +996,7 @@ class XmlChart(InstrumentedActiveObject):
     self.same = self
     self.final_signal_name = None
     self.last_rtc_active_states = []
+    self.starting_state = starting_state
 
   def next_rtc(self):
     '''Overload of the HsmWithQueues next_rtc, like the super's
@@ -1076,7 +1077,7 @@ class XmlChart(InstrumentedActiveObject):
     for key in self.regions.keys():
       self.regions[key].start()
 
-    self.start_at(outer)
+    self.start_at(self.starting_state)
     self.instrumented = _instrumented
 
   @lru_cache(maxsize=32)
@@ -1338,29 +1339,35 @@ class XmlChart(InstrumentedActiveObject):
 
     .. code-block:: python
 
-      @othogonal_state
-      def p_p11_s12(r, e):
-        elif(e.signal == signals.G1):
-          status = return_status.HANDLED
-
-          # Reference the parallel_region_to_orthogonal_component_mapping_6.pdf in
-          # this repository
-          status = return_status.HANDLED
-          _e = r.outmost._meta_trans(
-            s=p_p11_s12,
-            t=p_s22,
-            sig=e.signal_name
-          )
-          r.outmost.regions['p_p11'].post_fifo(_e)
+      def meta_trans(hsm, e, s, t):
+        fn = hsm.outmost.meta_hooked(
+          s=s,
+          e=e
+        )
+        if fn is not None:
+          status = fn(hsm, e)
+        elif(hsm.outmost.in_same_hsm(source=s, target=t)):
+          status = hsm.trans(t)
+        else:
+          _state, _e = hsm.outmost._meta_trans(
+            hsm,
+            t=t,
+            s=s,
+            sig=e.signal_name)
+          if _state:
+            status = hsm.trans(_state)
+            hsm.same._post_fifo(_e)
+            investigate(hsm, e, _e)
+          else:
+            status = return_status.HANDLED
+            investigate(hsm, e, _e)
+            hsm.same.post_fifo(_e)
+        return status
 
     '''
-
-    inner = r.inner
-    current_function_name = r.current_function_name
-
     source = s
     target = t
-    lca = self.lca(source, target)
+    lca = self.lca(s, t)
 
     profile = ""
     profile += "self: {}\n".format(self)
@@ -1370,48 +1377,28 @@ class XmlChart(InstrumentedActiveObject):
     profile += "sig: {}\n".format(sig)
     profile += "lca: {}\n".format(lca)
 
+    event = None
+    entry_onion = []
+    exit_onion = []
     outer_injector = None
+
     if lca.__name__ == 'top':
-      outer_injector = self.build_onion(target, sig=None)[-1]
-      exit_onion1 = []
+      outer_injector = self.build_onion(t, sig=None)[-1]
     else:
-      outer_injector = None
-      exit_onion1 = self.build_onion(
-          t=source,
-          s=lca,
-          sig=sig)
+      stripped_onion = []
+      for fn in self.build_onion(t=s, s=lca, sig=sig)[1:]:
+        stripped_onion.append(fn)
+        if fn == lca:
+          break
+      stripped_onion.reverse()
+      exit_onion = stripped_onion[:]
 
-    profile += "exit_onion1: {}\n".format(exit_onion1)
-
-    if len(exit_onion1) >= 1:
-      exit_onion = exit_onion1[1:]
-    else:
-      exit_onion = []
-
-    strippped_onion = []
-    for fn in exit_onion:
-      strippped_onion.append(fn)
-      if fn == lca:
-        break
-
-    strippped_onion.reverse()
-    exit_onion = strippped_onion[:]
-
-    if not (self.within(outer, target)) and lca != target:
-      entry_onion1 = self.build_onion(
-          s=lca,
-          t=target,
-          sig=sig)[0:-1]
-
-      entry_onion = entry_onion1[:]
-    else:
-      entry_onion = []
+    if lca != t:
+      entry_onion = self.build_onion(s=lca, t=t, sig=sig)[0:-1]
 
     # Wrap up the onion meta event from the inside out.  History items at the
     # last layer of the outer part of the INIT_META_SIGNAL need to reference an
     # even more outer part of the onion, the meta exit details.
-    event = None
-
     profile += "entry_onion: {}\n".format(entry_onion)
     profile += "exit_onion: {}\n".format(exit_onion)
 
@@ -1426,8 +1413,8 @@ class XmlChart(InstrumentedActiveObject):
       _state = None
     elif(exit_onion == []):
       bounce_type = signals.BOUNCE_SAME_META_SIGNAL
-      if source in entry_onion:
-        entry_onion = entry_onion[0:entry_onion.index(source)]
+      if s in entry_onion:
+        entry_onion = entry_onion[0:entry_onion.index(s)]
       _state = None
     else:
       bounce_type = signals.BOUNCE_ACROSS_META_SIGNAL
@@ -1464,7 +1451,7 @@ class XmlChart(InstrumentedActiveObject):
         if index == len(entry_onion) - 1:
           if (len(exit_onion) == 1 and
             exit_onion[0] == entry_onion[-1]):
-              previous_state = source
+              previous_state = s
               previous_signal = sig
           else:
             if len(exit_onion) > 0:
@@ -1513,7 +1500,7 @@ class XmlChart(InstrumentedActiveObject):
 
         previous_signal = signals.EXIT_META_SIGNAL
         if index == len(exit_onion) - 1:
-          previous_state = source
+          previous_state = s
           previous_signal = sig
         else:
           previous_state = exit_onion[index + 1]
@@ -1530,8 +1517,9 @@ class XmlChart(InstrumentedActiveObject):
           )
         )
         number -= 1
+
     elif len(exit_onion) == 1:
-      previous_state = source
+      previous_state = s
       previous_signal = sig
       event = Event(
         signal=bounce_type,
@@ -1548,7 +1536,6 @@ class XmlChart(InstrumentedActiveObject):
     else:
       bounce_onion = [s]
       for index, bounce_target in enumerate(bounce_onion):
-        signal_name = signals.BOUNCE_SAME_META_SIGNAL
         previous_state = bounce_onion[index]
         previous_state = bounce_onion[0]
         previous_signal = sig
@@ -1577,10 +1564,9 @@ class XmlChart(InstrumentedActiveObject):
     if outer_injector is not None:
       _state = outer_injector
 
-    r.inner = inner
-    r.current_function_name = current_function_name
     profile += "ps: \n{}\n".format(ps(event))
     self.logger.critical(profile)
+
     return (_state, event)
 
   @lru_cache(maxsize=32)
@@ -4534,6 +4520,7 @@ if __name__ == '__main__':
   example = XmlChart(
     name='x',
     log_config="xml_chart_5",
+    starting_state=outer,
     live_trace=False,
     live_spy=True,
   )

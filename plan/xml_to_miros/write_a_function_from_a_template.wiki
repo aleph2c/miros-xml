@@ -8,10 +8,16 @@
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
     The region functions need to be built from a template
+    (xml_chart_5.2.py)
 
     [[./docs]]
 
   *What is the problem?*
+
+    We began the work in xml_chart_5.1.py, but it was based on a buggy
+    xml_chart_5.py.  So I went back and fixed xml_chart_5.py, and added more
+    tests.  Now we are back working templates.
+
 
   *Discoveries:* ([[notes.xml_to_miros|notes]])
 
@@ -51,6 +57,9 @@
   * [ ] Update docstrings, reference function_reflection.py for example
   * [ ] Write code to clean up the construction of the hidden functions
   * [ ] Add/Update documentation if required
+
+  * [ ] re-add the final template
+  * [ ] find error, troubleshoot
 
   *Chosen Research-Goal/Hypothesis*
 
