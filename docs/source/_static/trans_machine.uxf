@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>500</x>
+      <y>450</y>
+      <w>600</w>
+      <h>330</h>
+    </coordinates>
+    <panel_attributes>*hook_trans_or_metatrans*
+--
+
+
+
+valign=top
+layer=2
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>800</x>
+      <y>190</y>
+      <w>110</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>HsmWithQueues</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>860</x>
+      <y>1090</y>
+      <w>590</w>
+      <h>260</h>
+    </coordinates>
+    <panel_attributes>*different machines starting in outmost*
+--
+
+valign=top
+layer=2
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>660</x>
+      <y>430</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=()-[v]
+layer=3</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;40.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>510</x>
+      <y>100</y>
+      <w>220</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>Requirements:
+  Perform the required activity
+  Return status
+  Callable from XmlChart or Region
+layer=3</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>820</x>
+      <y>90</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>status = r.meta_trans(
+  e=e,
+  s=p_p11,
+  t=middle,
+)
+style=wordwrap
+layer=3</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>720</x>
+      <y>100</y>
+      <w>120</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=.
+layer=3</panel_attributes>
+    <additional_attributes>10.0;50.0;100.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>800</x>
+      <y>240</y>
+      <w>170</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>*TransMachine*
+--
+other_hsm
+e
+s
+t
+_hooking_fn
+_status
+_machine
+--
+
+
+layer=1</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>820</x>
+      <y>210</y>
+      <w>30</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-
+layer=3</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;30.0</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>260</x>
+      <y>110</y>
+      <w>410</w>
+      <h>420</h>
+    </coordinates>
+    <panel_attributes>meta_trans(hsm, e, s, t):
+
+  fn = hsm.outmost.meta_hooked(
+    s=s,
+    e=e
+  )
+  if fn is not None:
+    status = fn(hsm, e)
+  elif(hsm.outmost.in_same_hsm(source=s, target=t)):
+    status = hsm.trans(t)
+  else:
+    _state, _e = hsm.outmost._meta_trans(
+      hsm,
+      t=t,
+      s=s,
+      sig=e.signal_name)
+    if _state:
+      status = hsm.trans(_state)
+      hsm.same._post_fifo(_e)
+      investigate(hsm, e, _e)
+    else:
+      status = return_status.HANDLED
+      investigate(hsm, e, _e)
+      hsm.same.post_fifo(_e)
+  return status
+
+style=wordwrap
+layer=0</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

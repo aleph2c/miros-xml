@@ -1,0 +1,457 @@
+[[fix_meta_trans|back]]
+exit[.+], (BOUNCE_SAME_META_SIGNAL|BOUNCE_SAME_META_SIGNAL|OUTER_TRANS_REQUIRED)[.+], entry[.+]
+
+
+Only one BOUNCE_SAME_META_SIGNAL, OUTER_TRANS_REQUIRED,
+BOUNCE_ACROSS_META_SIGNAL can occur 1 or zero times.
+
+EXIT_META_SIGNAL can happen more than once, but is contiguous
+INIT_META_SIGNAL "
+exit[.+] (EXIT_META_SIGNAL(s)), (one thing), entry[.+](INIT_META_SIGNAL(s))
+
+OUTER_TRANS_REQUIRED only happens at the end, self is XmlChart
+and entry_onion=[] and exit_onion!=[]
+
+
+if lca == s:
+    BOUNCE_SAME_META_SIGNAL
+
+
+different machines, starting on the outermost
+(lca -> top?
+  SRE1
+  SRE3
+  SRF1)
+
+if 
+
+
+----
+SRE2
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+s: <function p at 0x7fa1a3a85840>
+t: <function p_p11_s12 at 0x7fa1a3a80d90>
+sig: SRE2
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: []
+entry_onion: [<function p_p11_s12 at 0x7fa1a3a80d90>, <function p_p11_r1_region at 0x7fa1a3a80a60>, <function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>]
+exit_onion: []
+ps: 
+[n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRE2:p ->
+  [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
+      [n=4]::INIT_META_SIGNAL:p_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p11 ->
+        [n=5]::INIT_META_SIGNAL:p_p11_s12 [n=4]::INIT_META_SIGNAL:p_p11_r1_region ->
+
+----
+SRE1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+s: <function middle at 0x7fa1a3a85510>
+t: <function p_p11 at 0x7fa1a3a80840>
+sig: SRE1
+lca: <bound method ActiveObject.top of <__main__.XmlChart object at 0x7fa1a3a7ee48>>
+exit_onion1: []
+entry_onion: [<function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>]
+exit_onion: []
+ps: 
+[n=1]::INIT_META_SIGNAL:middle [n=0]::SRE1:middle ->
+  [n=2]::INIT_META_SIGNAL:p_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p11 [n=2]::INIT_META_SIGNAL:p_r1_region ->
+
+---
+SRH2
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p11 at 0x7fa1a3a80840>
+t: <function middle at 0x7fa1a3a85510>
+sig: SRH2
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::SRH2:p_p11 ->
+  [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
+
+----
+SRE3
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+s: <function outer at 0x7fa1a3a85400>
+t: <function p_p22 at 0x7fa1a3a73488>
+sig: SRE3
+lca: <bound method ActiveObject.top of <__main__.XmlChart object at 0x7fa1a3a7ee48>>
+exit_onion1: []
+entry_onion: [<function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: []
+ps: 
+[n=1]::INIT_META_SIGNAL:outer [n=0]::SRE3:outer ->
+  [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+----
+SRH3
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9dc18>
+s: <function p_p11_s12 at 0x7fa1a3a80d90>
+t: <function p at 0x7fa1a3a85840>
+sig: SRH3
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_p11_s12 at 0x7fa1a3a80d90>, <function p_p11_r1_region at 0x7fa1a3a80a60>, <function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>, <function p_p11 at 0x7fa1a3a80840>, <function p_p11_r1_region at 0x7fa1a3a80a60>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p11_r1_region [n=0]::SRH3:p_p11_s12 ->
+  [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r1_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
+      [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
+        [n=5]::OUTER_TRANS_REQUIRED:p [n=4]::EXIT_META_SIGNAL:p ->
+
+----
+SRD2
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9d2e8>
+s: <function p_s21 at 0x7fa1a3a73378>
+t: <function p at 0x7fa1a3a85840>
+sig: SRD2
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r2_region at 0x7fa1a3a73158>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD2:p_s21 ->
+  [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
+
+----
+SRH1
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9d2e8>
+s: <function p_s21 at 0x7fa1a3a73378>
+t: <function middle at 0x7fa1a3a85510>
+sig: SRH1
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r2_region at 0x7fa1a3a73158>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRH1:p_s21 ->
+  [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:middle [n=2]::EXIT_META_SIGNAL:p ->
+
+----
+SRB1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+s: <function p at 0x7fa1a3a85840>
+t: <function p_p22 at 0x7fa1a3a73488>
+sig: SRB1
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: []
+entry_onion: [<function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: []
+ps: 
+[n=1]::BOUNCE_SAME_META_SIGNAL:p [n=0]::SRB1:p ->
+  [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+
+---
+SRD1
+
+[22] R: --- [['p_p11_s11', 'p_p11_s21'], 'p_s21'] <- SRB1 == [['p_p11_s11', 'p_p11_s21'], ['p_p22_s11', 'p_p22_s21']]
+[22] S: [x] SRD1:p
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9d2e8>
+s: <function p_p22 at 0x7fa1a3a73488>
+t: <function p at 0x7fa1a3a85840>
+sig: SRD1
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r2_region at 0x7fa1a3a73158>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::SRD1:p_p22 ->
+  [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
+
+----
+SRF1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+s: <function s at 0x7fa1a3a85620>
+t: <function p_p22_s21 at 0x7fa1a3a73f28>
+sig: SRF1
+lca: <bound method ActiveObject.top of <__main__.XmlChart object at 0x7fa1a3a7ee48>>
+exit_onion1: []
+entry_onion: [<function p_p22_s21 at 0x7fa1a3a73f28>, <function p_p22_r2_region at 0x7fa1a3a73d08>, <function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: []
+ps: 
+[n=1]::INIT_META_SIGNAL:s [n=0]::SRF1:s ->
+  [n=2]::INIT_META_SIGNAL:p_r2_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_r2_region ->
+    [n=3]::INIT_META_SIGNAL:p_p22 [n=2]::INIT_META_SIGNAL:p_r2_region ->
+      [n=4]::INIT_META_SIGNAL:p_p22_r2_region [n=3]::INIT_META_SIGNAL:p_p22 ->
+        [n=5]::INIT_META_SIGNAL:p_p22_s21 [n=4]::INIT_META_SIGNAL:p_p22_r2_region ->
+
+----
+SRG1
+r: <__main__.Region object at 0x7fa1a3aaf828>
+s: <function p_p22_s21 at 0x7fa1a3a73f28>
+t: <function s_s1 at 0x7fa1a3a85730>
+sig: SRG1
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_p22_s21 at 0x7fa1a3a73f28>, <function p_p22_r2_region at 0x7fa1a3a73d08>, <function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r2_region at 0x7fa1a3a73158>, <function p_p22 at 0x7fa1a3a73488>, <function p_p22_r2_region at 0x7fa1a3a73d08>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p22_r2_region [n=0]::SRG1:p_p22_s21 ->
+  [n=2]::EXIT_META_SIGNAL:p_p22 [n=1]::EXIT_META_SIGNAL:p_p22_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p_p22 ->
+      [n=4]::EXIT_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r2_region ->
+        [n=5]::OUTER_TRANS_REQUIRED:s_s1 [n=4]::EXIT_META_SIGNAL:p ->
+
+----
+RF1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p11 at 0x7fa1a3a80840>
+t: <function p_p12_p11_s12 at 0x7fa1a3a701e0>
+sig: RF1
+lca: <function p_r1_region at 0x7fa1a3a80620>
+exit_onion1: [<function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_p12_p11_s12 at 0x7fa1a3a701e0>, <function p_p12_p11_r1_region at 0x7fa1a3a7ce18>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>]
+exit_onion: [<function p_r1_region at 0x7fa1a3a80620>]
+ps: 
+[n=1]::INIT_META_SIGNAL:p_p12 [n=0]::INIT_META_SIGNAL:p_r1_region ->
+  [n=2]::INIT_META_SIGNAL:p_p12_r1_region [n=1]::INIT_META_SIGNAL:p_p12 ->
+    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
+      [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
+        [n=5]::INIT_META_SIGNAL:p_p12_p11_s12 [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
+
+
+[22] S: [x] RF1:p_p11
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9d2e8>
+s: <function p_s21 at 0x7fa1a3a73378>
+t: <function p_p22_s12 at 0x7fa1a3a739d8>
+sig: RF1
+lca: <function p_r2_region at 0x7fa1a3a73158>
+exit_onion1: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_p22_s12 at 0x7fa1a3a739d8>, <function p_p22_r1_region at 0x7fa1a3a736a8>, <function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: [<function p_r2_region at 0x7fa1a3a73158>]
+ps: 
+[n=1]::INIT_META_SIGNAL:p_p22 [n=0]::INIT_META_SIGNAL:p_r2_region ->
+  [n=2]::INIT_META_SIGNAL:p_p22_r1_region [n=1]::INIT_META_SIGNAL:p_p22 ->
+    [n=3]::INIT_META_SIGNAL:p_p22_s12 [n=2]::INIT_META_SIGNAL:p_p22_r1_region ->
+
+----
+PG2
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3aa7048>
+s: <function p_p11_s22 at 0x7fa1a3a7c488>
+t: <function p_s21 at 0x7fa1a3a73378>
+sig: PG2
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: [<function p_p11_s22 at 0x7fa1a3a7c488>, <function p_p11_r2_region at 0x7fa1a3a7c158>, <function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>, <function p_p11 at 0x7fa1a3a80840>, <function p_p11_r2_region at 0x7fa1a3a7c158>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p11_r2_region [n=0]::PG2:p_p11_s22 ->
+  [n=2]::EXIT_META_SIGNAL:p_p11 [n=1]::EXIT_META_SIGNAL:p_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p_p11 ->
+      [n=4]::BOUNCE_ACROSS_META_SIGNAL:p [n=3]::EXIT_META_SIGNAL:p_r1_region ->
+        [n=5]::INIT_META_SIGNAL:p_r2_region [n=4]::EXIT_META_SIGNAL:p ->
+          [n=6]::INIT_META_SIGNAL:p_s21 [n=5]::INIT_META_SIGNAL:p_r2_region ->
+
+----
+PF1
+
+[22] S: [x] PF1:p
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9d2e8>
+s: <function p_s21 at 0x7fa1a3a73378>
+t: <function p_p12_p11_s21 at 0x7fa1a3a70620>
+sig: PF1
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_p12_p11_s21 at 0x7fa1a3a70620>, <function p_p12_p11_r2_region at 0x7fa1a3a70400>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>]
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r2_region at 0x7fa1a3a73158>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r2_region [n=0]::PF1:p_s21 ->
+  [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r2_region ->
+    [n=3]::INIT_META_SIGNAL:p_r1_region [n=2]::EXIT_META_SIGNAL:p ->
+      [n=4]::INIT_META_SIGNAL:p_p12 [n=3]::INIT_META_SIGNAL:p_r1_region ->
+        [n=5]::INIT_META_SIGNAL:p_p12_r1_region [n=4]::INIT_META_SIGNAL:p_p12 ->
+          [n=6]::INIT_META_SIGNAL:p_p12_p11 [n=5]::INIT_META_SIGNAL:p_p12_r1_region ->
+            [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region [n=6]::INIT_META_SIGNAL:p_p12_p11 ->
+              [n=8]::INIT_META_SIGNAL:p_p12_p11_s21 [n=7]::INIT_META_SIGNAL:p_p12_p11_r2_region ->
+
+
+----
+RG1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3aa3b00>
+s: <function p_p12_p11_s21 at 0x7fa1a3a70620>
+t: <function p_p22_s11 at 0x7fa1a3a738c8>
+sig: RG1
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: [<function p_p12_p11_s21 at 0x7fa1a3a70620>, <function p_p12_p11_r2_region at 0x7fa1a3a70400>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_p22_s11 at 0x7fa1a3a738c8>, <function p_p22_r1_region at 0x7fa1a3a736a8>, <function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_p11_r2_region at 0x7fa1a3a70400>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::RG1:p_p12_p11_s21 ->
+  [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+      [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+        [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
+          [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
+            [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
+              [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
+                [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
+                  [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->
+
+----
+PC1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p11 at 0x7fa1a3a80840>
+t: <function p_s21 at 0x7fa1a3a73378>
+sig: PC1
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: [<function p_p11 at 0x7fa1a3a80840>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_s21 at 0x7fa1a3a73378>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::PC1:p_p11 ->
+  [n=2]::BOUNCE_ACROSS_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_r2_region [n=2]::EXIT_META_SIGNAL:p ->
+      [n=4]::INIT_META_SIGNAL:p_s21 [n=3]::INIT_META_SIGNAL:p_r2_region ->
+
+----
+RB1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p12 at 0x7fa1a3a7c7b8>
+t: <function p_p12_p11 at 0x7fa1a3a7cbf8>
+sig: RB1
+lca: <function p_p12 at 0x7fa1a3a7c7b8>
+exit_onion1: []
+entry_onion: [<function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>]
+exit_onion: []
+ps: 
+[n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RB1:p_p12 ->
+  [n=2]::INIT_META_SIGNAL:p_p12_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
+
+
+----
+RE1
+
+[22] S: [x] RE1:p
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p12 at 0x7fa1a3a7c7b8>
+t: <function p_p12_p11_s12 at 0x7fa1a3a701e0>
+sig: RE1
+lca: <function p_p12 at 0x7fa1a3a7c7b8>
+exit_onion1: []
+entry_onion: [<function p_p12_p11_s12 at 0x7fa1a3a701e0>, <function p_p12_p11_r1_region at 0x7fa1a3a7ce18>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>]
+exit_onion: []
+ps: 
+[n=1]::BOUNCE_SAME_META_SIGNAL:p_p12 [n=0]::RE1:p_p12 ->
+  [n=2]::INIT_META_SIGNAL:p_p12_r1_region [n=1]::BOUNCE_SAME_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::INIT_META_SIGNAL:p_p12_p11 [n=2]::INIT_META_SIGNAL:p_p12_r1_region ->
+      [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region [n=3]::INIT_META_SIGNAL:p_p12_p11 ->
+        [n=5]::INIT_META_SIGNAL:p_p12_p11_s12 [n=4]::INIT_META_SIGNAL:p_p12_p11_r1_region ->
+
+
+----
+RH1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3aa3518>
+s: <function p_p12_p11_s12 at 0x7fa1a3a701e0>
+t: <function p_p12 at 0x7fa1a3a7c7b8>
+sig: RH1
+lca: <function p_p12 at 0x7fa1a3a7c7b8>
+exit_onion1: [<function p_p12_p11_s12 at 0x7fa1a3a701e0>, <function p_p12_p11_r1_region at 0x7fa1a3a7ce18>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>]
+entry_onion: []
+exit_onion: [<function p_p12 at 0x7fa1a3a7c7b8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_p11_r1_region at 0x7fa1a3a7ce18>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region [n=0]::RH1:p_p12_p11_s12 ->
+  [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r1_region ->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+      [n=4]::OUTER_TRANS_REQUIRED:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+        [n=5]::OUTER_TRANS_REQUIRED:p_p12 [n=4]::EXIT_META_SIGNAL:p_p12 ->
+
+----
+RD1 
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3aa7630>
+s: <function p_p12_p11 at 0x7fa1a3a7cbf8>
+t: <function p_p12 at 0x7fa1a3a7c7b8>
+sig: RD1
+lca: <function p_p12 at 0x7fa1a3a7c7b8>
+exit_onion1: [<function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p_p12 at 0x7fa1a3a7c7b8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p12_r1_region [n=0]::RD1:p_p12_p11 ->
+  [n=2]::OUTER_TRANS_REQUIRED:p_p12 [n=1]::EXIT_META_SIGNAL:p_p12_r1_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p_p12 [n=2]::EXIT_META_SIGNAL:p_p12 ->
+
+----
+PG1
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3aa3b00>
+s: <function p_p12_p11_s21 at 0x7fa1a3a70620>
+t: <function p_p22_s11 at 0x7fa1a3a738c8>
+sig: PG1
+lca: <function p at 0x7fa1a3a85840>
+exit_onion1: [<function p_p12_p11_s21 at 0x7fa1a3a70620>, <function p_p12_p11_r2_region at 0x7fa1a3a70400>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: [<function p_p22_s11 at 0x7fa1a3a738c8>, <function p_p22_r1_region at 0x7fa1a3a736a8>, <function p_p22 at 0x7fa1a3a73488>, <function p_r2_region at 0x7fa1a3a73158>]
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>, <function p_p12 at 0x7fa1a3a7c7b8>, <function p_p12_r1_region at 0x7fa1a3a7c9d8>, <function p_p12_p11 at 0x7fa1a3a7cbf8>, <function p_p12_p11_r2_region at 0x7fa1a3a70400>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region [n=0]::PG1:p_p12_p11_s21 ->
+  [n=2]::EXIT_META_SIGNAL:p_p12_p11 [n=1]::EXIT_META_SIGNAL:p_p12_p11_r2_region ->
+    [n=3]::EXIT_META_SIGNAL:p_p12_r1_region [n=2]::EXIT_META_SIGNAL:p_p12_p11 ->
+      [n=4]::EXIT_META_SIGNAL:p_p12 [n=3]::EXIT_META_SIGNAL:p_p12_r1_region ->
+        [n=5]::EXIT_META_SIGNAL:p_r1_region [n=4]::EXIT_META_SIGNAL:p_p12 ->
+          [n=6]::BOUNCE_ACROSS_META_SIGNAL:p [n=5]::EXIT_META_SIGNAL:p_r1_region ->
+            [n=7]::INIT_META_SIGNAL:p_r2_region [n=6]::EXIT_META_SIGNAL:p ->
+              [n=8]::INIT_META_SIGNAL:p_p22 [n=7]::INIT_META_SIGNAL:p_r2_region ->
+                [n=9]::INIT_META_SIGNAL:p_p22_r1_region [n=8]::INIT_META_SIGNAL:p_p22 ->
+                  [n=10]::INIT_META_SIGNAL:p_p22_s11 [n=9]::INIT_META_SIGNAL:p_p22_r1_region ->
+
+----
+H2
+
+[22] self: <__main__.XmlChart object at 0x7fa1a3a7ee48>
+r: <__main__.Region object at 0x7fa1a3a9def0>
+s: <function p_p12 at 0x7fa1a3a7c7b8>
+t: <function p at 0x7fa1a3a85840>
+sig: H2
+lca: <function outer at 0x7fa1a3a85400>
+exit_onion1: [<function p_p12 at 0x7fa1a3a7c7b8>, <function p_r1_region at 0x7fa1a3a80620>, <function p at 0x7fa1a3a85840>]
+entry_onion: []
+exit_onion: [<function p at 0x7fa1a3a85840>, <function p_r1_region at 0x7fa1a3a80620>]
+ps: 
+[n=1]::EXIT_META_SIGNAL:p_r1_region [n=0]::H2:p_p12 ->
+  [n=2]::EXIT_META_SIGNAL:p [n=1]::EXIT_META_SIGNAL:p_r1_region ->
+    [n=3]::OUTER_TRANS_REQUIRED:p [n=2]::EXIT_META_SIGNAL:p ->
+
+

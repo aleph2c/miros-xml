@@ -4,7 +4,9 @@
 == Evidence ([[evidence.fix_meta_trans|evidence]]) ==
 
   *What defines Success?:* ([[subgoals.fix_meta_trans|subgoals]])
-    Have a cleaner meta_trans routine
+
+    Have a cleaner meta_trans routine.  (Teaching birds how to fly.)
+    COME BACK LATER!
 
   *What is the problem?*
     The meta_trans was developed using 6 or more designs and then mashed
@@ -13,6 +15,7 @@
   *Discoveries:* ([[notes.fix_meta_trans|notes]])
 
     Properties of meta_trans:
+      [[meta_trans]]
 
       def meta_trans(hsm, e, s, t):
         fn = example.meta_hooked(
@@ -40,12 +43,14 @@
         return status
 
   properties:
+
     * type of thing calling, XmlChart, or Region
     * least common ancestor
     * s
     * t
     * exit_onion
     * entry_onion
+
   targets:
     EXIT_META_SIGNAL
     BOUNCE_SAME_META_SIGNAL
@@ -55,7 +60,6 @@
 
   RA1
   RA2?
-    
 
 = Orient =
   *Symptoms:* [[symptoms.fix_meta_trans|symptoms]]
