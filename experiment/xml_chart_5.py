@@ -316,6 +316,41 @@ ps = payload_string
 def pprint(value):
   pass
 
+class Hsm():
+  def __init__(self):
+    class Empty:
+      pass
+
+    def __leaf__(self, *args, **kwargs):
+      '''top/bottom-most state given to all HSMs'''
+      return return_status.IGNORED
+
+    self.temp = Empty
+    self.temp.fun = None
+    self.bottom = __leaf__
+    self.top = __leaf__
+    self.instrumented = False
+
+@lru_cache(maxsize=128)
+def within(outer, inner):
+  hsm = Hsm()
+  result = False
+  super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+  hsm.temp.fun = inner
+
+  # Search from the 'inner' state, outward;
+  # either you will get find the 'outer' state or you will get to the bottom of
+  # the HSM.
+  while(True):
+    if(hsm.temp.fun.__name__ == outer.__name__):
+      result = True
+      r = return_status.IGNORED
+    else:
+      r = hsm.temp.fun(hsm, super_e)
+    if r == return_status.IGNORED:
+      break
+  return result
+
 ################################################################################
 #                            DECORATORS                                        #
 ################################################################################
@@ -332,10 +367,11 @@ def state(fn):
     else:
       e = args[-1]
 
-    if fn_as_s not in chart.regions:
-      chart.inner = chart
-    else:
-      chart.inner = chart.regions[fn_as_s]
+    if hasattr(chart, 'regions'):
+      if fn_as_s not in chart.regions:
+        chart.inner = chart
+      else:
+        chart.inner = chart.regions[fn_as_s]
     chart.current_function_name = fn_as_s
 
     chart.state_name = fn_as_s
@@ -363,16 +399,17 @@ def othogonal_state(fn):
       return state(fn)(region, *args)
 
     # dynamically assign the inner attribute
-    fn_as_s = f_to_s(fn)
-    if fn_as_s not in region.inners:
-      region.inners[fn_as_s] = None
-      if fn_as_s in region.outmost.regions:
-        region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
+    if hasattr(region, 'inners'):
+      fn_as_s = f_to_s(fn)
+      if fn_as_s not in region.inners:
+        region.inners[fn_as_s] = None
+        if fn_as_s in region.outmost.regions:
+          region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
 
-    # these can be trampled as a side effect of a search (_meta_trans)
-    # so make sure you salt their results away when you use these functions
-    region.inner = region.inners[fn_as_s]
-    region.current_function_name = fn_as_s
+      # these can be trampled as a side effect of a search (_meta_trans)
+      # so make sure you salt their results away when you use these functions
+      region.inner = region.inners[fn_as_s]
+      region.current_function_name = fn_as_s
 
     # instrument the region
     if region.instrumented:
@@ -516,55 +553,6 @@ class Region(HsmWithQueues):
       result = (_e.payload.event, _e.payload.state)
     return result
 
-  @lru_cache(maxsize=32)
-  def within(self, bound, query):
-    '''For a given bound state function determine if it has a query state
-    function which is the same as it or which is a child of it in this HSM.
-
-    **Note**:
-       Since the state functions can be decorated, this method compares the
-       names of the functions and note their addresses.
-
-    **Args**:
-       | ``bound`` (fn): the state function in which to search
-       | ``query`` (fn): the state function to search for
-
-
-    **Returns**:
-       (bool): True | False
-
-    '''
-    old_temp = self.temp.fun
-    old_fun = self.state.fun
-    state_name = self.state_name
-    state_fn = self.state_fn
-
-    if hasattr(bound, '__wrapped__'):
-      current_state = bound.__wrapped__
-    else:
-      current_state = bound
-    if hasattr(query, '__wrapped__'):
-      self.temp.fun = query.__wrapped__
-    else:
-      self.temp.fun = query
-
-    result = False
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
-    while(True):
-      if(self.temp.fun.__name__ == current_state.__name__):
-        result = True
-        r = return_status.IGNORED
-      else:
-        r = self.temp.fun(self, super_e)
-      if r == return_status.IGNORED:
-        break
-
-    self.state_fn = state_fn
-    self.state_name = state_name
-    self.temp.fun = old_temp
-    self.state.fun = old_fun
-    return result
-
   def p_spy(self, e):
     self.outmost.live_spy_callback(
       '{}:{}'.format(e.signal_name, self.state_name)
@@ -676,7 +664,7 @@ class Region(HsmWithQueues):
   def cache_clear():
     Region.tockenize.cache_clear()
     Region.token_match.cache_clear()
-    Region.within.cache_clear()
+    within.cache_clear()
     Region.get_region.cache_clear()
 
 
@@ -1571,7 +1559,7 @@ class XmlChart(InstrumentedActiveObject):
 
   @lru_cache(maxsize=32)
   def lca(self, _s, _t):
-    if (self.within(outer, _t)):
+    if (within(outer, _t)):
       return outer
     s_onion = self.build_onion(_s, sig=None)[::-1]
     t_onion = self.build_onion(_t, sig=None)[::-1]
@@ -1582,29 +1570,6 @@ class XmlChart(InstrumentedActiveObject):
         _lca = t
         break
     return _lca
-
-  @lru_cache(maxsize=32)
-  def within(self, fn_region_handler, fn_state_handler):
-
-    old_temp = self.temp.fun
-    old_fun = self.state.fun
-
-    current_state = fn_region_handler
-    self.temp.fun = fn_state_handler
-
-    result = False
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
-    while(True):
-      if(self.temp.fun == current_state):
-        result = True
-        r = return_status.IGNORED
-      else:
-        r = self.temp.fun(self, super_e)
-      if r == return_status.IGNORED:
-        break
-    self.temp.fun = old_temp
-    self.state.fun = old_fun
-    return result
 
   def p_spy(self, e):
     self.live_spy_callback(
@@ -1657,7 +1622,7 @@ class XmlChart(InstrumentedActiveObject):
     self.temp.fun = old_temp
     self.state.fun = old_fun
 
-    result = True if self.within(outer_state, target) else False
+    result = True if within(outer_state, target) else False
     return result
 
   @lru_cache(maxsize=128)
@@ -1699,7 +1664,7 @@ class XmlChart(InstrumentedActiveObject):
     XmlChart.token_match.cache_clear()
     XmlChart._meta_trans.cache_clear()
     XmlChart.lca.cache_clear()
-    XmlChart.within.cache_clear()
+    within.cache_clear()
     XmlChart.in_same_hsm.cache_clear()
     XmlChart._meta_hooked.cache_clear()
 
@@ -1760,7 +1725,7 @@ def p_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p11)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -1784,7 +1749,7 @@ def p_r1_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_r1_region, _state):
+    if within(p_r1_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -1926,14 +1891,14 @@ def p_p11(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2018,7 +1983,7 @@ def p_p11_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p11_s11)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -2042,7 +2007,7 @@ def p_p11_r1_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p11_r1_region, _state):
+    if within(p_p11_r1_region, _state):
       (_e, _state) = _e.payload.event, _e.payload.state
       r.outer._post_lifo(_e)
     status = return_status.HANDLED
@@ -2234,7 +2199,7 @@ def p_p11_r2_region(r, e):
       (_e, _state) = _e.payload.event, _e.payload.state
 
     # if _state is a child of this state then transition to it
-    if _state is None or not r.within(p_p11_r2_region, _state):
+    if _state is None or not within(p_p11_r2_region, _state):
       status = r.trans(p_p11_s21)
     else:
       status = r.trans(_state)
@@ -2256,7 +2221,7 @@ def p_p11_r2_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p11_r2_region, _state):
+    if within(p_p11_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2470,7 +2435,7 @@ def p_p12(r, e):
     investigate(r, e, _e)
 
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2533,7 +2498,7 @@ def p_p12(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
@@ -2619,7 +2584,7 @@ def p_p12_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p12_p11)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -2737,7 +2702,7 @@ def p_p12_p11(r, e):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2768,7 +2733,7 @@ def p_p12_p11(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
@@ -2842,7 +2807,7 @@ def p_p12_p11_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p12_p11_s11)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -2866,7 +2831,7 @@ def p_p12_p11_r1_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p12_p11_r1_region, _state):
+    if within(p_p12_p11_r1_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -2989,7 +2954,7 @@ def p_p12_p11_r2_under_hidden_region(r, e):
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_META_SIGNAL):
     (_e, _state) = e.payload.event, e.payload.state
-    if r.within(p_p12_p11_r2_region, _state):
+    if within(p_p12_p11_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   else:
@@ -3027,7 +2992,7 @@ def p_p12_p11_r2_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p12_p11_s21)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -3051,7 +3016,7 @@ def p_p12_p11_r2_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p12_p11_r2_region, _state):
+    if within(p_p12_p11_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -3250,7 +3215,7 @@ def p_p12_r2_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p12_s21)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -3274,7 +3239,7 @@ def p_p12_r2_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p12_r2_region, _state):
+    if within(p_p12_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -3483,7 +3448,7 @@ def p_r2_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_s21)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -3507,7 +3472,7 @@ def p_r2_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_r2_region, _state):
+    if within(p_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
@@ -3678,7 +3643,7 @@ def p_p22(r, e):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -3702,7 +3667,7 @@ def p_p22(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
@@ -3780,7 +3745,7 @@ def p_p22_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p22_s11)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -3995,7 +3960,7 @@ def p_p22_r2_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
       status = r.trans(p_p22_s21)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -4019,7 +3984,7 @@ def p_p22_r2_region(r, e):
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(p_p22_r2_region, _state):
+    if within(p_p22_r2_region, _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
