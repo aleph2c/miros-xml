@@ -28,12 +28,12 @@ from miros import HsmWithQueues
 # To create a deconstruction of a given event:
 event_to_investigate = '_SRE3'
 
-reduce_test_size = True
-
 # 'module_namespace' will be used to add functions to the globals() namespace
 module_namespace = sys.modules[__name__]
 
-# used for testing
+################################################################################
+#                                 Testing Code                                 #
+################################################################################
 state_memory = []
 
 def csm():
@@ -136,6 +136,10 @@ def pp(item):
   '''DESIGN HELPER FUNCTION, NOT USED IN PRODUCTION CODE'''
   xprint.pprint(item)
 
+################################################################################
+#                       META Event Payloads and Signals                        #
+################################################################################
+
 META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
   ['n', 'event', 'state', 'previous_state', 'previous_signal', 'springer'])
 
@@ -207,6 +211,7 @@ def s_to_s(event_or_signal_number):
 def cache_clear():
   '''Clear the cached values of all caching methods and functions used by this package.'''
   s_to_s.cache_clear()
+  within.cache_clear()
   Region.cache_clear()
   XmlChart.cache_clear()
 
@@ -317,6 +322,43 @@ ps = payload_string
 def pprint(value):
   pass
 
+class MiniHsm():
+  def __init__(self):
+    '''The smallest possible set of features needed to search outward using
+    state fuctions'''
+    class Empty:
+      pass
+
+    def __leaf__(self, *args, **kwargs):
+      '''top/bottom-most state given to all HSMs'''
+      return return_status.IGNORED
+
+    self.temp = Empty
+    self.temp.fun = None
+    self.bottom = __leaf__
+    self.top = __leaf__
+    self.instrumented = False
+
+@lru_cache(maxsize=128)
+def within(outer, inner):
+  hsm = MiniHsm()  # only lets you search outward
+  result = False
+  super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+  hsm.temp.fun = inner
+
+  # Search from the 'inner' state, outward;
+  # either you will get find the 'outer' state or you will get to the bottom of
+  # the HSM.
+  while(True):
+    if(hsm.temp.fun.__name__ == outer.__name__):
+      result = True
+      r = return_status.IGNORED
+    else:
+      r = hsm.temp.fun(hsm, super_e)
+    if r == return_status.IGNORED:
+      break
+  return result
+
 ################################################################################
 #                            DECORATORS                                        #
 ################################################################################
@@ -325,7 +367,8 @@ def state(fn):
   dynamically assigns the inner attribute'''
 
   @wraps(fn)
-  def _state(chart, *args):
+  def _state(chart, *args, **kwargs):
+
     fn_as_s = fn.__name__
 
     if len(args) == 1:
@@ -333,10 +376,11 @@ def state(fn):
     else:
       e = args[-1]
 
-    if fn_as_s not in chart.regions:
-      chart.inner = chart
-    else:
-      chart.inner = chart.regions[fn_as_s]
+    if hasattr(chart, 'regions'):
+      if fn_as_s not in chart.regions:
+        chart.inner = chart
+      else:
+        chart.inner = chart.regions[fn_as_s]
     chart.current_function_name = fn_as_s
 
     chart.state_name = fn_as_s
@@ -353,7 +397,6 @@ def state(fn):
     return status
   return _state
 
-
 def orthogonal_state(fn):
   '''Othogonal component state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute.'''
@@ -364,16 +407,17 @@ def orthogonal_state(fn):
       return state(fn)(region, *args)
 
     # dynamically assign the inner attribute
-    fn_as_s = f_to_s(fn)
-    if fn_as_s not in region.inners:
-      region.inners[fn_as_s] = None
-      if fn_as_s in region.outmost.regions:
-        region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
+    if hasattr(region, 'inners'):
+      fn_as_s = f_to_s(fn)
+      if fn_as_s not in region.inners:
+        region.inners[fn_as_s] = None
+        if fn_as_s in region.outmost.regions:
+          region.inners[fn_as_s] = region.outmost.regions[fn_as_s]
 
-    # these can be trampled as a side effect of a search (_meta_trans)
-    # so make sure you salt their results away when you use these functions
-    region.inner = region.inners[fn_as_s]
-    region.current_function_name = fn_as_s
+      # these can be trampled as a side effect of a search (_meta_trans)
+      # so make sure you salt their results away when you use these functions
+      region.inner = region.inners[fn_as_s]
+      region.current_function_name = fn_as_s
 
     # instrument the region
     if region.instrumented:
@@ -389,7 +433,6 @@ def orthogonal_state(fn):
 ################################################################################
 #                 Template Functions for Partial Construction                  #
 ################################################################################
-
 
 @lru_cache(maxsize=128)
 def under_hidden_region_function_name(region_name):
@@ -411,16 +454,13 @@ def template_under_hidden_region(r, e, *, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
   __super__ = r.bottom
 
-  region_state_function = \
-    getattr(module_namespace, region_state_name)
-
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
   if(r.token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
-    status = r.trans(region_state_function)
+    status = r.trans(getattr(module_namespace, region_state_name))
   elif(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -438,15 +478,13 @@ def template_under_hidden_region(r, e, *, region_state_name=None, **kwargs):
 def template_over_hidden_region(r, e, *, over_region_state_name=None, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  region_state_function = getattr(module_namespace, region_state_name)
-
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = region_state_function
+    r.temp.fun = getattr(module_namespace, region_state_name)
     return return_status.SUPER
 
   if(e.signal == signals.force_region_init):
     r._p_spy(e)
-    status = r.trans(region_state_function)
+    status = r.trans(getattr(module_namespace, region_state_name))
   elif(e.signal == signals.ENTRY_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
@@ -457,54 +495,38 @@ def template_over_hidden_region(r, e, *, over_region_state_name=None, region_sta
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = region_state_function
+    r.temp.fun = getattr(module_namespace, region_state_name)
     status = return_status.SUPER
   return status
 
 def template_final(r, e, *, over_region_state_name=None, final_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  over_region_state_function = \
-    getattr(module_namespace, over_region_state_name)
-
-  final_state = \
-    getattr(module_namespace, final_state_name)
-
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = over_region_state_function
+    r.temp.fun = getattr(module_namespace, over_region_state_name)
     return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
     r.p_spy(e)
     r.final = True
-    rsm(final_state, e)
+    rsm(getattr(module_namespace, final_state_name), e)
     r.post_p_final_to_outmost_if_ready()
     status = return_status.HANDLED
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     r.final = False
-    rsm(final_state, e)
+    rsm(getattr(module_namespace, final_state_name), e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = over_region_state_function
+    r.temp.fun = getattr(module_namespace, over_region_state_name)
     status = return_status.SUPER
   return status
 
-
-def p_r2_region(r, e, *, this_function_name=None, initial_state_name=None, under_region_state_name=None, **kwargs):
+def template_region(r, e, *, this_function_name=None, initial_state_name=None, under_region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  this_state_function = \
-    getattr(module_namespace, this_function_name)
-
-  super_state_function = \
-    getattr(module_namespace, under_region_state_name)
-
-  initial_state_function = \
-    getattr(module_namespace, initial_state_name)
-
   if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = super_state_function
+    r.temp.fun = getattr(module_namespace, under_region_state_name)
     return return_status.SUPER
 
   if(e.signal == signals.ENTRY_SIGNAL):
@@ -529,7 +551,9 @@ def p_r2_region(r, e, *, this_function_name=None, initial_state_name=None, under
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
+    if _state is None or not within(r.state_fn, _state):
+      initial_state_function = \
+        getattr(module_namespace, initial_state_name)
       status = r.trans(initial_state_function)
     else:
       # if _state is this state or a child of this state, transition to it
@@ -553,17 +577,17 @@ def p_r2_region(r, e, *, this_function_name=None, initial_state_name=None, under
     r._p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
-    if r.within(this_state_function, _state):
+    if within(getattr(module_namespace, this_function_name), _state):
       r.outer._post_fifo(_e)
     status = return_status.HANDLED
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
-    status = r.trans(super_state_function)
+    status = r.trans(getattr(module_namespace, under_region_state_name))
   elif(e.signal == signals.EXIT_SIGNAL):
     r._p_spy(e)
     status = return_status.HANDLED
   else:
-    r.temp.fun = super_state_function
+    r.temp.fun = getattr(module_namespace, under_region_state_name)
     status = return_status.SUPER
   return status
 
@@ -577,7 +601,6 @@ class Region(HsmWithQueues):
     region_state_function, over_hidden_state_function,
     instrumented=True):
     '''Create an orthogonal component HSM
-
 
     **Args**:
        | ``name`` (str): The name of the region, naming follows a convention
@@ -698,55 +721,6 @@ class Region(HsmWithQueues):
       result = (_e.payload.event, _e.payload.state)
     return result
 
-  @lru_cache(maxsize=32)
-  def within(self, bound, query):
-    '''For a given bound state function determine if it has a query state
-    function which is the same as it or which is a child of it in this HSM.
-
-    **Note**:
-       Since the state functions can be decorated, this method compares the
-       names of the functions and note their addresses.
-
-    **Args**:
-       | ``bound`` (fn): the state function in which to search
-       | ``query`` (fn): the state function to search for
-
-
-    **Returns**:
-       (bool): True | False
-
-    '''
-    old_temp = self.temp.fun
-    old_fun = self.state.fun
-    state_name = self.state_name
-    state_fn = self.state_fn
-
-    if hasattr(bound, '__wrapped__'):
-      current_state = bound.__wrapped__
-    else:
-      current_state = bound
-    if hasattr(query, '__wrapped__'):
-      self.temp.fun = query.__wrapped__
-    else:
-      self.temp.fun = query
-
-    result = False
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
-    while(True):
-      if(self.temp.fun.__name__ == current_state.__name__):
-        result = True
-        r = return_status.IGNORED
-      else:
-        r = self.temp.fun(self, super_e)
-      if r == return_status.IGNORED:
-        break
-
-    self.state_fn = state_fn
-    self.state_name = state_name
-    self.temp.fun = old_temp
-    self.state.fun = old_fun
-    return result
-
   def p_spy(self, e):
     self.outmost.live_spy_callback(
       '{}:{}'.format(e.signal_name, self.state_name)
@@ -858,10 +832,8 @@ class Region(HsmWithQueues):
   def cache_clear():
     Region.tockenize.cache_clear()
     Region.token_match.cache_clear()
-    Region.within.cache_clear()
+    within.cache_clear()
     Region.get_region.cache_clear()
-
-
 
 class InstrumentedActiveObject(ActiveObject):
   def __init__(self, name, log_config):
@@ -954,7 +926,6 @@ class InstrumentedActiveObject(ActiveObject):
           with open(hdlr.baseFilename, "w") as f:
             f.write("")
 
-
 class Regions():
   '''Replaces long-winded boiler plate code like this:
 
@@ -1020,87 +991,32 @@ class Regions():
     over_s = over_hidden_region_function_name(region_name)
     final_s = final_region_function_name(region_name)
 
-    ## purposely leaving this code flat to make it easy to debug
-    ## begin function definitions
-    final_state = partial(
-      template_final,
-      under_region_state_name=under_s,
-      region_state_name=region_s,
-      over_region_state_name=over_s,
-      final_state_name=final_s,
-    )
-    final_state = update_wrapper(final_state, template_final)
-    final_state = orthogonal_state(final_state)
-    final_state.__name__ = final_s
-    setattr(
-      module_namespace,
-      final_s,
-      orthogonal_state(final_state)
-    )
-    assert(final_state.__name__ == final_s)
+    for function_name, template in [
+      (under_s, template_under_hidden_region),
+      (region_s, template_region),
+      (over_s, template_over_hidden_region),
+      (final_s, template_final)
+    ]:
 
-    # 
-    under_hidden_state_function = partial(
-      template_under_hidden_region,
-      region_state_name=region_s,
-    )
-    under_hidden_state_function = update_wrapper(under_hidden_state_function,
-        template_under_hidden_region)
-    under_hidden_state_function.__name__ = under_s
+      fn = partial(
+        template,
+        this_function_name=function_name,
+        under_region_state_name=under_s,
+        region_state_name=region_s,
+        over_region_state_name=over_s,
+        final_state_name=final_s,
+        initial_state_name=initial_state
+      )
 
-    under_hidden_state_function = orthogonal_state(under_hidden_state_function)
-    setattr(
-      module_namespace,
-      under_s,
-      under_hidden_state_function,
-    )
-    assert(under_hidden_state_function.__name__ == under_s)
+      fn = update_wrapper(fn, template)
+      fn.__name__ = function_name
+      fn = orthogonal_state(fn)
+      fn.__name__ = function_name
+      setattr(module_namespace, function_name, fn)
 
-    # 
-    over_hidden_state_function = partial(
-      template_over_hidden_region,
-      over_region_state_name=over_s,
-      region_state_name=region_s,
-    )
-    over_hidden_state_function = update_wrapper(over_hidden_state_function,
-        template_over_hidden_region)
-    over_hidden_state_function.__name__ = over_s
-    over_hidden_state_function = orthogonal_state(over_hidden_state_function)
-    setattr(
-      module_namespace,
-      over_s,
-      over_hidden_state_function,
-    )
-    assert(over_hidden_state_function.__name__ == over_s)
-
-    #if region_name in ['p_r2']:
-    #  # region construction
-    #  region_state_function = partial(
-    #    p_r2_region,
-    #    this_function_name=region_s,
-    #    initial_state_name=initial_state,
-    #    under_region_state_name=under_s
-    #  )
-    #  print('initial_state: {}'.format(initial_state))
-    #  print('under_s: {}'.format(under_s))
-    #  region_state_function = update_wrapper(region_state_function,
-    #      p_r2_region_)
-
-    #  region_state_function.__name__ = region_s
-    #  region_state_function = orthogonal_state(region_state_function)
-    #  setattr(
-    #    module_namespace,
-    #    region_s,
-    #    region_state_function)
-    #else:
-    #  region_f = getattr(module_namespace, region_s)
-    #  region_state_function = region_f
-
-
-    assert callable(under_hidden_state_function)
-    #assert callable(region_state_function)
-    assert callable(over_hidden_state_function)
     region_state_function = getattr(module_namespace, region_s)
+    over_hidden_state_function = getattr(module_namespace, over_s)
+    under_hidden_state_function = getattr(module_namespace, under_s)
 
     region =\
       Region(
@@ -1200,7 +1116,6 @@ class Regions():
         result = region
         break
     return result
-
 
 STXRef = namedtuple('STXRef', ['send_id', 'thread_id'])
 
@@ -1326,7 +1241,7 @@ class XmlChart(InstrumentedActiveObject):
     result += "\n"
     return result
 
-  # This is a debug method, so we want the name short
+  # This is a debug method, so we want the name shortened
   rqs = regions_queues_string
 
   def start(self):
@@ -1397,7 +1312,6 @@ class XmlChart(InstrumentedActiveObject):
     return result
 
   def active_states(self):
-
     # parallel state names
     psn = self.regions.keys()
 
@@ -1564,7 +1478,6 @@ class XmlChart(InstrumentedActiveObject):
         else:
           onion_states.reverse()
     return onion_states
-
 
   def meta_trans(self, e, s, t):
     return meta_trans(
@@ -1829,13 +1742,13 @@ class XmlChart(InstrumentedActiveObject):
       _state = outer_injector
 
     profile += "ps: \n{}\n".format(ps(event))
-    self.logger.critical(profile)
+    #self.logger.critical(profile)
 
     return (_state, event)
 
-  @lru_cache(maxsize=32)
+  @lru_cache(maxsize=128)
   def lca(self, _s, _t):
-    if (self.within(outer, _t)):
+    if (within(outer, _t)):
       return outer
     s_onion = self.build_onion(_s, sig=None)[::-1]
     t_onion = self.build_onion(_t, sig=None)[::-1]
@@ -1847,35 +1760,12 @@ class XmlChart(InstrumentedActiveObject):
         break
     return _lca
 
-  @lru_cache(maxsize=32)
-  def within(self, fn_region_handler, fn_state_handler):
-
-    old_temp = self.temp.fun
-    old_fun = self.state.fun
-
-    current_state = fn_region_handler
-    self.temp.fun = fn_state_handler
-
-    result = False
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
-    while(True):
-      if(self.temp.fun == current_state):
-        result = True
-        r = return_status.IGNORED
-      else:
-        r = self.temp.fun(self, super_e)
-      if r == return_status.IGNORED:
-        break
-    self.temp.fun = old_temp
-    self.state.fun = old_fun
-    return result
-
   def p_spy(self, e):
     self.live_spy_callback(
       '{}:{}'.format(e.signal_name, self.state_name)
     )
 
-  @lru_cache(maxsize=32)
+  @lru_cache(maxsize=128)
   def in_same_hsm(self, source, target):
     '''Is the source and target in the same statechart
 
@@ -1921,7 +1811,7 @@ class XmlChart(InstrumentedActiveObject):
     self.temp.fun = old_temp
     self.state.fun = old_fun
 
-    result = True if self.within(outer_state, target) else False
+    result = True if within(outer_state, target) else False
     return result
 
   @lru_cache(maxsize=128)
@@ -1963,84 +1853,13 @@ class XmlChart(InstrumentedActiveObject):
     XmlChart.token_match.cache_clear()
     XmlChart._meta_trans.cache_clear()
     XmlChart.lca.cache_clear()
-    XmlChart.within.cache_clear()
+    within.cache_clear()
     XmlChart.in_same_hsm.cache_clear()
     XmlChart._meta_hooked.cache_clear()
 
 ################################################################################
 #                          STATE MACHINE                                       #
 ################################################################################
-@orthogonal_state
-def p_r1_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r1_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p11)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r._post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if r == region and r.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_r1_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_r1_under_hidden_region)
-  elif(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
 
 @orthogonal_state
 def p_p11(r, e):
@@ -2141,14 +1960,14 @@ def p_p11(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(bound=r.state_fn, query=_state):
         status = r.trans(_state)
   elif e.signal == signals.EXIT_META_SIGNAL:
     r.p_spy(e)
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2170,76 +1989,6 @@ def p_p11(r, e):
     r.inner.post_lifo(Event(signal=signals.exit_region))
     rsm(p_p11, e)
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p11_r1_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p11_r1_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p11_s11)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r._post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif e.signal == signals.EXIT_META_SIGNAL:
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p11_r1_region, _state):
-      (_e, _state) = _e.payload.event, _e.payload.state
-      r.outer._post_lifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p11_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2313,69 +2062,6 @@ def p_p11_s12(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     rsm(p_p11_s12, e)
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p11_r2_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p11_r2_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    investigate(r, e, _e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-    if _state == p_p11_r2_region:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is a child of this state then transition to it
-    if _state is None or not r.within(p_p11_r2_region, _state):
-      status = r.trans(p_p11_s21)
-    else:
-      status = r.trans(_state)
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    investigate(r, e, _e)
-    _state, _e = e.payload.state, e.payload.event
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p11_r2_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p11_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2508,7 +2194,7 @@ def p_p12(r, e):
     investigate(r, e, _e)
 
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2571,7 +2257,7 @@ def p_p12(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   # Final token match
   elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
@@ -2592,76 +2278,6 @@ def p_p12(r, e):
     r.inner.post_lifo(Event(signal=signals.exit_region))
     rsm(p_p12, e)
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-# inner parallel
-@orthogonal_state
-def p_p12_r1_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_r1_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p12_p11)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p12_r1_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p12_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2721,7 +2337,7 @@ def p_p12_p11(r, e):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -2752,7 +2368,7 @@ def p_p12_p11(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   elif(r.token_match(e.signal_name, "e4")):
     r.p_spy(e)
@@ -2768,76 +2384,6 @@ def p_p12_p11(r, e):
     r.inner.post_lifo(Event(signal=signals.exit_region))
     rsm(p_p12_p11, e)
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_p11_r1_region(r, e):
-  status = return_status.UNHANDLED
-
-  __super__ = p_p12_p11_r1_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p12_p11_s11)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p12_p11_r1_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p12_p11_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2904,74 +2450,6 @@ def p_p12_p11_s12(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     rsm(p_p12_p11_s12, e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p12_p11_r2_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_p11_r2_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p12_p11_s21)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p12_p11_r2_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p12_p11_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3055,76 +2533,6 @@ def p_p12_s12(r, e):
 
 # inner parallel
 @orthogonal_state
-def p_p12_r2_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_r2_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p12_s21)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p12_r2_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p12_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-# inner parallel
-@orthogonal_state
 def p_p12_s21(r, e):
   __super__ = p_p12_r2_over_hidden_region
   __hooks__ = [signals.H1, signals.H2]
@@ -3202,76 +2610,6 @@ def p_p12_s22(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     rsm(p_p12_s22, e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-
-@orthogonal_state
-def p_r2_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r2_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_s21)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if r == region and r.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_r2_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3409,7 +2747,7 @@ def p_p22(r, e):
     (_e, _state) = e.payload.event, e.payload.state
     investigate(r, e, _e)
     # this appears backwards, but it needs to be this way.
-    if r.within(bound=_state, query=r.state_fn):
+    if within(_state, r.state_fn):
       # The next state is going to be our region handler skip it and post this
       # region handler would have posted to the outer HSM
       if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
@@ -3433,7 +2771,7 @@ def p_p22(r, e):
       r.inner.post_fifo(Event(signal=signals.exit_region))
       r.inner.post_fifo(Event(signal=signals.enter_region))
     else:
-      if r.within(bound=r.state_fn, query=_state):
+      if within(r.state_fn, _state):
         status = r.trans(_state)
   elif(e.signal == signals.exit_region):
     r._p_spy(e)
@@ -3449,67 +2787,6 @@ def p_p22(r, e):
     r.inner.post_lifo(Event(signal=signals.exit_region))
     rsm(p_p22, e)
     r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p22_r1_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p22_r1_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p22_s11)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  # can we get rid of exit_region?
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p22_r1_under_hidden_region)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -3584,77 +2861,6 @@ def p_p22_s12(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     rsm(p_p22_s12, e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-
-
-@orthogonal_state
-def p_p22_r2_region(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p22_r2_under_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r._p_spy(e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-
-    # If the target state is this state, just strip this layer of
-    # the meta event and use the next one (this was done to make the
-    # meta events consistent and easy to read and usable by different
-    # types of WTF events.
-
-    investigate(r, e, _e)
-    # We can't compare the function directly because they can be arbitrarily
-    # decorated by the user, so their addresses may not be the same, but their
-    # names will be the same
-    if _state and _state.__name__ == r.state_name:
-      (_e, _state) = _e.payload.event, _e.payload.state
-
-    # if _state is None or is referencing another region then follow are default
-    # init behavior
-    if _state is None or not r.within(bound=r.state_fn, query=_state):
-      status = r.trans(p_p22_s21)
-    else:
-      # if _state is this state or a child of this state, transition to it
-      status = r.trans(_state)
-      # if there is more to our meta event, post it into the chart
-      if _e is not None:
-        r.post_fifo(_e)
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    r._p_spy(e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    investigate(r, e, _e)
-    for region in r.same._regions:
-      if region.has_state(e.payload.previous_state):
-        region._post_fifo(_e)
-        region._post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    r._p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if r.within(p_p22_r2_region, _state):
-      r.outer._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p22_r2_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r._p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -4576,7 +3782,6 @@ if __name__ == '__main__':
          ('middle', 'INIT_SIGNAL')]
     )
 
-
     # example.clear_log()
     # starting: ['middle']
     old_results = build_test(
@@ -4602,6 +3807,7 @@ if __name__ == '__main__':
          ('p_p22_s21', 'ENTRY_SIGNAL'),
          ('p_p22_s21', 'INIT_SIGNAL')]
     )
+
     # p_p11 has an H1 hook
     assert(
       example.meta_hooked(

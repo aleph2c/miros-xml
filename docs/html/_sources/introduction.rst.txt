@@ -17,7 +17,7 @@ Problem - The Tale of Two Architectural Explosion Chambers
 Engineers like to describe their software with pictures.  Often these pictures
 look like a bunch of blocks connected by arrows.  The blocks represent the
 different system states and the arrows represent the things which cause change.
-Pictures drawn like this are called finite state machines (FSMs).  
+Pictures drawn like this are called finite state machines (FSMs).
 
 .. image:: _static/simple_fsm.svg
    :target: _static/simple_fsm.pdf

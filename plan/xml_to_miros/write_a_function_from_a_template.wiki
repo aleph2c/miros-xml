@@ -14,10 +14,6 @@
 
   *What is the problem?*
 
-    We began the work in xml_chart_5.1.py, but it was based on a buggy
-    xml_chart_5.py.  So I went back and fixed xml_chart_5.py, and added more
-    tests.  Now we are back working templates.
-
 
   *Discoveries:* ([[notes.xml_to_miros|notes]])
 
