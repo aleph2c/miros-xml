@@ -1,3 +1,0 @@
-[[parallel_example_4|back]]
-= Subgoals =
-* [ ] g1 WTF event [[g1_WTF_event|link]]

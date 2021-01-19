@@ -33,5 +33,5 @@ Contents
    installation
    introduction
    quickstart
-   recipes
+   techniques
    how_it_works

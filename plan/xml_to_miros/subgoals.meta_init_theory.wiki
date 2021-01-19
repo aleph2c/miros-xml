@@ -1,3 +1,0 @@
-[[meta_init_theory|back]]
-= Subgoals =
-* [ ] 

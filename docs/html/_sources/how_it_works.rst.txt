@@ -158,7 +158,7 @@ at ``<<x>>_region_state_1``, it will not have the same ``inner`` relation that
 But a function can't really own anything in OO theory.  If you read the code you
 will see that the ``inner`` attribute is assigned dynamically by a decorator.
 
-.. _how_it_works-injector-state-functions,-region-objects-and-regions-objects-in-a-graph:
+.. _injectors_2:
 
 Injector State Functions, Region Objects and Regions Objects in a Graph
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

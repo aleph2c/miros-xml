@@ -1,3 +1,0 @@
-[[understanding_xml|back]]
-= Subgoals =
-* [ ] 

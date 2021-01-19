@@ -11,7 +11,7 @@ windows:
     - . ./venv/bin/activate
     - clear
     - cd ./experiment/
-    - tail -f xml_chart_5.1.log
+    - tail -f xml_chart_5.2.log
   - focus: 'true'
     shell_command:
     - cd /mnt/c/github/miros-xml
@@ -26,7 +26,7 @@ windows:
     - . ./venv/bin/activate
     - clear
     - cd ./experiment/
-    - vim xml_chart_5.1.py
+    - vim xml_chart_5.2.py
   window_name: experiment
 - options:
     automatic-rename: 'off'

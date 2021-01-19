@@ -1,3 +1,0 @@
-[[parallel|back]]
-= Subgoals =
-* [ ] parallel_example_4 [[parallel_example_4|link]]

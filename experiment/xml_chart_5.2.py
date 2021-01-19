@@ -175,7 +175,7 @@ def meta_trans(hsm, e, s, t):
   )
   if fn is not None:
     status = fn(hsm, e)
-  elif(hsm.outmost.in_same_hsm(source=s, target=t)):
+  elif(in_same_hsm(s, t)):
     status = hsm.trans(t)
   else:
     _state, _e = hsm.outmost._meta_trans(
@@ -358,6 +358,22 @@ def within(outer, inner):
     if r == return_status.IGNORED:
       break
   return result
+
+@lru_cache(maxsize=128)
+def in_same_hsm(state1, state2):
+  hsm = MiniHsm()  # only lets you search outward
+  result = False
+  hsm.temp.fun = state1
+
+  super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+  temp, outer_state = state1, state1
+  while(True):
+    r = hsm.temp.fun(hsm, super_e)
+    if r == return_status.IGNORED:
+      break
+    outer_state = temp
+    temp = hsm.temp.fun
+  return within(outer_state, state2)
 
 ################################################################################
 #                            DECORATORS                                        #
@@ -1523,7 +1539,7 @@ class XmlChart(InstrumentedActiveObject):
         )
         if fn is not None:
           status = fn(hsm, e)
-        elif(hsm.outmost.in_same_hsm(source=s, target=t)):
+        elif(in_same_hsm(source=s, target=t)):
           status = hsm.trans(t)
         else:
           _state, _e = hsm.outmost._meta_trans(
@@ -1766,55 +1782,6 @@ class XmlChart(InstrumentedActiveObject):
     )
 
   @lru_cache(maxsize=128)
-  def in_same_hsm(self, source, target):
-    '''Is the source and target in the same statechart
-
-    **Note**:
-       We assume the source is in the same region/chart as self (the
-       first argument).  In fact, the source and target keywords
-       were choosen to match the arguments names of the _meta_trans,
-       since this will be the primary method using this feature.
-
-       This is the XmlChart version of this method
-
-    **Args**:
-       | ``source`` (fn): source function
-       | ``target`` (fn): target function
-
-
-    **Returns**:
-       (type):
-
-    **Example(s)**:
-
-    .. code-block:: python
-
-       # example code goes here
-
-    '''
-    old_temp = self.temp.fun
-    old_fun = self.state.fun
-
-    self.temp.fun = source
-
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
-    temp, outer_state = source, source
-    while(True):
-      if hasattr(self.temp.fun, '__wrapped__'):
-        r = self.temp.fun.__wrapped__(self, super_e)
-      else:
-        r = self.temp.fun(self, super_e)
-      if r == return_status.IGNORED:
-        break
-      outer_state = temp
-      temp = self.temp.fun
-    self.temp.fun = old_temp
-    self.state.fun = old_fun
-
-    result = True if within(outer_state, target) else False
-    return result
-
-  @lru_cache(maxsize=128)
   def _meta_hooked(self, s, t, sig):
     onion = self.build_onion(s=s, t=t, sig=sig)[:-1]
     old_temp, old_fun = self.temp.fun, self.state.fun
@@ -1854,7 +1821,8 @@ class XmlChart(InstrumentedActiveObject):
     XmlChart._meta_trans.cache_clear()
     XmlChart.lca.cache_clear()
     within.cache_clear()
-    XmlChart.in_same_hsm.cache_clear()
+    in_same_hsm.cache_clear()
+    within.cache_clear()
     XmlChart._meta_hooked.cache_clear()
 
 ################################################################################

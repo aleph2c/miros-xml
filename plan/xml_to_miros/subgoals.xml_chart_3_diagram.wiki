@@ -1,3 +1,0 @@
-[[xml_chart_3_diagram|back]]
-= Subgoals =
-* [ ] 
