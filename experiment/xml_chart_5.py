@@ -42,7 +42,11 @@ def csm():
 
 def rsm(state, event):
   '''record state memory (TESTING FUNCTION)'''
-  state_memory.append((state.__name__, event.signal_name))
+  if callable(state):
+    state_name = state.__name__
+  else:
+    state_name = state
+  state_memory.append((state_name, event.signal_name))
 
 def diff_state_memory(expected, observed):
   '''diff expected and observed state memory
@@ -135,6 +139,9 @@ def pp(item):
   '''DESIGN HELPER FUNCTION, NOT USED IN PRODUCTION CODE'''
   xprint.pprint(item)
 
+################################################################################
+#                       META Event Payloads and Signals                        #
+################################################################################
 META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
   ['n', 'event', 'state', 'previous_state', 'previous_signal', 'springer'])
 
@@ -206,6 +213,7 @@ def s_to_s(event_or_signal_number):
 def cache_clear():
   '''Clear the cached values of all caching methods and functions used by this package.'''
   s_to_s.cache_clear()
+  within.cache_clear()
   Region.cache_clear()
   XmlChart.cache_clear()
 
@@ -318,6 +326,8 @@ def pprint(value):
 
 class MiniHsm():
   def __init__(self):
+    '''The smallest possible set of features needed to search outward using
+    state fuctions'''
     class Empty:
       pass
 
@@ -333,7 +343,7 @@ class MiniHsm():
 
 @lru_cache(maxsize=128)
 def within(outer, inner):
-  hsm = MiniHsm()
+  hsm = MiniHsm()  # only lets you search outward
   result = False
   super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
   hsm.temp.fun = inner
@@ -375,8 +385,13 @@ def state(fn):
   dynamically assigns the inner attribute'''
 
   @wraps(fn)
-  def _state(chart, *args):
+  def _state(*args, **kwargs):
+
+    if len(args) == 0:
+      return fn(**kwargs)
+
     fn_as_s = fn.__name__
+    chart, args = args[0], args[1:]
 
     if len(args) == 1:
       e = args[0]
@@ -396,8 +411,7 @@ def state(fn):
     if(e.signal == signals.REFLECTION_SIGNAL):
       # We are no longer going to return a ReturnStatus object
       # instead we write the function name as a string
-      status = fn_as_s
-      return status
+      return fn_as_s
 
     #status = spy_on(fn)(chart, *args)
     status = fn(chart, e)
@@ -409,7 +423,12 @@ def othogonal_state(fn):
   '''Othogonal component state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute.'''
   @wraps(fn)
-  def _pspy_on(region, *args):
+  def _pspy_on(*args, **kwargs):
+
+    if len(args) == 0:
+      return fn(**kwargs)
+    region = args[0]
+    args = args[1:]
 
     if type(region) == XmlChart:
       return state(fn)(region, *args)
@@ -438,6 +457,21 @@ def othogonal_state(fn):
 
   return _pspy_on
 
+@lru_cache(maxsize=32)
+def tokenize(signal_name):
+  if type(signal_name) == int:
+    signal_name = signals.name_for_signal(signal_name)
+  return set(signal_name.split("."))
+
+@lru_cache(maxsize=32)
+def token_match(resident, other):
+  if other is None:
+    result = False
+  else:
+    alien_set = tokenize(other)
+    resident_set = tokenize(resident)
+    result = True if len(resident_set.intersection(alien_set)) >= 1 else False
+  return result
 ################################################################################
 #                             CLASSES                                          #
 ################################################################################
@@ -546,19 +580,19 @@ class Region(HsmWithQueues):
     if ready:
       self.outmost.post_fifo(self.final_event)
 
-  @lru_cache(maxsize=32)
-  def tockenize(self, signal_name):
-    return set(signal_name.split("."))
+  #@lru_cache(maxsize=32)
+  #def tokenize(self, signal_name):
+  #  return set(signal_name.split("."))
 
-  @lru_cache(maxsize=32)
-  def token_match(self, resident, other):
-    if other is None:
-      result = False
-    else:
-      alien_set = self.tockenize(other)
-      resident_set = self.tockenize(resident)
-      result = True if len(resident_set.intersection(alien_set)) >= 1 else False
-    return result
+  #@lru_cache(maxsize=32)
+  #def token_match(self, resident, other):
+  #  if other is None:
+  #    result = False
+  #  else:
+  #    alien_set = self.tokenize(other)
+  #    resident_set = self.tokenize(resident)
+  #    result = True if len(resident_set.intersection(alien_set)) >= 1 else False
+  #  return result
 
   def meta_peel(self, e):
     result = (None, None)
@@ -678,8 +712,8 @@ class Region(HsmWithQueues):
 
   @staticmethod
   def cache_clear():
-    Region.tockenize.cache_clear()
-    Region.token_match.cache_clear()
+    tokenize.cache_clear()
+    token_match.cache_clear()
     within.cache_clear()
     Region.get_region.cache_clear()
 
@@ -782,7 +816,7 @@ class Regions():
 
     self.p_regions.append(
       Region(
-        name='s1_r',
+        name='p_r1',
         starting_state=p_r2_under_hidden_region,
         outmost=self,
         final_event=Event(signal=signals.p_final)
@@ -790,7 +824,7 @@ class Regions():
     )
     self.p_regions.append(
       Region(
-        name='s2_r',
+        name='p_r2',
         starting_state=p_r2_under_hidden_region,
         outmost=self,
         final_event=Event(signal=signals.p_final)
@@ -804,15 +838,21 @@ class Regions():
 
   With this:
 
-    self.p_regions = Regions(name='p', outmost=self).add('s1_r').add('s2_r').regions
+    outer = self
+    self.regions['p'] = Regions(
+      name='p',
+      outmost=self)\
+    .add('p_r1', outer=outer)\
+    .add('p_r2', outer=outer).link()
 
   '''
-  def __init__(self, name, outmost):
+  def __init__(self, name, outmost, hsm):
     self.name = name
     self.outmost = outmost
     self._regions = []
     self.final_signal_name = name + "_final"
     self.lookup = {}
+    self.hsm = hsm
 
   def add(self, region_name, outer):
     '''
@@ -854,7 +894,7 @@ class Regions():
         over_hidden_state_function = over_hidden_state_function,
       )
     self._regions.append(region)
-    self.lookup[region_state_function] = region
+    self.lookup[region_name] = region
     return self
 
   def get_obj_for_fn(self, fn):
@@ -961,35 +1001,40 @@ class XmlChart(InstrumentedActiveObject):
     outer = self
     self.regions['p'] = Regions(
       name='p',
-      outmost=self)\
+      outmost=self,
+      hsm=self)\
     .add('p_r1', outer=outer)\
     .add('p_r2', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p11'] = Regions(
       name='p_p11',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r1'])\
     .add('p_p11_r1', outer=outer)\
     .add('p_p11_r2', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p12'] = Regions(
       name='p_p12',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r1'])\
     .add('p_p12_r1', outer=outer)\
     .add('p_p12_r2', outer=outer).link()
 
     outer = self.regions['p_p12']
     self.regions['p_p12_p11'] = Regions(
       name='p_p12_p11',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_p12_r1'])\
     .add('p_p12_p11_r1', outer=outer)\
     .add('p_p12_p11_r2', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p22'] = Regions(
       name='p_p22',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r2'])\
     .add('p_p22_r1', outer=outer)\
     .add('p_p22_r2', outer=outer).link()
 
@@ -1085,7 +1130,7 @@ class XmlChart(InstrumentedActiveObject):
     self.instrumented = _instrumented
 
   @lru_cache(maxsize=32)
-  def tockenize(self, signal_name):
+  def tokenize(self, signal_name):
     return set(signal_name.split("."))
 
   @lru_cache(maxsize=32)
@@ -1093,8 +1138,8 @@ class XmlChart(InstrumentedActiveObject):
     if other is None:
       result = False
     else:
-      alien_set = self.tockenize(other)
-      resident_set = self.tockenize(resident)
+      alien_set = tokenize(other)
+      resident_set = tokenize(resident)
       result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
@@ -1122,7 +1167,7 @@ class XmlChart(InstrumentedActiveObject):
   def cancel_all(self, e):
     token = e.signal_name
     for k, v in self.shot_lookup.items():
-      if self.token_match(token, k):
+      if token_match(token, k):
         self.cancel_events(Event(signal=k))
         break
 
@@ -1569,7 +1614,7 @@ class XmlChart(InstrumentedActiveObject):
       _state = outer_injector
 
     profile += "ps: \n{}\n".format(ps(event))
-    self.logger.critical(profile)
+    #self.logger.critical(profile)
 
     return (_state, event)
 
@@ -1627,8 +1672,8 @@ class XmlChart(InstrumentedActiveObject):
 
   @staticmethod
   def cache_clear():
-    XmlChart.tockenize.cache_clear()
-    XmlChart.token_match.cache_clear()
+    tokenize.cache_clear()
+    token_match.cache_clear()
     XmlChart._meta_trans.cache_clear()
     XmlChart.lca.cache_clear()
     within.cache_clear()
@@ -1647,7 +1692,7 @@ def p_r1_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_r1_region)
   elif(e.signal == signals.INIT_SIGNAL):
@@ -1788,53 +1833,53 @@ def p_p11(r, e):
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "SRH3") or
-       r.token_match(e.signal_name, "PG2")
+  elif(token_match(e.signal_name, "e1") or
+       token_match(e.signal_name, "e2") or
+       token_match(e.signal_name, "e4") or
+       token_match(e.signal_name, "SRH3") or
+       token_match(e.signal_name, "PG2")
        ):
     r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H1")):
+  elif(token_match(e.signal_name, "H1")):
     r.scribble("p_p11 hooked")
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
+  elif token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
     r.p_spy(e)
     status = r.trans(p_p12)
-  elif r.token_match(e.signal_name, "RC1"):
+  elif token_match(e.signal_name, "RC1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11,
       t=p_p12,
     )
-  elif r.token_match(e.signal_name, "SRH2"):
+  elif token_match(e.signal_name, "SRH2"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11,
       t=middle,
     )
-  elif r.token_match(e.signal_name, "RA1"):
+  elif token_match(e.signal_name, "RA1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11,
       t=p_p11,
     )
-  elif r.token_match(e.signal_name, "PF1"):
+  elif token_match(e.signal_name, "PF1"):
     r.p_spy(e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "PC1"):
+  elif token_match(e.signal_name, "PC1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11,
       t=p_s21,
     )
-  elif(r.token_match(e.signal_name, "RF1")):
+  elif(token_match(e.signal_name, "RF1")):
     r.p_spy(e)
 
     status = r.meta_trans(
@@ -1902,7 +1947,7 @@ def p_p11_r1_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p11_r1_region)
   elif(e.signal == signals.INIT_SIGNAL):
@@ -2032,7 +2077,7 @@ def p_p11_s11(r, e):
     r.p_spy(e)
     rsm(p_p11_s11, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e4")):
+  elif(token_match(e.signal_name, "e4")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2065,14 +2110,14 @@ def p_p11_s12(r, e):
     rsm(p_p11_s12, e)
     r.p_spy(e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "SRH3"):
+  elif token_match(e.signal_name, "SRH3"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11_s12,
       t=p,
     )
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2122,7 +2167,7 @@ def p_p11_r2_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p11_r2_region)
   elif(e.signal == signals.INIT_SIGNAL):
@@ -2245,7 +2290,7 @@ def p_p11_s21(r, e):
     r.p_spy(e)
     rsm(p_p11_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     status = r.meta_trans(
       e=e,
       s=p_p11_s21,
@@ -2284,10 +2329,10 @@ def p_p11_s22(r, e):
       s=p_p11_s22,
       t=p_s21,
     )
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.trans(p_p11_r2_final)
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2382,14 +2427,14 @@ def p_p12(r, e):
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # Any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "RD1") or
-       r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "RH1") or
-       r.token_match(e.signal_name, "RG1") or
-       r.token_match(e.signal_name,
+  elif(token_match(e.signal_name, "e1") or
+       token_match(e.signal_name, "e2") or
+       token_match(e.signal_name, "e4") or
+       token_match(e.signal_name, "RD1") or
+       token_match(e.signal_name, "PG1") or
+       token_match(e.signal_name, "RH1") or
+       token_match(e.signal_name, "RG1") or
+       token_match(e.signal_name,
          r.outmost.regions['p_p12_p11'].final_signal_name)
        ):
     r.p_spy(e)
@@ -2417,24 +2462,24 @@ def p_p12(r, e):
       else:
         r.same._post_lifo(_e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H1")):
+  elif(token_match(e.signal_name, "H1")):
     r.scribble("p_p12 hooked")
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H2")):
+  elif(token_match(e.signal_name, "H2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p12,
       t=p
     )
-  elif(r.token_match(e.signal_name, "RE1")):
+  elif(token_match(e.signal_name, "RE1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p12,
       t=p_p12_p11_s12,
     )
-  elif(r.token_match(e.signal_name, "RA2")):
+  elif(token_match(e.signal_name, "RA2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2449,7 +2494,7 @@ def p_p12(r, e):
     r.inner.post_lifo(Event(signal=signals.force_region_init))
     status = return_status.HANDLED
 
-  elif(r.token_match(e.signal_name, "RB1")):
+  elif(token_match(e.signal_name, "RB1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2468,10 +2513,10 @@ def p_p12(r, e):
       if within(r.state_fn, _state):
         status = r.trans(_state)
   # Final token match
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
+  elif(token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
     r.p_spy(e)
     status = r.trans(p_r1_final)
-  elif(r.token_match(e.signal_name, "e5")):
+  elif(token_match(e.signal_name, "e5")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2502,7 +2547,7 @@ def p_p12_r1_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p12_r1_region)
   elif(e.signal == signals.INIT_SIGNAL):
@@ -2642,22 +2687,22 @@ def p_p12_p11(r, e):
     rsm(p_p12_p11, e)
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "RG1") or
-       r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "RH1")
+  elif(token_match(e.signal_name, "RG1") or
+       token_match(e.signal_name, "e1") or
+       token_match(e.signal_name, "PG1") or
+       token_match(e.signal_name, "RH1")
        ):
     r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
+  elif(token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p12_p11,
       t=p_p12_s12,
     )
-  elif(r.token_match(e.signal_name, "RD1")):
+  elif(token_match(e.signal_name, "RD1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2702,7 +2747,7 @@ def p_p12_p11(r, e):
     else:
       if within(r.state_fn, _state):
         status = r.trans(_state)
-  elif(r.token_match(e.signal_name, "e4")):
+  elif(token_match(e.signal_name, "e4")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2731,7 +2776,7 @@ def p_p12_p11_r1_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     status = r.trans(p_p12_p11_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     status = return_status.HANDLED
@@ -2888,7 +2933,7 @@ def p_p12_p11_s12(r, e):
     r.p_spy(e)
     rsm(p_p12_p11_s12, e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "RH1"):
+  elif token_match(e.signal_name, "RH1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2913,7 +2958,7 @@ def p_p12_p11_r2_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     status = r.trans(p_p12_p11_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
     status = return_status.HANDLED
@@ -3081,7 +3126,7 @@ def p_p12_s12(r, e):
     r.p_spy(e)
     rsm(p_p12_s12, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3133,7 +3178,7 @@ def p_p12_r2_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p12_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -3269,12 +3314,12 @@ def p_p12_s21(r, e):
     rsm(p_p12_s21, e)
     status = return_status.HANDLED
   elif(
-    r.token_match(e.signal_name, "H1") or
-    r.token_match(e.signal_name, "H2")
+    token_match(e.signal_name, "H1") or
+    token_match(e.signal_name, "H2")
   ):
     r.scribble("p_p11 hooked")
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3308,14 +3353,14 @@ def p_p12_s22(r, e):
     r.p_spy(e)
     rsm(p_p12_s22, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p12_s22,
       t=p_p12_r2_final,
     )
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3367,7 +3412,7 @@ def p_r2_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -3496,21 +3541,21 @@ def p_s21(r, e):
     r.p_spy(e)
     rsm(p_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "RC1")):
+  elif(token_match(e.signal_name, "RC1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=p_p22,
     )
-  elif(r.token_match(e.signal_name, "RF1")):
+  elif(token_match(e.signal_name, "RF1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=p_p22_s12,
     )
-  elif(r.token_match(e.signal_name, "PF1")):
+  elif(token_match(e.signal_name, "PF1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3518,14 +3563,14 @@ def p_s21(r, e):
       t=p_p12_p11_s21,
     )
 
-  elif r.token_match(e.signal_name, "SRH1"):
+  elif token_match(e.signal_name, "SRH1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=middle,
     )
-  elif r.token_match(e.signal_name, "SRD2"):
+  elif token_match(e.signal_name, "SRD2"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3566,32 +3611,32 @@ def p_p22(r, e):
     r.inner.post_lifo(Event(signal=signals.enter_region))
     status = return_status.HANDLED
   # any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "SRG1") or
-       r.token_match(e.signal_name, "RF1") or
-       r.token_match(e.signal_name, "RE1")
+  elif(token_match(e.signal_name, "e1") or
+       token_match(e.signal_name, "e2") or
+       token_match(e.signal_name, "e4") or
+       token_match(e.signal_name, "SRG1") or
+       token_match(e.signal_name, "RF1") or
+       token_match(e.signal_name, "RE1")
        ):
     r.p_spy(e)
     r.inner.post_fifo(e)
     status = return_status.HANDLED
   # final token match
-  elif r.token_match(e.signal_name, "SRD1"):
+  elif token_match(e.signal_name, "SRD1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p22,
       t=p,
     )
-  elif(r.token_match(e.signal_name, "RC2")):
+  elif(token_match(e.signal_name, "RC2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p22,
       t=p_s21,
     )
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
+  elif(token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3666,7 +3711,7 @@ def p_p22_r1_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p22_r1_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -3793,7 +3838,7 @@ def p_p22_s11(r, e):
   elif(e.signal == signals.H2):
     r.scribble('p_p22_s11 hook')
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e4")):
+  elif(token_match(e.signal_name, "e4")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3827,7 +3872,7 @@ def p_p22_s12(r, e):
     r.p_spy(e)
     rsm(p_p22_s12, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -3879,7 +3924,7 @@ def p_p22_r2_under_hidden_region(r, e):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(p_p22_r2_region)
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -4009,14 +4054,14 @@ def p_p22_s21(r, e):
     r.p_spy(e)
     rsm(p_p22_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p22_s21,
       t=p_p22_s22,
     )
-  elif r.token_match(e.signal_name, "SRG1"):
+  elif token_match(e.signal_name, "SRG1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -4049,7 +4094,7 @@ def p_p22_s22(r, e):
     r.p_spy(e)
     rsm(p_p22_s22, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
