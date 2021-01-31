@@ -2,4 +2,5 @@
 
 goals:
   * write a template for injectors [[write a template for injectors|link]]
+  * use the behavior technique to build the injectors [[use_the_behavior_technique_to_build_the_injectors|link]]
   * fix meta_trans [[fix_meta_trans|link]]

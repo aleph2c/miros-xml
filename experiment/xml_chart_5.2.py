@@ -26,10 +26,48 @@ from miros import return_status
 from miros import HsmWithQueues
 
 # To create a deconstruction of a given event:
-event_to_investigate = '_SRE3'
+event_to_investigate = '_SRD1'
 
-# 'module_namespace' will be used to add functions to the globals() namespace
+
+# this module will write functions to this name space
 module_namespace = sys.modules[__name__]
+
+# Here is a list of the functions that will be made, they are explicitly 
+# created to quiet pyflakes
+
+#p = None
+#p_r1_region = None
+#p_r2_over_hidden_region = None
+#
+#p_p11 = None
+#p_p11_r1_region = None
+#p_p11_r1_over_hidden_region = None
+#p_p11_r2_over_hidden_region = None
+#p_p11_r1_final = None
+#p_p11_r2_final = None
+#
+#p_p12 = None
+#p_p12_r1_region = None
+#p_p12_r1_over_hidden_region = None
+#p_p12_r2_over_hidden_region = None
+#p_p12_r1_final = None
+#p_p12_r2_final = None
+#
+#p_p12_p11 = None
+#p_p12_p11_r1_region = None
+#p_p12_p11_r1_under_hidden_region = None
+#p_p12_p11_r1_over_hidden_region = None
+#p_p12_p11_r2_region = None
+#p_p12_p11_r2_under_hidden_region = None
+#p_p12_p11_r2_over_hidden_region = None
+#
+#p_p22 = None
+#p_p22_r1_region = None
+#p_p22_r1_over_hidden_region = None
+#p_p22_r2_over_hidden_region = None
+#p_p22_r1_final = None
+#p_p22_r2_final = None
+
 
 ################################################################################
 #                                 Testing Code                                 #
@@ -43,7 +81,11 @@ def csm():
 
 def rsm(state, event):
   '''record state memory (TESTING FUNCTION)'''
-  state_memory.append((state.__name__, event.signal_name))
+  if callable(state):
+    state_name = state.__name__
+  else:
+    state_name = state
+  state_memory.append((state_name, event.signal_name))
 
 def diff_state_memory(expected, observed):
   '''diff expected and observed state memory
@@ -91,9 +133,7 @@ def diff_state_memory(expected, observed):
 
   '''
   global state_memory
-  expected_rtc_set = set(expected)
   observed_rtc = observed
-  #diff = [x for x in observed_rtc if x not in expected_rtc_set]
 
   diff = []
 
@@ -136,6 +176,13 @@ def pp(item):
   '''DESIGN HELPER FUNCTION, NOT USED IN PRODUCTION CODE'''
   xprint.pprint(item)
 
+FrameData = namedtuple('FrameData', [
+  'filename',
+  'line_number',
+  'function_name',
+  'lines',
+  'index'])
+
 ################################################################################
 #                       META Event Payloads and Signals                        #
 ################################################################################
@@ -146,17 +193,21 @@ META_SIGNAL_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
 META_HOOK_PAYLOAD = namedtuple("META_SIGNAL_PAYLOAD",
   ['event'])
 
-FrameData = namedtuple('FrameData', [
-  'filename',
-  'line_number',
-  'function_name',
-  'lines',
-  'index'])
-
-SEARCH_FOR_SUPER_SIGNAL = signals.SEARCH_FOR_SUPER_SIGNAL
+SignalAndFunction = namedtuple("SignalAndFunction", 
+    ["signal", "function"]
+)
 
 ################################################################################
-#                              MIXINS                                          #
+#                   Specifications for Function Construction                   #
+################################################################################
+
+StateSpecification = namedtuple(
+    "StateSpecification",
+    ["function", "super_state", "super_state_name", "signal_function_list"],
+)
+
+################################################################################
+#                                    Mixins                                    #
 ################################################################################
 def flatten(l, a=None):
   if a is None:
@@ -343,7 +394,7 @@ class MiniHsm():
 def within(outer, inner):
   hsm = MiniHsm()  # only lets you search outward
   result = False
-  super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+  super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
   hsm.temp.fun = inner
 
   # Search from the 'inner' state, outward;
@@ -362,10 +413,9 @@ def within(outer, inner):
 @lru_cache(maxsize=128)
 def in_same_hsm(state1, state2):
   hsm = MiniHsm()  # only lets you search outward
-  result = False
   hsm.temp.fun = state1
 
-  super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+  super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
   temp, outer_state = state1, state1
   while(True):
     r = hsm.temp.fun(hsm, super_e)
@@ -376,16 +426,20 @@ def in_same_hsm(state1, state2):
   return within(outer_state, state2)
 
 ################################################################################
-#                            DECORATORS                                        #
+#                        Decorators for Instrumentation                        #
 ################################################################################
 def state(fn):
   '''Statechart state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute'''
 
   @wraps(fn)
-  def _state(chart, *args, **kwargs):
+  def _state(*args, **kwargs):
+
+    if len(args) == 0:
+      return fn(**kwargs)
 
     fn_as_s = fn.__name__
+    chart, args = args[0], args[1:]
 
     if len(args) == 1:
       e = args[0]
@@ -405,8 +459,7 @@ def state(fn):
     if(e.signal == signals.REFLECTION_SIGNAL):
       # We are no longer going to return a ReturnStatus object
       # instead we write the function name as a string
-      status = fn_as_s
-      return status
+      return fn_as_s
 
     #status = spy_on(fn)(chart, *args)
     status = fn(chart, e)
@@ -414,10 +467,14 @@ def state(fn):
   return _state
 
 def orthogonal_state(fn):
-  '''Othogonal component state function wrapper, provides instrumentation and
+  '''Orthogonal component state function wrapper, provides instrumentation and
   dynamically assigns the inner attribute.'''
   @wraps(fn)
-  def _pspy_on(region, *args, **kwargs):
+  def _pspy_on(*args, **kwargs):
+
+    if len(args) == 0:
+      return fn(**kwargs)
+    region, args = args[0], args[1:]
 
     if type(region) == XmlChart:
       return state(fn)(region, *args)
@@ -446,6 +503,22 @@ def orthogonal_state(fn):
 
   return _pspy_on
 
+@lru_cache(maxsize=32)
+def tokenize(signal_name):
+  if type(signal_name) == int:
+    signal_name = signals.name_for_signal(signal_name)
+  return set(signal_name.split("."))
+
+@lru_cache(maxsize=32)
+def token_match(resident, other):
+  if other is None:
+    result = False
+  else:
+    other_set = tokenize(other)
+    resident_set = tokenize(resident)
+    result = True if len(resident_set.intersection(other_set)) >= 1 else False
+  return result
+
 ################################################################################
 #                 Template Functions for Partial Construction                  #
 ################################################################################
@@ -470,11 +543,11 @@ def template_under_hidden_region(r, e, *, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
   __super__ = r.bottom
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
-  if(r.token_match(e.signal_name, "enter_region")):
+  if(token_match(e.signal_name, "enter_region")):
     r._p_spy(e)
     status = r.trans(getattr(module_namespace, region_state_name))
   elif(e.signal == signals.ENTRY_SIGNAL):
@@ -494,7 +567,7 @@ def template_under_hidden_region(r, e, *, region_state_name=None, **kwargs):
 def template_over_hidden_region(r, e, *, over_region_state_name=None, region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = getattr(module_namespace, region_state_name)
     return return_status.SUPER
 
@@ -518,7 +591,7 @@ def template_over_hidden_region(r, e, *, over_region_state_name=None, region_sta
 def template_final(r, e, *, over_region_state_name=None, final_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = getattr(module_namespace, over_region_state_name)
     return return_status.SUPER
 
@@ -541,7 +614,7 @@ def template_final(r, e, *, over_region_state_name=None, final_state_name=None, 
 def template_region(r, e, *, this_function_name=None, initial_state_name=None, under_region_state_name=None, **kwargs):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = getattr(module_namespace, under_region_state_name)
     return return_status.SUPER
 
@@ -714,19 +787,6 @@ class Region(HsmWithQueues):
     if ready:
       self.outmost.post_fifo(self.final_event)
 
-  @lru_cache(maxsize=32)
-  def tockenize(self, signal_name):
-    return set(signal_name.split("."))
-
-  @lru_cache(maxsize=32)
-  def token_match(self, resident, other):
-    if other is None:
-      result = False
-    else:
-      alien_set = self.tockenize(other)
-      resident_set = self.tockenize(resident)
-      result = True if len(resident_set.intersection(alien_set)) >= 1 else False
-    return result
 
   def meta_peel(self, e):
     result = (None, None)
@@ -770,7 +830,7 @@ class Region(HsmWithQueues):
     state_fn = self.state_fn
 
     self.temp.fun = state
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if(self.temp.fun.__name__ == self.fns['region_state_function'].__name__):
         result = True
@@ -800,7 +860,7 @@ class Region(HsmWithQueues):
     self.temp.fun = current_state
 
     result = ''
-    super_e = Event(signal=SEARCH_FOR_SUPER_SIGNAL)
+    super_e = Event(signal=signals.SEARCH_FOR_SUPER_SIGNAL)
     while(True):
       if 'under' in self.temp.fun.__name__:
         result = self.temp.fun.__name__
@@ -846,8 +906,8 @@ class Region(HsmWithQueues):
 
   @staticmethod
   def cache_clear():
-    Region.tockenize.cache_clear()
-    Region.token_match.cache_clear()
+    tokenize.cache_clear()
+    token_match.cache_clear()
     within.cache_clear()
     Region.get_region.cache_clear()
 
@@ -977,12 +1037,13 @@ class Regions():
     .add('p_r2', outer=outer).link()
 
   '''
-  def __init__(self, name, outmost):
+  def __init__(self, name, outmost, hsm):
     self.name = name
     self.outmost = outmost
     self._regions = []
     self.final_signal_name = name + "_final"
     self.lookup = {}
+    self.hsm = hsm
 
   def add(self, region_name, initial_state, outer):
     '''
@@ -1000,6 +1061,9 @@ class Regions():
     for the EXIT_META_SIGNAL signal.
 
     '''
+    ##########################################################################
+    #                            Hidden States
+    ##########################################################################
 
     # create the function names for this region
     under_s = under_hidden_region_function_name(region_name)
@@ -1047,7 +1111,7 @@ class Regions():
         over_hidden_state_function = over_hidden_state_function,
       )
     self._regions.append(region)
-    self.lookup[region_state_function] = region
+    self.lookup[region_name] = region
     return self
 
   def get_obj_for_fn(self, fn):
@@ -1153,35 +1217,40 @@ class XmlChart(InstrumentedActiveObject):
     outer = self
     self.regions['p'] = Regions(
       name='p',
-      outmost=self)\
+      outmost=self,
+      hsm=self)\
     .add('p_r1', initial_state='p_p11', outer=outer)\
     .add('p_r2', initial_state='p_s21', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p11'] = Regions(
       name='p_p11',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r1'])\
     .add('p_p11_r1', initial_state='p_p11_s11', outer=outer)\
     .add('p_p11_r2', initial_state='p_p11_s21', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p12'] = Regions(
       name='p_p12',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r1'])\
     .add('p_p12_r1', initial_state='p_p12_p11', outer=outer)\
     .add('p_p12_r2', initial_state='p_p12_s21', outer=outer).link()
 
     outer = self.regions['p_p12']
     self.regions['p_p12_p11'] = Regions(
       name='p_p12_p11',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_p12_r1'])\
     .add('p_p12_p11_r1', initial_state='p_p12_p11_s11', outer=outer)\
     .add('p_p12_p11_r2', initial_state='p_p12_p11_s21', outer=outer).link()
 
     outer = self.regions['p']
     self.regions['p_p22'] = Regions(
       name='p_p22',
-      outmost=self)\
+      outmost=self,
+      hsm=outer.lookup['p_r2'])\
     .add('p_p22_r1', initial_state='p_p22_s11', outer=outer)\
     .add('p_p22_r2', initial_state='p_p22_s21', outer=outer).link()
 
@@ -1192,6 +1261,390 @@ class XmlChart(InstrumentedActiveObject):
     self.final_signal_name = None
     self.last_rtc_active_states = []
     self.starting_state = starting_state
+
+    #########################################################################
+    #                           Injectors                                   #
+    #########################################################################
+    # Create our injector states after our regions so we can ask these regions
+    # for their property names, like final_signal_name, etc
+
+    # The injector creation uses the "have a function build itself" pattern. See
+    # the augment.py file in the ./experiment/ directory for this code in
+    # isolation.  This pattern has been documented here: 
+    # https://aleph2c.github.io/miros-xml/html/techniques.html#adding-and-removing-behavior-from-functions
+
+    # The injector construction happens in a few stages:
+    # 1. Get the HSM that the injector will use
+    # 2. Call a function that builds up the injector's boiler plate code
+    # 3. Customize the injector by having it drive events deeper into the HHSM
+    #   1. Explicitly specify the signal_names that the deep parts of the chart
+    #      need (suggest this behavior)
+    #   2. Iterate over the automatically generated final signals used by the
+    #      deeper region objects, add injection code for these (suggest this
+    #      behavior)
+    # 4. Explicitly specify how this injector needs to react to events, rather
+    #    than driving them deeper into HHSM.  This involves linking signal name to
+    #    a handler and describing a hook or a transition.  These handlers can be
+    #    whatever you want.
+    # 5. Explicitly specific how injector should react to its final signal.
+    #    This signal is automatically named based on the region name the
+    #    injector belong to.
+
+    hsm = self.regions['p'].hsm
+
+    # call a function that builds up the injector's boiler plate code
+    p = base_injector_template(hsm=hsm, state_name='p', super_state_name='middle')
+
+    # customize the injecto by having it drive events deeper into the HHSM
+    # specialize the injector, these signals need to be driven deeper into the
+    # chart, since they will be handled by a deeper state machine
+    for signal_name in [
+      "e1", "e2", "e3", "e4", "e5",
+      "RC1", "RC2",
+      "H2",
+      "RA1", "RA2","RB1", "RD1", "RE1", "RF1", "RG1", "RH1",
+      "SRG1", "SRH1", "SRH2","SRH3",
+      "PC1", "PF1", "PG1", "PG2",
+      "SRD1", "SRD2",
+      ]:
+
+      signal = getattr(signals, signal_name)
+      p = p(
+        hsm=hsm,
+        signal=signal,
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # specialize the injector, drive the automatically named final signals
+    # deeper into the chart, these will be handled by a deeper state machine
+    for key in self.regions.keys():
+      signal_name = self.regions[key].final_signal_name
+      p = p(
+        hsm=hsm,
+        signal=getattr(signals, signal_name),
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # specialize the injector, attach a signal named to a function and let that
+    # function know where we would like to transition after the framework runs
+    # its code.
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'SRE2'),
+      handler=partial(template_meta_trans, trans="p_p11_s12"),
+      imposed_behavior=True
+    )
+
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'SA1'),
+      handler=partial(template_meta_trans, trans="p"),
+      imposed_behavior=True
+    )
+
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'H1'),
+      handler=partial(template_meta_trans, trans="middle"),
+      imposed_behavior=True
+    )
+
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'SD1'),
+      handler=partial(template_meta_trans, trans="middle"),
+      imposed_behavior=True
+    )
+
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'SC1'),
+      handler=partial(template_meta_trans, trans="s"),
+      imposed_behavior=True
+    )
+
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, 'SRB1'),
+      handler=partial(template_meta_trans, trans="p_p22"),
+      imposed_behavior=True
+    )
+
+    # Final signal stuff
+    p = p(
+      hsm=hsm,
+      signal=getattr(signals, self.regions['p'].final_signal_name),
+      handler=partial(template_final_trans_injector, trans='s_s1'),
+      imposed_behavior=True
+    )
+
+    # find this injector's hsm
+    hsm = self.regions['p_p11'].hsm
+    p_p11 = base_injector_template(
+      hsm=self,
+      state_name='p_p11',
+      super_state_name='p_r1_over_hidden_region',
+    )
+
+    for signal_name in ["e1", "e2", "e4", "SRH3", "PG2"]:
+      signal = getattr(signals, signal_name)
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=signal,
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # pass the final signals into the inner parts of the chart, but only suggest
+    # the behavior, so that if we need to over-write it, it will be
+    for key in self.regions.keys():
+      signal_name = self.regions[key].final_signal_name
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, signal_name),
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # custom signals for this state
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'SEARCH_FOR_META_HOOKS'),
+      handler=partial(template_meta_hook, hooks=[signals.H1]),
+      imposed_behavior=True
+    )
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'RC1'),
+      handler=partial(template_meta_trans, trans="p_p12"),
+      imposed_behavior=True
+    )
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'SRH2'),
+      handler=partial(template_meta_trans, trans="middle"),
+      imposed_behavior=True
+    )
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'RA1'),
+      handler=partial(template_meta_trans, trans="p_p11"),
+      imposed_behavior=True
+    )
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'PF1'),
+      handler=partial(template_hook),
+      imposed_behavior=True
+    )
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'PC1'),
+      handler=partial(template_meta_trans, trans='p_s21'),
+      imposed_behavior=True
+    )
+
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'RF1'),
+      handler=partial(template_meta_trans, trans='p_p12_p11_s12'),
+      imposed_behavior=True
+    )
+
+    p_p11 = p_p11(
+      hsm=hsm,
+      signal=getattr(signals, self.regions['p_p11'].final_signal_name),
+      handler=partial(template_meta_trans, trans='p_p12'),
+      imposed_behavior=True
+    )
+
+    # find this injector's hsm
+    hsm = self.regions['p_p12'].hsm
+
+    p_p12 = base_injector_template(
+      hsm=hsm,
+      state_name='p_p12',
+      super_state_name='p_r1_over_hidden_region',
+    )
+
+    for signal_name in [
+      "e1", "e2", "e4",
+      "PG1",
+      "RD1", "RG1", "RH1",
+      ]:
+
+      signal = getattr(signals, signal_name)
+      p_p12 = p_p12(
+        hsm=hsm,
+        signal=signal,
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+    # pass the final signals into the inner parts of the chart, but only suggest
+    # the behavior, so that if we need to over-write it, it will be
+    for key in self.regions.keys():
+      signal_name = self.regions[key].final_signal_name
+      p_p12 = p_p12(
+        hsm=hsm,
+        signal=getattr(signals, signal_name),
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # not used
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, self.regions['p_p12'].final_signal_name),
+      handler=partial(template_meta_trans, trans="p_r1_final"),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'SEARCH_FOR_META_HOOKS'),
+      handler=partial(template_meta_hook, hooks=[signals.H1]),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'H2'),
+      handler=partial(template_meta_trans, trans="p"),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'RE1'),
+      handler=partial(template_meta_trans, trans="p_p12_p11_s12"),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'RA2'),
+      handler=partial(template_meta_trans, trans="p_p12"),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'RB1'),
+      handler=partial(template_meta_trans, trans="p_p12_p11"),
+      imposed_behavior=True
+    )
+
+    p_p12 = p_p12(
+      hsm=hsm,
+      signal=getattr(signals, 'e5'),
+      handler=partial(template_meta_trans, trans="p_r1_final"),
+      imposed_behavior=True
+    )
+
+    hsm = self.regions['p_p12_p11'].hsm
+
+    p_p12_p11 = base_injector_template(
+      hsm=hsm,
+      state_name='p_p12_p11',
+      super_state_name='p_p12_r1_over_hidden_region',
+    )
+
+    for signal_name in [
+      "e1",
+      "RG1", "RH1",
+      "PG1",
+      ]:
+
+      signal = getattr(signals, signal_name)
+      p_p12_p11 = p_p12_p11(
+        hsm=hsm,
+        signal=signal,
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    # not used
+    p_p12_p11 = p_p12_p11(
+      hsm=hsm,
+      signal=getattr(signals, self.regions['p_p12_p11'].final_signal_name),
+      handler=partial(template_meta_trans, trans="p_p12_s12"),
+      imposed_behavior=True
+    )
+
+    p_p12_p11 = p_p12_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'RD1'),
+      handler=partial(template_meta_trans, trans="p_p12"),
+      imposed_behavior=True
+    )
+
+    p_p12_p11 = p_p12_p11(
+      hsm=hsm,
+      signal=getattr(signals, 'e4'),
+      handler=partial(template_meta_trans, trans="p_p12_s12"),
+      imposed_behavior=True
+    )
+
+    hsm = self.regions['p_p22'].hsm
+    p_p22 = base_injector_template(
+      hsm=hsm,
+      state_name='p_p22',
+      super_state_name='p_r2_over_hidden_region',
+    )
+    #print(parse_spec(p_p22(specification=True)))
+    print("")
+    for signal_name in [
+      "e1", "e2", "e4",
+      "RE1", "RF1",
+      "SRG1",
+      ]:
+
+      signal = getattr(signals, signal_name)
+      p_p22 = p_p22(
+        hsm=hsm,
+        signal=signal,
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    for key in self.regions.keys():
+      signal_name = self.regions[key].final_signal_name
+      p_p22 = p_p22(
+        hsm=hsm,
+        signal=getattr(signals, signal_name),
+        handler=partial(template_inject_signal_to_inner_injector),
+        suggested_behavior=True,
+      )
+
+    p_p22 = p_p22(
+      hsm=hsm,
+      signal=getattr(signals, 'SRD1'),
+      handler=partial(template_meta_trans, trans="p"),
+      imposed_behavior=True
+    )
+
+    p_p22 = p_p22(
+      hsm=hsm,
+      signal=getattr(signals, 'RC2'),
+      handler=partial(template_meta_trans, trans="p_s21"),
+      imposed_behavior=True
+    )
+    p_p22 = p_p22(
+      hsm=hsm,
+      signal=getattr(signals, 'C1'),
+      handler=partial(template_meta_trans, trans="p_s21"),
+      imposed_behavior=True
+    )
+    p_p22 =  p_p22(
+      hsm=hsm,
+      signal=getattr(signals, self.regions['p_p22'].final_signal_name),
+      handler=partial(template_meta_trans, trans="p_r2_final"),
+      imposed_behavior=True
+    )
+    print(parse_spec(p_p22(specification=True)))
+
 
   def next_rtc(self):
     '''Overload of the HsmWithQueues next_rtc, like the super's
@@ -1276,7 +1729,7 @@ class XmlChart(InstrumentedActiveObject):
     self.instrumented = _instrumented
 
   @lru_cache(maxsize=32)
-  def tockenize(self, signal_name):
+  def tokenize(self, signal_name):
     return set(signal_name.split("."))
 
   @lru_cache(maxsize=32)
@@ -1284,8 +1737,8 @@ class XmlChart(InstrumentedActiveObject):
     if other is None:
       result = False
     else:
-      alien_set = self.tockenize(other)
-      resident_set = self.tockenize(resident)
+      alien_set = tokenize(other)
+      resident_set = tokenize(resident)
       result = True if len(resident_set.intersection(alien_set)) >= 1 else False
     return result
 
@@ -1313,7 +1766,7 @@ class XmlChart(InstrumentedActiveObject):
   def cancel_all(self, e):
     token = e.signal_name
     for k, v in self.shot_lookup.items():
-      if self.token_match(token, k):
+      if token_match(token, k):
         self.cancel_events(Event(signal=k))
         break
 
@@ -1558,8 +2011,6 @@ class XmlChart(InstrumentedActiveObject):
         return status
 
     '''
-    source = s
-    target = t
     lca = self.lca(s, t)
 
     profile = ""
@@ -1816,8 +2267,8 @@ class XmlChart(InstrumentedActiveObject):
 
   @staticmethod
   def cache_clear():
-    XmlChart.tockenize.cache_clear()
-    XmlChart.token_match.cache_clear()
+    tokenize.cache_clear()
+    token_match.cache_clear()
     XmlChart._meta_trans.cache_clear()
     XmlChart.lca.cache_clear()
     within.cache_clear()
@@ -1830,145 +2281,11 @@ class XmlChart(InstrumentedActiveObject):
 ################################################################################
 
 @orthogonal_state
-def p_p11(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r1_over_hidden_region
-  __hooks__ = [signals.H1]
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-  elif(e.signal == signals.SEARCH_FOR_META_HOOKS):
-    if e.payload.event.signal in __hooks__:
-      return return_status.HANDLED
-
-  # enter all regions
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p11, e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-    investigate(r, e, _e)
-    if _state:
-      r.inner._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p11, e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  # any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "SRH3") or
-       r.token_match(e.signal_name, "PG2")
-       ):
-    r.p_spy(e)
-    r.inner.post_fifo(e)
-    status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H1")):
-    r.scribble("p_p11 hooked")
-    status = return_status.HANDLED
-  elif r.token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
-    r.p_spy(e)
-    status = r.trans(p_p12)
-  elif r.token_match(e.signal_name, "RC1"):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p11,
-      t=p_p12,
-    )
-  elif r.token_match(e.signal_name, "SRH2"):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p11,
-      t=middle,
-    )
-  elif r.token_match(e.signal_name, "RA1"):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p11,
-      t=p_p11,
-    )
-  elif r.token_match(e.signal_name, "PF1"):
-    r.p_spy(e)
-    status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "PC1"):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p11,
-      t=p_s21,
-    )
-  elif(r.token_match(e.signal_name, "RF1")):
-    r.p_spy(e)
-
-    status = r.meta_trans(
-      e=e,
-      s=p_p11,
-      t=p_p12_p11_s12,
-    )
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    r.inner._post_fifo(_e)
-    investigate(r, e, _e)
-    r.inner.post_lifo(Event(signal=signals.force_region_init))
-    status = return_status.HANDLED
-  elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    status = return_status.HANDLED
-    r.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if _state.__name__ == r.state_fn.__name__:
-      r.inner.post_fifo(Event(signal=signals.exit_region))
-      r.inner.post_fifo(Event(signal=signals.enter_region))
-    else:
-      if within(bound=r.state_fn, query=_state):
-        status = r.trans(_state)
-  elif e.signal == signals.EXIT_META_SIGNAL:
-    r.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    # this appears backwards, but it needs to be this way.
-    if within(_state, r.state_fn):
-      # The next state is going to be our region handler skip it and post this
-      # region handler would have posted to the outer HSM
-      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
-         ):
-        (_e, _state) = _e.payload.event, _e.payload.state
-        r.outer._post_lifo(_e)
-      elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-           _e.signal == signals.EXIT_META_SIGNAL):
-        r.outer._post_lifo(_e)
-      else:
-        r.same._post_lifo(_e)
-    status = return_status.HANDLED
-  elif e.signal == signals.exit_region:
-    r._p_spy(e)
-    status = r.trans(p_r1_under_hidden_region)
-  elif e.signal == signals.EXIT_SIGNAL:
-    r.inner.post_lifo(Event(signal=signals.exit_region))
-    rsm(p_p11, e)
-    r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
 def p_p11_s11(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -1980,7 +2297,8 @@ def p_p11_s11(r, e):
     r.p_spy(e)
     rsm(p_p11_s11, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e4")):
+
+  elif(token_match(e.signal_name, "e4")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2001,7 +2319,7 @@ def p_p11_s12(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2013,14 +2331,14 @@ def p_p11_s12(r, e):
     rsm(p_p11_s12, e)
     r.p_spy(e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "SRH3"):
+  elif token_match(e.signal_name, "SRH3"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p11_s12,
       t=p,
     )
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2041,7 +2359,7 @@ def p_p11_s21(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2053,7 +2371,7 @@ def p_p11_s21(r, e):
     r.p_spy(e)
     rsm(p_p11_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     status = r.meta_trans(
       e=e,
       s=p_p11_s21,
@@ -2073,7 +2391,7 @@ def p_p11_s22(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p11_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2092,10 +2410,10 @@ def p_p11_s22(r, e):
       s=p_p11_s22,
       t=p_s21,
     )
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.trans(p_p11_r2_final)
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2111,259 +2429,12 @@ def p_p11_s22(r, e):
     status = return_status.SUPER
   return status
 
-
-
-@orthogonal_state
-def p_p12(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r1_over_hidden_region
-  __hooks__ = [signals.H1]
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-  elif(e.signal == signals.SEARCH_FOR_META_HOOKS):
-    if e.payload.event.signal in __hooks__:
-      return return_status.HANDLED
-
-  # Enter all regions
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p12, e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-    investigate(r, e, _e)
-    if _state:
-      r.inner._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p12, e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  # Any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "RD1") or
-       r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "RH1") or
-       r.token_match(e.signal_name, "RG1") or
-       r.token_match(e.signal_name,
-         r.outmost.regions['p_p12_p11'].final_signal_name)
-       ):
-    r.p_spy(e)
-    r.inner.post_fifo(e)
-    status = return_status.HANDLED
-  # All internal injectors will have to have this structure
-  elif e.signal == signals.EXIT_META_SIGNAL:
-    r.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-
-    # this appears backwards, but it needs to be this way.
-    if within(_state, r.state_fn):
-      # The next state is going to be our region handler skip it and post this
-      # region handler would have posted to the outer HSM
-      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
-         ):
-        (_e, _state) = _e.payload.event, _e.payload.state
-        r.outer._post_lifo(_e)
-      elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-           _e.signal == signals.EXIT_META_SIGNAL):
-        r.outer._post_lifo(_e)
-      else:
-        r.same._post_lifo(_e)
-    status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H1")):
-    r.scribble("p_p12 hooked")
-    status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "H2")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12,
-      t=p
-    )
-  elif(r.token_match(e.signal_name, "RE1")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12,
-      t=p_p12_p11_s12,
-    )
-  elif(r.token_match(e.signal_name, "RA2")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12,
-      t=p_p12,
-    )
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    r.inner._post_fifo(_e)
-    investigate(r, e, _e)
-    r.inner.post_lifo(Event(signal=signals.force_region_init))
-    status = return_status.HANDLED
-
-  elif(r.token_match(e.signal_name, "RB1")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12,
-      t=p_p12_p11,
-    )
-  elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.p_spy(e)
-    status = return_status.HANDLED
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if _state.__name__ == r.state_fn.__name__:
-      r.inner.post_fifo(Event(signal=signals.exit_region))
-      r.inner.post_fifo(Event(signal=signals.enter_region))
-    else:
-      if within(r.state_fn, _state):
-        status = r.trans(_state)
-  # Final token match
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p12'].final_signal_name)):
-    r.p_spy(e)
-    status = r.trans(p_r1_final)
-  elif(r.token_match(e.signal_name, "e5")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12,
-      t=p_r1_final,
-    )
-  # Exit signals
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r.inner.post_lifo(Event(signal=signals.exit_region))
-    rsm(p_p12, e)
-    r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-# inner parallel
-@orthogonal_state
-def p_p12_p11(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_p12_r1_over_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  # enter all regions
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p12_p11, e)
-
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-    investigate(r, e, _e)
-    if _state:
-      r.inner._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p12_p11, e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "RG1") or
-       r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "PG1") or
-       r.token_match(e.signal_name, "RH1")
-       ):
-    r.p_spy(e)
-    r.inner.post_fifo(e)
-    status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p12_p11'].final_signal_name)):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12_p11,
-      t=p_p12_s12,
-    )
-  elif(r.token_match(e.signal_name, "RD1")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12_p11,
-      t=p_p12,
-    )
-  elif e.signal == signals.EXIT_META_SIGNAL:
-    r.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    # this appears backwards, but it needs to be this way.
-    if within(_state, r.state_fn):
-      # The next state is going to be our region handler skip it and post this
-      # region handler would have posted to the outer HSM
-      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
-         ):
-        (_e, _state) = _e.payload.event, _e.payload.state
-        r.outer._post_lifo(_e)
-      elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-           _e.signal == signals.EXIT_META_SIGNAL):
-        r.outer._post_lifo(_e)
-      else:
-        r.same._post_lifo(_e)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    r.inner._post_fifo(_e)
-    investigate(r, e, _e)
-    r.inner.post_lifo(Event(signal=signals.force_region_init))
-    status = return_status.HANDLED
-  elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.p_spy(e)
-    status = return_status.HANDLED
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if _state.__name__ == r.state_fn.__name__:
-      r.inner.post_fifo(Event(signal=signals.exit_region))
-      r.inner.post_fifo(Event(signal=signals.enter_region))
-    else:
-      if within(r.state_fn, _state):
-        status = r.trans(_state)
-  elif(r.token_match(e.signal_name, "e4")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p12_p11,
-      t=p_p12_s12,
-    )
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_p12_r1_under_hidden_region)
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r.inner.post_lifo(Event(signal=signals.exit_region))
-    rsm(p_p12_p11, e)
-    r.p_spy(e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
 @orthogonal_state
 def p_p12_p11_s11(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_p11_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2396,7 +2467,7 @@ def p_p12_p11_s12(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_p11_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2408,7 +2479,7 @@ def p_p12_p11_s12(r, e):
     r.p_spy(e)
     rsm(p_p12_p11_s12, e)
     status = return_status.HANDLED
-  elif r.token_match(e.signal_name, "RH1"):
+  elif token_match(e.signal_name, "RH1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2429,7 +2500,7 @@ def p_p12_p11_s21(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_p11_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2470,7 +2541,7 @@ def p_p12_s12(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2482,7 +2553,7 @@ def p_p12_s12(r, e):
     r.p_spy(e)
     rsm(p_p12_s12, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2506,7 +2577,7 @@ def p_p12_s21(r, e):
   __hooks__ = [signals.H1, signals.H2]
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
   elif(e.signal == signals.SEARCH_FOR_META_HOOKS):
@@ -2522,12 +2593,12 @@ def p_p12_s21(r, e):
     rsm(p_p12_s21, e)
     status = return_status.HANDLED
   elif(
-    r.token_match(e.signal_name, "H1") or
-    r.token_match(e.signal_name, "H2")
+    token_match(e.signal_name, "H1") or
+    token_match(e.signal_name, "H2")
   ):
     r.scribble("p_p11 hooked")
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2549,7 +2620,7 @@ def p_p12_s22(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p12_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2561,14 +2632,14 @@ def p_p12_s22(r, e):
     r.p_spy(e)
     rsm(p_p12_s22, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p12_s22,
       t=p_p12_r2_final,
     )
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2589,7 +2660,7 @@ def p_s21(r, e):
   status = return_status.UNHANDLED
   __super__ = p_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2601,21 +2672,21 @@ def p_s21(r, e):
     r.p_spy(e)
     rsm(p_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "RC1")):
+  elif(token_match(e.signal_name, "RC1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=p_p22,
     )
-  elif(r.token_match(e.signal_name, "RF1")):
+  elif(token_match(e.signal_name, "RF1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=p_p22_s12,
     )
-  elif(r.token_match(e.signal_name, "PF1")):
+  elif(token_match(e.signal_name, "PF1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2623,14 +2694,14 @@ def p_s21(r, e):
       t=p_p12_p11_s21,
     )
 
-  elif r.token_match(e.signal_name, "SRH1"):
+  elif token_match(e.signal_name, "SRH1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_s21,
       t=middle,
     )
-  elif r.token_match(e.signal_name, "SRD2"):
+  elif token_match(e.signal_name, "SRD2"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2640,121 +2711,6 @@ def p_s21(r, e):
   elif(e.signal == signals.EXIT_SIGNAL):
     r.p_spy(e)
     rsm(p_s21, e)
-    status = return_status.HANDLED
-  else:
-    r.temp.fun = __super__
-    status = return_status.SUPER
-  return status
-
-@orthogonal_state
-def p_p22(r, e):
-  status = return_status.UNHANDLED
-  __super__ = p_r2_over_hidden_region
-
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    r.temp.fun = __super__
-    return return_status.SUPER
-
-  # enter all regions
-  if(e.signal == signals.ENTRY_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p22, e)
-    # search for INIT_META_SIGNAL
-    (_e, _state) = r.meta_peel(e)
-    investigate(r, e, _e)
-    if _state:
-      r.inner._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    r.p_spy(e)
-    rsm(p_p22, e)
-    r.inner.post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  # any event handled within there regions must be pushed from here
-  elif(r.token_match(e.signal_name, "e1") or
-       r.token_match(e.signal_name, "e2") or
-       r.token_match(e.signal_name, "e4") or
-       r.token_match(e.signal_name, "SRG1") or
-       r.token_match(e.signal_name, "RF1") or
-       r.token_match(e.signal_name, "RE1")
-       ):
-    r.p_spy(e)
-    r.inner.post_fifo(e)
-    status = return_status.HANDLED
-  # final token match
-  elif r.token_match(e.signal_name, "SRD1"):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p22,
-      t=p,
-    )
-  elif(r.token_match(e.signal_name, "RC2")):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p22,
-      t=p_s21,
-    )
-  elif(r.token_match(e.signal_name, r.outmost.regions['p_p22'].final_signal_name)):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p22,
-      t=p_r2_final,
-    )
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    r._p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    r.inner._post_fifo(_e)
-    investigate(r, e, _e)
-    r.inner.post_lifo(Event(signal=signals.force_region_init))
-    status = return_status.HANDLED
-  elif e.signal == signals.EXIT_META_SIGNAL:
-    r.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    # this appears backwards, but it needs to be this way.
-    if within(_state, r.state_fn):
-      # The next state is going to be our region handler skip it and post this
-      # region handler would have posted to the outer HSM
-      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
-         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
-         ):
-        (_e, _state) = _e.payload.event, _e.payload.state
-        r.outer._post_lifo(_e)
-      elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
-           _e.signal == signals.EXIT_META_SIGNAL):
-        r.outer._post_lifo(_e)
-      else:
-        r.same._post_lifo(_e)
-    status = return_status.HANDLED
-  elif e.signal == signals.OUTER_TRANS_REQUIRED:
-    r.p_spy(e)
-    status = return_status.HANDLED
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(r, e, _e)
-    if _state.__name__ == r.state_fn.__name__:
-      r.inner.post_fifo(Event(signal=signals.exit_region))
-      r.inner.post_fifo(Event(signal=signals.enter_region))
-    else:
-      if within(r.state_fn, _state):
-        status = r.trans(_state)
-  elif(e.signal == signals.exit_region):
-    r._p_spy(e)
-    status = r.trans(p_r2_under_hidden_region)
-  elif(e.signal == signals.C1):
-    r.p_spy(e)
-    status = r.meta_trans(
-      e=e,
-      s=p_p22,
-      t=p_s21,
-    )
-  elif(e.signal == signals.EXIT_SIGNAL):
-    r.inner.post_lifo(Event(signal=signals.exit_region))
-    rsm(p_p22, e)
-    r.p_spy(e)
     status = return_status.HANDLED
   else:
     r.temp.fun = __super__
@@ -2767,7 +2723,7 @@ def p_p22_s11(r, e):
   __super__ = p_p22_r1_over_hidden_region
   __hooks__ = [signals.H2]
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
   elif(e.signal == signals.SEARCH_FOR_META_HOOKS):
@@ -2785,7 +2741,7 @@ def p_p22_s11(r, e):
   elif(e.signal == signals.H2):
     r.scribble('p_p22_s11 hook')
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e4")):
+  elif(token_match(e.signal_name, "e4")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2806,7 +2762,7 @@ def p_p22_s12(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p22_r1_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2819,7 +2775,7 @@ def p_p22_s12(r, e):
     r.p_spy(e)
     rsm(p_p22_s12, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2840,7 +2796,7 @@ def p_p22_s21(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p22_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2853,14 +2809,14 @@ def p_p22_s21(r, e):
     r.p_spy(e)
     rsm(p_p22_s21, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e1")):
+  elif(token_match(e.signal_name, "e1")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
       s=p_p22_s21,
       t=p_p22_s22,
     )
-  elif r.token_match(e.signal_name, "SRG1"):
+  elif token_match(e.signal_name, "SRG1"):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2881,7 +2837,7 @@ def p_p22_s22(r, e):
   status = return_status.UNHANDLED
   __super__ = p_p22_r2_over_hidden_region
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     r.temp.fun = __super__
     return return_status.SUPER
 
@@ -2893,7 +2849,7 @@ def p_p22_s22(r, e):
     r.p_spy(e)
     rsm(p_p22_s22, e)
     status = return_status.HANDLED
-  elif(r.token_match(e.signal_name, "e2")):
+  elif(token_match(e.signal_name, "e2")):
     r.p_spy(e)
     status = r.meta_trans(
       e=e,
@@ -2913,7 +2869,7 @@ def p_p22_s22(r, e):
 def outer(self, e):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     self.temp.fun = self.bottom
     return return_status.SUPER
 
@@ -2926,21 +2882,21 @@ def outer(self, e):
     self.p_spy(e)
     rsm(outer, e)
     status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "SH1")):
+  elif(token_match(e.signal_name, "SH1")):
     self.p_spy(e)
     status = self.meta_trans(
       e=e,
       s=outer,
       t=p,
     )
-  elif(self.token_match(e.signal_name, "SH2")):
+  elif(token_match(e.signal_name, "SH2")):
     self.p_spy(e)
     status = self.meta_trans(
       e=e,
       s=outer,
       t=middle,
     )
-  elif(self.token_match(e.signal_name, "SRE3")):
+  elif(token_match(e.signal_name, "SRE3")):
     self.p_spy(e)
     _state, _e = self.outmost._meta_trans(
       self,
@@ -2968,7 +2924,7 @@ def outer(self, e):
 def middle(self, e):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     self.temp.fun = outer
     return return_status.SUPER
 
@@ -2980,14 +2936,14 @@ def middle(self, e):
     self.p_spy(e)
     rsm(middle, e)
     status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "SB1")):
+  elif(token_match(e.signal_name, "SB1")):
     self.p_spy(e)
     status = self.meta_trans(
       e=e,
       s=middle,
       t=s,
     )
-  elif(self.token_match(e.signal_name, "SRE1")):
+  elif(token_match(e.signal_name, "SRE1")):
     self.p_spy(e)
     status = self.meta_trans(
       e=e,
@@ -3007,7 +2963,7 @@ def middle(self, e):
 def s(self, e):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     self.temp.fun = middle
     return return_status.SUPER
 
@@ -3046,7 +3002,7 @@ def s(self, e):
 def s_s1(self, e):
   status = return_status.UNHANDLED
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+  if(e.signal == signals.SEARCH_FOR_SUPER_SIGNAL):
     self.temp.fun = s
     return return_status.SUPER
 
@@ -3067,174 +3023,658 @@ def s_s1(self, e):
     status = return_status.SUPER
   return status
 
-@state
-def p(self, e):
-  status = return_status.UNHANDLED
+def parse_spec(spec):
+    '''map a state function spec onto a string'''
+    function_name = spec.function.__name__
+    result = f"{function_name}:{spec.function}\n"
+    result += f"{spec.super_state_name}:{spec.super_state}\n"
+    if spec.signal_function_list:
+        for (signal, function) in spec.signal_function_list:
+            function_name = spec.function.__name__
+            sn = signals.name_for_signal(signal)
+            result += f"  {sn}:{signal} -> {function_name}:{function}\n"
+    return result
 
-  if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
-    self.temp.fun = middle
-    return return_status.SUPER
+def __template_state(
+    hsm=None,
+    e=None,
+    sfl=None,
+    *,
+    super_state=None,
+    this_function_name=None,
+    imposed_behavior=None,
+    remove_behavior=None,
+    suggested_behavior=None,
+    specification=None,
+    signal=None,
+    handler=None,
+    hooks=None,
+    **kwargs,
+):
+    """A function which can create itself.
 
-  # enter all regions
-  if(e.signal == signals.ENTRY_SIGNAL):
-    rsm(p, e)
-    self.p_spy(e)
-    (_e, _state) = self.meta_peel(e)  # search for INIT_META_SIGNAL
-    if _state:
-      self.inner._post_fifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_SIGNAL):
-    rsm(p, e)
-    self.p_spy(e)
-    self.inner.post_lifo(Event(signal=signals.enter_region))
-    status = return_status.HANDLED
-  # any event handled within there regions must be pushed from here
-  elif(type(self.regions) == dict and (
-      self.token_match(e.signal_name, "e1") or
-      self.token_match(e.signal_name, "e2") or
-      self.token_match(e.signal_name, "e3") or
-      self.token_match(e.signal_name, "e4") or
-      self.token_match(e.signal_name, "e5") or
-      self.token_match(e.signal_name, "RC1") or
-      self.token_match(e.signal_name, "RC2") or
-      self.token_match(e.signal_name, "H2") or
-      self.token_match(e.signal_name, "RH1") or
-      self.token_match(e.signal_name, "SRH2") or
-      self.token_match(e.signal_name, "SRG1") or
-      self.token_match(e.signal_name, "SRH3") or
-      self.token_match(e.signal_name, "RE1") or
-      self.token_match(e.signal_name, "RA1") or
-      self.token_match(e.signal_name, "RA2") or
-      self.token_match(e.signal_name, "PC1") or
-      self.token_match(e.signal_name, "PF1") or
-      self.token_match(e.signal_name, "RG1") or
-      self.token_match(e.signal_name, "RB1") or
-      self.token_match(e.signal_name, "RD1") or
-      self.token_match(e.signal_name, "PG1") or
-      self.token_match(e.signal_name, "PG2") or
-      self.token_match(e.signal_name, "SRH1") or
-      self.token_match(e.signal_name, "SRD2") or
-      self.token_match(e.signal_name, "SRD1") or
-      self.token_match(e.signal_name, "RF1") or
-      self.token_match(e.signal_name, self.regions['p_p11'].final_signal_name) or
-      self.token_match(e.signal_name, self.regions['p_p12'].final_signal_name) or
-      self.token_match(e.signal_name, self.regions['p_p22'].final_signal_name) or
-      self.token_match(e.signal_name, self.regions['p_p12_p11'].final_signal_name)
-  )
-  ):
-    self.p_spy(e)
-    self.inner.post_fifo(e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.INIT_META_SIGNAL):
-    self.p_spy(e)
-    # hasn't been updated
-    self.regions['p']._post_lifo(Event(signal=signals.force_region_init))
-    #self.regions['p'].post_fifo(e.payload.event.payload.event)
-    self.regions['p'].post_fifo(e.payload.event)
-    status = return_status.HANDLED
-  elif e.signal == signals.BOUNCE_ACROSS_META_SIGNAL:
-    self.p_spy(e)
-    _e, _state = e.payload.event, e.payload.state
-    investigate(self, e, _e)
-    self.inner._post_fifo(_e)
-    for region in self.inner._regions:
-      if region.has_state(e.payload.previous_state):
-        region.pop_event()
-        region._post_lifo(Event(signal=signals.exit_region))
-      else:
-        region.post_lifo(Event(signal=signals.enter_region))
-    [region._complete_circuit() for region in self.inner._regions]
-    status = return_status.HANDLED
-  elif(self.token_match(e.signal_name, "SRE2")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=p_p11_s12,
-    )
-  # final token match
-  elif(type(self.regions) == dict and self.token_match(e.signal_name,
-       self.regions['p'].final_signal_name)):
-    self.regions['p'].post_fifo(Event(signal=signals.exit_region))
-    status = self.trans(s_s1)
-  elif(self.token_match(e.signal_name, "SA1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=p,
-    )
-  elif(self.token_match(e.signal_name, "H1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=middle
-    )
-  elif(self.token_match(e.signal_name, "SD1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=middle
-    )
-  elif(self.token_match(e.signal_name, "SC1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=s
-    )
-  elif(self.token_match(e.signal_name, "SD1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=middle
-    )
-  elif(self.token_match(e.signal_name, "SRB1")):
-    self.p_spy(e)
-    status = self.meta_trans(
-      e=e,
-      s=p,
-      t=p_p22,
-    )
-  elif(e.signal == signals.EXIT_META_SIGNAL):
-    self.p_spy(e)
-    (_e, _state) = e.payload.event, e.payload.state
-    investigate(self, e, _e)
-    self.post_lifo(_e)
-    status = return_status.HANDLED
-  elif(e.signal == signals.OUTER_TRANS_REQUIRED):
-    self.p_spy(e)
-    status = return_status.HANDLED
-    _state = e.payload.state
-    investigate(self, e)
-    if _state != p:
-      status = self.trans(_state)
+    Use this to build and run states in a state machine.
+
+    **Args**:
+       | ``hsm=None`` (HsmWithQueues):
+       | ``e=None`` (Event):
+       | ``sfl=None`` ([]):
+       | ``*``:  all arguments from now on have to be named
+       | ``super_state=None`` (fn):
+       | ``this_function_name=None`` (str):
+       | ``imposed_behavior=None`` (bool|SignalAndFunction):
+       | ``remove_behavior=None`` (bool|SignalAndFunction):
+       | ``suggested_behavior=None`` (bool|SignalAndFunction):
+       | ``specification=None`` (bool):
+       | ``signal=None`` (int):
+       | ``handler=None`` (callable):
+       | ``**kwargs``: arbitrary keyword arguments
+
+
+    **Returns**:
+       (return_status|fn|StateSpecification|str):
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+      from miros import Event
+      from miros import signals
+      from functools import partial
+      from miros import HsmWithQueues
+
+      #  +-------------- a ---------------+
+      #  |                                |
+      #  |    +-------b----------+        |
+      #  |    | entry /          |        |
+      #  | *-->  print('hello')  |        |       +-----c-----+
+      #  |    |                  |        |       |           |
+      #  |    |                  |        +---e1-->           |
+      #  |    |                  |<-------e2------+           |
+      #  |    +------------------+        |       +-----------+
+      #  |                                |
+      #  +--------------------------------+
+
+      # these will be the state handlers
+      def template_trans(hsm, e, state_name=None, *, trans=None, **kwargs):
+          status = return_status.HANDLED
+          assert trans
+          print("{} {}".format(state_name, e.signal_name))
+          status = hsm.trans(getattr(module_namespace, trans))
+          return status
+
+      def template_handled(hsm, e, state_name=None, **kwargs):
+          status = return_status.HANDLED
+          print("{} {}".format(state_name, e.signal_name))
+          return status
+
+      hsm = HsmWithQueues()
+      a1 = partial(__template_state, this_function_name="a1", super_state=hsm.top)()
+      b1 = partial(__template_state, this_function_name="b1", super_state=a1)()
+      c1 = partial(__template_state, this_function_name="c1", super_state=hsm.top)()
+
+      a1_entry_hh = partial(template_handled)
+      a1_init_hh = partial(template_trans, trans="b1")
+      a1_e1_hh = partial(template_trans, trans="c1")
+
+      a1 = a1(hsm=hsm, signal=signals.ENTRY_SIGNAL, handler=a1_entry_hh)
+      a1 = a1(hsm=hsm, signal=signals.INIT_SIGNAL, handler=a1_init_hh)
+      a1 = a1(hsm=hsm, signal=signals.e1, handler=a1_e1_hh)
+
+      b1_entry_hh = partial(template_handled)
+      b1_init_hh = partial(template_handled)
+
+      b1 = b1(hsm=hsm, signal=signals.ENTRY_SIGNAL, handler=b1_entry_hh)
+      b1 = b1(hsm=hsm, signal=signals.INIT_SIGNAL, handler=b1_init_hh)
+
+      c1_entry_hh = partial(template_handled)
+      c1_init_hh = partial(template_handled)
+      c1_e2_hh = partial(template_trans, trans="b1")
+
+      c1 = c1(hsm=hsm, signal=signals.ENTRY_SIGNAL, handler=c1_entry_hh)
+      c1 = c1(hsm=hsm, signal=signals.INIT_SIGNAL, handler=c1_init_hh)
+      c1 = c1(hsm=hsm, signal=signals.e2, handler=c1_e2_hh)
+
+      # Run our hsm
+      hsm.start_at(a1)
+      hsm.post_fifo(Event(signal=signals.e1))
+      hsm.post_fifo(Event(signal=signals.e2))
+      hsm.complete_circuit()
+
+
+    """
+    if e is None:
+        rebuild_function = False
+
+        if not hasattr(module_namespace, this_function_name):
+            rebuild_function = True
+
+        if isinstance(imposed_behavior, SignalAndFunction):
+            if sfl == None:
+                sfl = []
+            sfl = [
+                SignalAndFunction(signal=signal, function=function)
+                for (signal, function) in sfl
+                if signal != imposed_behavior.signal
+            ]
+            sfl.append(imposed_behavior)
+            rebuild_function = True
+        if signal and not handler:
+            if remove_behavior is not None and remove_behavior == True:
+                behavior = SignalAndFunction(signal=signal, function=None)
+                return getattr(module_namespace, this_function_name)(
+                    hsm=hsm, remove_behavior=behavior
+                )
+        elif signal and handler:
+            function = partial(
+                __template_handler,
+                state_function_name=this_function_name,
+                signal=signal,
+                handler=handler,
+            )
+            behavior = SignalAndFunction(signal=signal, function=function)
+            if suggested_behavior is not None and suggested_behavior == True:
+                return getattr(module_namespace, this_function_name)(
+                    hsm=hsm, suggested_behavior=behavior
+                )
+            elif imposed_behavior is None or imposed_behavior == True:
+                return getattr(module_namespace, this_function_name)(
+                    hsm=hsm, imposed_behavior=behavior
+                )
+            else:
+                return getattr(module_namespace, this_function_name)
+
+        if isinstance(remove_behavior, SignalAndFunction):
+            if sfl == None:
+                pass
+            else:
+                sfl = [
+                    SignalAndFunction(signal=signal, function=function)
+                    for (signal, function) in sfl
+                    if signal != remove_behavior.signal
+                ]
+            rebuild_function = True
+        if isinstance(suggested_behavior, SignalAndFunction):
+            if sfl == None:
+                []
+            else:
+                if (
+                    len(
+                        [
+                            SignalAndFunction(signal=signal, function=function)
+                            for (signal, function) in sfl
+                            if signal == suggested_behavior.signal
+                        ]
+                    )
+                    >= 1
+                ):
+                    # the signal is already there, we are ignoring your request
+                    print("... ignoring")
+                    rebuild_function = False
+                else:
+                    rebuild_function = True
+                    sfl.append(suggested_behavior)
+
+        if rebuild_function:
+            fn = partial(
+                __template_state,
+                sfl=sfl,
+                super_state=super_state,
+                this_function_name=this_function_name,
+                hooks=hooks
+            )
+            fn.__name__ = this_function_name
+            fn = orthogonal_state(fn)
+            fn.__name__ = this_function_name
+            setattr(module_namespace, this_function_name, fn)
+            if hsm:
+                if hasattr(hsm.temp, "fun"):
+                    if hsm.temp.fun.__name__ == this_function_name:
+                        hsm.temp.fun = fn
+                if hasattr(hsm.state, "fun"):
+                    if hsm.state.fun.__name__ == this_function_name:
+                        hsm.state.fun = fn
+            return getattr(module_namespace, this_function_name)
+
+        if specification:
+            spec = StateSpecification(
+                function=getattr(module_namespace, this_function_name),
+                super_state=super_state,
+                super_state_name=super_state.__name__,
+                signal_function_list=sfl,
+            )
+            return spec
+        return getattr(module_namespace, this_function_name)
+
+    if e.signal == signals.GET_STATE_SPEC:
+        spec = StateSpecification(
+            function=getattr(module_namespace, this_function_name),
+            super_state=super_state,
+            super_state_name=super_state.__name__,
+            signal_function_list=sfl,
+        )
+        return spec
+    elif e.signal == signals.REFLECTION_SIGNAL:
+        return this_function_name
+
+    handler = None
+
+    if isinstance(sfl, list):
+        for (signal, function) in sfl:
+            if token_match(signal, e.signal):
+                if this_function_name == 'p_p11' and e.signal == signals.e4:
+                  print("here")
+                handler = function
+                break
+    if handler:
+        status = handler(hsm, e, state_function_name=this_function_name)
     else:
-      self.inner.post_fifo(Event(signal=signals.exit_region))
-      self.inner.post_fifo(Event(signal=signals.enter_region))
-  elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
-    self.p_spy(e)
-    _state, _e = e.payload.state, e.payload.event
-    self.inner._post_lifo(Event(signal=signals.force_region_init))
-    self.inner._post_fifo(_e)
-    investigate(self, e, _e)
-    self.inner._complete_circuit()
+        if hsm.top == super_state:
+            hsm.temp.fun = super_state
+        else:
+            hsm.temp.fun = getattr(module_namespace, super_state.__name__)
+        status = return_status.SUPER
+    return status
+
+
+def __template_handler(
+    hsm=None,
+    e=None,
+    handler=None,
+    *,
+    state_function_name=None,
+    this_function_name=None,
+    signal=None,
+    specification=None,
+    get_state_function_name=None,
+    **kwargs,
+):
+    """This function is intended to be used by the ``__template_state``.
+
+    A template for building event and handler functions, once it is built, it
+    will serve as a function to call when its state function receives a specific
+    signal: ex. ``signals.ENTRY_SIGNAL``
+
+    **Args**:
+       | ``hsm=None`` (HsmWithQueues):
+       | ``e=None`` (Event):
+       | ``handler=None`` (callable):
+       | ``*`` all arguments from now on have to be named:
+       | ``state_function_name=None`` (str):
+       | ``this_function_name=None`` (str):
+       | ``signal=None`` (int):
+       | ``specification=None`` (bool):
+       | ``get_state_function_name=None`` (str):
+       | ``**kwargs``: arbitrary keyword arguements
+
+
+    **Returns**:
+       (return_status|fn|StateSpecification|str):
+
+    **Example(s)**:
+
+    .. code-block:: python
+
+      def template_handled(hsm, e, state_name=None, **kwargs):
+          status = return_status.HANDLED
+          print("{} {}".format(state_name, e.signal_name))
+          return status
+
+      a1_entry_h = partial(template_handled)
+
+      # here we are using this function
+      behavior = SignalAndFunction(
+        __template_state,
+        state_method_name='a1',
+        signal=signals.ENTRY_SIGNAL,
+        handler=a1_entry_h)
+
+      # build a state
+      a1 = partial(__template_state, this_function_name="a1", super_state=hsm.top)()
+
+      # now we impose the behavior
+      a1(imposed_behavior=behavior)
+
+    """
+    if e is None:
+        rebuild_function = False
+
+        if get_state_function_name:
+            return state_function_name
+
+        if this_function_name is None:
+            this_function_name = (
+                state_function_name + "_" + signals.name_for_signal(signal).lower()
+            )
+
+        if not hasattr(module_namespace, this_function_name):
+            rebuild_function = True
+
+        if rebuild_function:
+            fn = partial(
+                __template_handler,
+                this_function_name=this_function_name,
+                signal=signal,
+                handler=handler,
+            )
+            fn.__name__ = this_function_name
+            setattr(module_namespace, this_function_name, fn)
+            return getattr(module_namespace, this_function_name)
+
+        if specification:
+            spec = SignalAndFunction(
+                function=getattr(module_namespace, this_function_name), signal=signal
+            )
+            return spec
+    else:
+        if e.signal == signals.GET_STATE_SPEC:
+            spec = SignalAndFunction(
+                function=getattr(module_namespace, this_function_name), signal=signal
+            )
+            return spec
+
+    if e is None:
+        return getattr(module_namespace, this_function_name)
+    else:
+        return handler(hsm, e, state_function_name)
+
+
+# Injector templates for compositing a regions state (p, p_p11, etc)
+################################################################################
+#                        Common Injector Template Parts                        #
+################################################################################
+# imposed
+# ENTRY_SIGNAL
+def template_entry_injector(hsm, e, state_name=None, **kwargs):
+  rsm(state_name, e)
+  hsm.p_spy(e)
+  (_e, _state) = hsm.meta_peel(e)  # search for INIT_META_SIGNAL
+  if _state:
+    hsm.inner._post_fifo(_e)
+  status = return_status.HANDLED
+  return status
+
+# imposed
+# INIT_SIGNAL
+def template_init_injector(hsm, e, state_name=None, **kwargs):
+  rsm(state_name, e)
+  hsm.p_spy(e)
+  hsm.inner.post_lifo(Event(signal=signals.enter_region))
+  status = return_status.HANDLED
+  return status
+
+# imposed
+# INIT_META_SIGNAL
+def template_init_meta_injector(hsm, e, state_name=None, **kwargs):
+  status = return_status.UNHANDLED
+  if type(hsm) == XmlChart:
+    # region = hsm.regions['p']
+    hsm.p_spy(e)
+    region = hsm.outmost.regions[state_name]
+    region._post_lifo(Event(signal=signals.force_region_init))
+    region.post_fifo(e.payload.event)
     status = return_status.HANDLED
-  elif(e.signal == signals.EXIT_SIGNAL):
-    self.inner.post_lifo(Event(signal=signals.exit_region))
-    rsm(p, e)
-    self.p_spy(e)
+  return status
+
+# imposed
+# BOUNCE_ACROSS_META_SIGNAL
+def template_bounce_across_meta_injector(hsm, e, state_name=None, **kwargs):
+  hsm.p_spy(e)
+  _e = e.payload.event
+  investigate(hsm, e, _e)
+  hsm.inner._post_fifo(_e)
+  for region in hsm.inner._regions:
+    if region.has_state(e.payload.previous_state):
+      region.pop_event()
+      region._post_lifo(Event(signal=signals.exit_region))
+    else:
+      region.post_lifo(Event(signal=signals.enter_region))
+  [region._complete_circuit() for region in hsm.inner._regions]
+  status = return_status.HANDLED
+  return status
+
+
+# imposed
+# EXIT_META_SIGNAL
+def template_exit_meta_injector(hsm, e, state_name=None, **kwargs):
+  status = return_status.HANDLED
+  if type(hsm) is XmlChart:
+    hsm.p_spy(e)
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(hsm, e, _e)
+    hsm.post_lifo(_e)
+  else:
+    hsm.p_spy(e)
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(hsm, e, _e)
+    # this appears backwards, but it needs to be this way.
+    if within(_state, hsm.state_fn):
+      # The next state is going to be our region handler skip it and post this
+      # region handler would have posted to the outer HSM
+      if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+         _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+         _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+         ):
+        (_e, _state) = _e.payload.event, _e.payload.state
+        hsm.outer._post_lifo(_e)
+      elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+           _e.signal == signals.EXIT_META_SIGNAL):
+        hsm.outer._post_lifo(_e)
+      else:
+        hsm.same._post_lifo(_e)
     status = return_status.HANDLED
-  elif(e.signal == signals.exit_region):
-    self._p_spy(e)
+
+  return status
+
+# imposed
+# OUTER_TRANS_REQUIRED
+def template_outer_trans_injector(hsm, e, state_name=None, **kwargs):
+
+  status = return_status.HANDLED
+  if type(hsm) is XmlChart:
+    hsm.p_spy(e)
+    _state = e.payload.state
+    investigate(hsm, e)
+    if _state.__name__ != hsm.state_fn.__name__:
+      status = hsm.trans(_state)
+    else:
+      hsm.inner.post_fifo(Event(signal=signals.exit_region))
+      hsm.inner.post_fifo(Event(signal=signals.enter_region))
+      status = return_status.HANDLED
+  else:
+    hsm.p_spy(e)
+    (_e, _state) = e.payload.event, e.payload.state
+    investigate(hsm, e, _e)
+    if _state.__name__ == hsm.state_fn.__name__:
+      hsm.inner.post_fifo(Event(signal=signals.exit_region))
+      hsm.inner.post_fifo(Event(signal=signals.enter_region))
+    else:
+      if within(bound=hsm.state_fn, query=_state):
+        status = hsm.trans(_state)
+  return status
+
+# imposed
+# BOUNCE_SAME_META_SIGNAL
+def template_bounce_same_injector(hsm, e, state_name=None, **kwargs):
+  status = return_status.HANDLED
+  hsm.p_spy(e)
+  _e = e.payload.event
+  hsm.inner._post_lifo(Event(signal=signals.force_region_init))
+  hsm.inner._post_fifo(_e)
+  investigate(hsm, e, _e)
+  hsm.inner._complete_circuit()
+  return status
+
+# imposed
+# EXIT_SIGNAL
+def template_exit_injector(hsm, e, state_name=None, **kwargs):
+  hsm.inner.post_lifo(Event(signal=signals.exit_region))
+  rsm(state_name, e)
+  hsm.p_spy(e)
+  status = return_status.HANDLED
+  return status
+
+# imposed
+# exit_region
+def template_exit_region_injector(hsm, e, state_name=None, **kwargs):
+  status = return_status.HANDLED
+  hsm.p_spy(e)
+  if type(hsm) == XmlChart:
     status = return_status.HANDLED
   else:
-    self.temp.fun = middle
-    status = return_status.SUPER
+    hidden_state = under_hidden_region_function_name(hsm.name)
+    status = hsm.trans(getattr(module_namespace, hidden_state))
   return status
+
+
+################################################################################
+#                      Customized Injector Template Parts                      #
+################################################################################
+# suggested
+# token_match(e.signal, "e1") ... 
+def template_inject_signal_to_inner_injector(hsm, e, state_name=None, **kwargs):
+  status = return_status.HANDLED
+  hsm.p_spy(e)
+  hsm.inner.post_fifo(e)
+  return status
+
+# suggested
+# INJECT final signals for other states
+# token_match(e.signals, self.regions['p_p11'].final_signal_name) ...
+def template_inject_final_to_inner_injector(hsm, e, state_name=None, regions_name=None, **kwargs):
+  status = return_status.HANDLED
+  hsm.p_spy(e)
+  hsm.inner.post_fifo(e)
+  return status
+
+# imposed
+# FINAL SIGNAL FOR THIS STATE
+# regions_name = 'p'
+# trans = s_s1
+def template_final_trans_injector(hsm, e, state_name=None, *, trans=None, **kwargs):
+  status = return_status.HANDLED
+  if type(hsm.regions) == dict:
+    hsm.regions[state_name].post_fifo(Event(signal=signals.exit_region))
+    status = hsm.trans(getattr(module_namespace, trans))
+  return status
+
+# imposed
+# TRANS events for this injector
+def template_meta_trans(hsm, e, state_name=None, *, trans=None, **kwargs):
+  hsm.p_spy(e)
+  #if state_name == 'p_p22':
+  #  import pdb; pdb.set_trace()
+  status = hsm.meta_trans(
+    e=e,
+    s=getattr(module_namespace, state_name),
+    t=getattr(module_namespace, trans),
+  )
+  return status
+
+def template_hook(hsm, e, state_name=None, **kwargs):
+  return return_status.HANDLED
+
+def template_meta_hook(hsm, e, state_name=None, *, hooks=None, **kwargs):
+  status = return_status.UNHANDLED
+  if e.payload.event.signal in hooks:
+    status = return_status.HANDLED
+  return status
+
+# general form of the injector template will need these arguments
+# * state_name (given)
+# * regions_name 'p'
+# general form of the injector template will need to specify these templates:
+# * [x] imposed, template_entry_injector
+# * [x] imposed, template_init_injector
+# * [x] imposed, template_init_meta_injector 
+# * [x] imposed, template_bounce_across_meta_injector
+# * [x] imposed, template_exit_meta_injector
+# * [x] imposed, template_outer_trans_injector
+# * [x] imposed, template_bounce_same_injector
+# * [x] imposed, template_exit_injector
+# * [x] imposed, template_exit_region_injector
+# specific form of the injector template will need to specify these:
+# * suggested, inner signals to template_inject_signal_to_inner_injector
+# * suggested, inner final signals to inner regions_names 'p_p11', 'p_p12', ...
+# * imposed, final trans for this injector (args: regions_name, trans)
+
+# base injector template (bit)
+# injector_template = base_injector_template(self, 'p', 'middle')
+def base_injector_template(hsm, state_name, super_state_name):
+  super_state = getattr(module_namespace, super_state_name)
+  # base injector template (bit)
+  bit = partial(__template_state, this_function_name=state_name, super_state=super_state)(link_to_namepace=True)
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.ENTRY_SIGNAL,
+    handler=partial(template_entry_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.INIT_SIGNAL,
+    handler=partial(template_init_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.INIT_META_SIGNAL,
+    handler=partial(template_init_meta_injector, regions_name=state_name),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.INIT_META_SIGNAL,
+    handler=partial(template_init_meta_injector, regions_name=state_name),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.BOUNCE_ACROSS_META_SIGNAL,
+    handler=partial(template_bounce_across_meta_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.EXIT_META_SIGNAL,
+    handler=partial(template_exit_meta_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.OUTER_TRANS_REQUIRED,
+    handler=partial(template_outer_trans_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.BOUNCE_SAME_META_SIGNAL,
+    handler=partial(template_bounce_same_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.EXIT_SIGNAL,
+    handler=partial(template_exit_injector),
+    imposed_behavior=True
+  )
+
+  bit = bit(
+    hsm=hsm,
+    signal=signals.exit_region,
+    handler=partial(template_exit_region_injector),
+    imposed_behavior=True
+  )
+  return bit
 
 
 ################################################################################
@@ -3376,13 +3816,15 @@ if __name__ == '__main__':
       example.report(string2)
       return active_states
 
+
     assert(
       example._meta_hooked(
         s=p,
         t=p_p11,
         sig='H1'
-      ) is p_p11.__wrapped__
+      ).__name__ == 'p_p11'
     )
+
     assert(
       example._meta_hooked(
         s=p,
@@ -3390,19 +3832,20 @@ if __name__ == '__main__':
         sig='H2'
       ) is None
     )
+
     assert(
       example._meta_hooked(
         s=p,
         t=p_p12_p11,
         sig='H1'
-      ) is p_p12.__wrapped__
+      ).__name__ == 'p_p12'
     )
     assert(
       example._meta_hooked(
         s=p_p12,
         t=p_p12_s21,
         sig="H1"
-      ) is p_p12_s21.__wrapped__
+      ).__name__ == 'p_p12_s21'
     )
     assert(example.lca(_s=p_p12, _t=outer) == outer)
     assert(example.lca(_s=p_p12, _t=s) == outer)

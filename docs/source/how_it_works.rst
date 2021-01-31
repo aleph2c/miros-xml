@@ -1,3 +1,7 @@
+  Debugging is twice as hard as writing the code in the first place.  Therefore,
+  if you write the code as cleverly as possible, you are, by definition, not smart
+  enough to debug it.  -- **Brian Kernighan.**
+
 .. note::
 
   This portion of the document is a collection of notes I have been taking as I
@@ -80,7 +84,12 @@ it is adjacent to in the hierarchy of HSMs via the  ``inner``, ``same`` and
 
 The XmlChart has many Regions and it inherits from the InstrumentedActiveObject
 which is just an ActiveObject with some additional logging and customized
-instrumentation features.
+instrumentation features.  Since the XmlChart inherits from the ActiveObject, it
+will have a thread and a set of queues which can receive events asynchronously
+from programs running in other threads.  The thread of the XmlChart will drive
+all of its inner hierarchical state machines, and it will filter and drive
+events deeper and deeper into it's architecture to perform the behaviors
+specified by the Harel drawing formalism.
 
 Each region object has access to the methods of the XmlChart object via their
 ``outmost`` attribute.
@@ -333,7 +342,7 @@ Here is a walk through of our first WFT transition: ``E0``
 We will use meta events to pass messages in and out of orthogonal components.
 As you walk through the code, remember that ``_post_fifo`` and ``_post_lifo``
 only place events into the queues of all of the regions connected to those
-calls.  ``post_fifo`` and ``post_lifo`` place events and drive those events
+calls.  ``post_fifo`` and ``post_lifo`` place events *and* drives those events
 through their connected orthogonal components.
 
 If we started the above chart in the outer_state and sent it an ``E0`` we would
@@ -1043,6 +1052,413 @@ Beastiary
     - .. _p_p22_final:
 
       ✓
+
+.. _how_it_works-construction-strategy:
+
+Construction Tactics
+^^^^^^^^^^^^^^^^^^^^
+
+To provide the parallel region feature, miros-xml writes a bunch of miros statechart
+code for you.  The concurrent parallel states behavior is mimicked by linking a bunch of
+orthogonal regions together with hidden states and special handling of recursively
+structured events.  This section describes how these features were constructed.
+
+This package uses a set of naming conventions when trying to decide what to call
+hidden states, regions, and final signals.  In this way it takes a "convention
+over configuration" approach.  The convention emerged from wrestling with the
+problem, and on the most part it should be hidden from view.
+Nonetheless, this convention is described in this section so that I can write
+them down as they are invented.
+
+.. contents::
+  :depth: 3
+  :local: 
+  :backlinks: none
+
+.. _how_it_works-experimental-files:
+
+Experimental Files
+------------------
+
+The parallel region feature is being built out using four files:
+
+* ``/experiment/logger_config.yaml``
+* ``/experiment/xml_chart_5.py``
+* ``/experiment/augment.py``
+* ``/experiment/xml_chart_5.2.py``
+
+The ``logger_config.yml`` contains logging specifications.  It is very difficult to
+trace a recursive WTF event as it is being passed between various orthogonal
+states.  Logging drops the instrumentation records, what was done by which part
+of the program into files that can be inspected in great detail.
+
+The ``xml_chart_5.py`` file is flat in its architecture.  All of the state functions
+are written out by hand, so a lot of the code is copied and pasted.  The
+xml_chart_5.py was the program used to build up the hidden state features and
+meta event handling.  It has been left in this flat state to make it easy to
+debug WTF event logic.
+
+The ``augment.py`` was used to demonstrate :ref:`advanced-partial-function
+techniques <techniques-adding-and-removing-behavior-from-functions>`
+like, asking a partial to add or removed behavior from itself, and return a new
+working function that can be added to a statemachine.  These partial functions
+can also be called in such a way that they will describe what they do.
+
+The ``xml_chart_5.2.py`` file uses the techniques of augment.py to squish
+the longer functions of xml_chart_5.py into a collection of smaller templates.
+
+The regression tests for these programs are written within them, so a program can
+just be run to see if it is working.  While working on a program I watch for
+file modifications, then run the program to test itself:
+
+.. code-block:: python
+
+  sudo apt install -y inotify-tools  # install a file-watcher
+
+  # use the file-watcher to re-run a test when it detects changes to a file
+  while inotifywait -e modify xml_chart_5.2.py logger_config.yaml;\
+    do python xml_chart_5.2.py; done
+
+.. _how_it_works-naming-conventions:
+
+Naming Conventions
+------------------
+
+.. note::
+
+  This section applies to ``xml_chart_5.py``, ``logger_config.yaml`` and ``xml_chart_5.2.py``.
+
+Rules:
+
+  * An injector function and its region have the same name
+  * final signal name: '<regions_name>_final'
+  * WTF meta event names: `<purpose>_META_SIGNAL`, where purpose is ``INIT``,
+    ``EXIT``, ``BOUNCE_SAME``, ``BOUNCE_ACROSS``
+  * ``OUTER_TRANS_REQUIRED``
+
+
+.. _how_it_works-automatic-construction-of-hidden-states:
+
+Automatic Construction of Hidden States
+---------------------------------------
+
+.. note::
+
+  This section applies to ``xml_chart_5.2.py``
+
+.. include:: i_creating_functions_from_templates.rst
+
+.. _how_it_works-automatic-construction-of-injectors:
+
+Automatic Construction of Injectors
+-----------------------------------
+
+.. note::
+
+  This section applies to ``xml_chart_5.2.py``
+
+State functions have Regions objects which have Region objects which have state
+functions.
+
+A parallel region can exist inside of any state function.  In this architecture, the
+parallel regions feature is contained within a regions object.  If the regions
+object exists within a state, that state is called an injector.  An injector has
+the same name as the regions object it controls.
+
+.. image:: _static/regions_in_regions.svg
+    :target: _static/regions_in_regions.pdf
+    :class: noscale-center
+
+An injector is structured like any state function, it consists of a large
+if-elif-else structure that helps the event processor make sense of the HSM's
+graph.  To make an injector handle the meta-events, or the events that give the
+illusion of a parallel region, it contains special handling for
+``INIT_META_SIGNAL``, ``EXIT_META_SIGNAL`` and so on.
+
+Here is an example of an injector from ``xml_chart_5.py``, with the code common to
+all injectors highlighted.
+
+.. code-block:: python
+  :emphasize-lines: 1, 3, 7-12, 14-28, 84-133
+  :linenos:
+
+  @othogonal_state
+  def p_p11(r, e):
+    status = return_status.UNHANDLED
+    __super__ = p_r1_over_hidden_region
+    __hooks__ = [signals.H1]
+
+    if(e.signal == SEARCH_FOR_SUPER_SIGNAL):
+      r.temp.fun = __super__
+      return return_status.SUPER
+    elif(e.signal == signals.SEARCH_FOR_META_HOOKS):
+      if e.payload.event.signal in __hooks__:
+        return return_status.HANDLED
+
+    # enter all regions
+    if(e.signal == signals.ENTRY_SIGNAL):
+      r.p_spy(e)
+      rsm(p_p11, e)
+      # search for INIT_META_SIGNAL
+      (_e, _state) = r.meta_peel(e)
+      investigate(r, e, _e)
+      if _state:
+        r.inner._post_fifo(_e)
+      status = return_status.HANDLED
+    elif(e.signal == signals.INIT_SIGNAL):
+      r.p_spy(e)
+      rsm(p_p11, e)
+      r.inner.post_lifo(Event(signal=signals.enter_region))
+      status = return_status.HANDLED
+    # any event handled within there regions must be pushed from here
+    elif(token_match(e.signal_name, "e1") or
+         token_match(e.signal_name, "e2") or
+         token_match(e.signal_name, "e4") or
+         token_match(e.signal_name, "SRH3") or
+         token_match(e.signal_name, "PG2")
+         ):
+      r.p_spy(e)
+      r.inner.post_fifo(e)
+      status = return_status.HANDLED
+    elif(token_match(e.signal_name, "H1")):
+      r.scribble("p_p11 hooked")
+      status = return_status.HANDLED
+    elif token_match(e.signal_name, r.outmost.regions['p_p11'].final_signal_name):
+      r.p_spy(e)
+      status = r.trans(p_p12)
+    elif token_match(e.signal_name, "RC1"):
+      r.p_spy(e)
+      status = r.meta_trans(
+        e=e,
+        s=p_p11,
+        t=p_p12,
+      )
+    elif token_match(e.signal_name, "SRH2"):
+      r.p_spy(e)
+      status = r.meta_trans(
+        e=e,
+        s=p_p11,
+        t=middle,
+      )
+    elif token_match(e.signal_name, "RA1"):
+      r.p_spy(e)
+      status = r.meta_trans(
+        e=e,
+        s=p_p11,
+        t=p_p11,
+      )
+    elif token_match(e.signal_name, "PF1"):
+      r.p_spy(e)
+      status = return_status.HANDLED
+    elif token_match(e.signal_name, "PC1"):
+      r.p_spy(e)
+      status = r.meta_trans(
+        e=e,
+        s=p_p11,
+        t=p_s21,
+      )
+    elif(token_match(e.signal_name, "RF1")):
+      r.p_spy(e)
+
+      status = r.meta_trans(
+        e=e,
+        s=p_p11,
+        t=p_p12_p11_s12,
+      )
+    elif e.signal == signals.BOUNCE_SAME_META_SIGNAL:
+      r._p_spy(e)
+      _state, _e = e.payload.state, e.payload.event
+      r.inner._post_fifo(_e)
+      investigate(r, e, _e)
+      r.inner.post_lifo(Event(signal=signals.force_region_init))
+      status = return_status.HANDLED
+    elif e.signal == signals.OUTER_TRANS_REQUIRED:
+      status = return_status.HANDLED
+      r.p_spy(e)
+      (_e, _state) = e.payload.event, e.payload.state
+      investigate(r, e, _e)
+      if _state.__name__ == r.state_fn.__name__:
+        r.inner.post_fifo(Event(signal=signals.exit_region))
+        r.inner.post_fifo(Event(signal=signals.enter_region))
+      else:
+        if within(r.state_fn, _state):
+          status = r.trans(_state)
+    elif e.signal == signals.EXIT_META_SIGNAL:
+      r.p_spy(e)
+      (_e, _state) = e.payload.event, e.payload.state
+      investigate(r, e, _e)
+      # this appears backwards, but it needs to be this way.
+      if within(_state, r.state_fn):
+        # The next state is going to be our region handler skip it and post this
+        # region handler would have posted to the outer HSM
+        if(_e.payload.event.signal == signals.EXIT_META_SIGNAL or
+           _e.payload.event.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+           _e.payload.event.signal == signals.OUTER_TRANS_REQUIRED
+           ):
+          (_e, _state) = _e.payload.event, _e.payload.state
+          r.outer._post_lifo(_e)
+        elif(_e.signal == signals.BOUNCE_ACROSS_META_SIGNAL or
+             _e.signal == signals.EXIT_META_SIGNAL):
+          r.outer._post_lifo(_e)
+        else:
+          r.same._post_lifo(_e)
+      status = return_status.HANDLED
+    elif e.signal == signals.exit_region:
+      r._p_spy(e)
+      status = r.trans(p_r1_under_hidden_region)
+    elif e.signal == signals.EXIT_SIGNAL:
+      r.inner.post_lifo(Event(signal=signals.exit_region))
+      rsm(p_p11, e)
+      r.p_spy(e)
+      status = return_status.HANDLED
+    else:
+      r.temp.fun = __super__
+      status = return_status.SUPER
+    return status
+
+Our goal is to take a statechart XML spec, pass it into an XmlChart, and have
+the XmlChart build up the Regions objects, the Region objects and the injector state
+functions.  The metaprogramming techniques used to build these kinds of functions are
+described :ref:`in this section <techniques-adding-and-removing-behavior-from-functions>`,
+and the technique can be examined in isolation in the ``example/augment.py``
+file.
+
+.. image:: _static/injector_metaprogramming.svg
+    :target: _static/injector_metaprogramming.pdf
+    :class: noscale-center
+
+The ``__init__`` method of the XmlChart will build the Regions and Region
+objects, then based on this work and information gleaned from the XML spec it
+will automatically write the injector state functions, linking different HSMs
+together.
+
+The injector construction happens in stages, we:
+
+#. Get the HSM that the injector belongs to.
+#. Call a function that sets the injector's hierarchy and builds up the
+   injector's boiler plate code, then returns a working augmentable function.
+#. Customize the injector by having it drive events deeper into the HHSM:
+
+   #. Explicitly specify the signal_names that the deep parts of the chart need (suggest this behavior)
+   #. Iterate over the automatically generated final signals used by the deeper region objects, add injection code for these (suggest this behavior)
+
+#. Explicitly specify how this injector needs to react to the events that it isn't
+   driving deeper into HHSM.  This involves linking a signal name to a
+   handler which describes a hook or a transition.  These handlers can be
+   whatever you want.
+
+#. Explicitly specify how the injector should react to its regions-object's final signal (where
+   it should transition).
+
+Here is some code which shows how this is done:
+
+.. code-block:: python
+  
+  class XmlChart(InstrumentedActiveObject):
+    def __init__(self, name, log_config, starting_state, live_spy=None, live_trace=None):
+      # ...
+      # build the p regions object
+      # build the p regions object's region objects, provide names and initial
+      # conditions
+      # NOTE: the hidden state functions are automatically written in the add
+      # method of the Region class
+      outer = self.regions['p']
+      self.regions['p_p11'] = Regions(
+        name='p_p11',
+        outmost=self,
+        hsm=outer.lookup['p_r1'])\
+      .add('p_p11_r1', initial_state='p_p11_s11', outer=outer)\
+      .add('p_p11_r2', initial_state='p_p11_s21', outer=outer).link()
+      # ...
+      # build the injector function for the p_p11 regions object
+      # get the hsm the injector belongs to
+      hsm = self.regions['p_p11'].hsm
+      # call a function to set the injector's hierarchy and build up the
+      # injector's boiler plate code, then return a working augmentable function
+      p_p11 = base_injector_template(
+        hsm=self,
+        state_name='p_p11',
+        super_state_name='p_r1_over_hidden_region',
+      )
+      # Augment the injector.  Customize it by having it drive events deeper
+      # into the HHSM
+      for signal_name in ["e1", "e2", "e4", "SRH3", "PG2"]:
+        signal = getattr(signals, signal_name)
+        p_p11 = p_p11(
+          hsm=hsm,
+          signal=signal,
+          handler=partial(template_inject_signal_to_inner_injector),
+          suggested_behavior=True,
+        )
+
+      # pass the final signals into the inner parts of the chart, but only suggest
+      # the behavior, so that if we need to over-write it, it will be
+      for key in self.regions.keys():
+        signal_name = self.regions[key].final_signal_name
+        p_p11 = p_p11(
+          hsm=hsm,
+          signal=getattr(signals, signal_name),
+          handler=partial(template_inject_signal_to_inner_injector),
+          suggested_behavior=True,
+        )
+
+      # custom signals for this state
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'SEARCH_FOR_META_HOOKS'),
+        handler=partial(template_meta_hook, hooks=[signals.H1]),
+        imposed_behavior=True
+      )
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'RC1'),
+        handler=partial(template_meta_trans, trans="p_p12"),
+        imposed_behavior=True
+      )
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'SRH2'),
+        handler=partial(template_meta_trans, trans="middle"),
+        imposed_behavior=True
+      )
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'RA1'),
+        handler=partial(template_meta_trans, trans="p_p11"),
+        imposed_behavior=True
+      )
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'PF1'),
+        handler=partial(template_hook),
+        imposed_behavior=True
+      )
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'PC1'),
+        handler=partial(template_meta_trans, trans='p_s21'),
+        imposed_behavior=True
+      )
+
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, 'RF1'),
+        handler=partial(template_meta_trans, trans='p_p12_p11_s12'),
+        imposed_behavior=True
+      )
+
+      p_p11 = p_p11(
+        hsm=hsm,
+        signal=getattr(signals, self.regions['p_p11'].final_signal_name),
+        handler=partial(template_meta_trans, trans='p_p12'),
+        imposed_behavior=True
+      )
+      # ...
+
+To see the base_injector_template, template_inject_signal_to_inner_injector,
+template_meta_hook, template_meta_trans functions, reference
+``xml_chart_5.2.py``.
+
 
 .. _how_it_works-reflection-and-logging:
 

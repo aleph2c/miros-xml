@@ -138,11 +138,30 @@ def __template_state(
     specification=None,
     signal=None,
     handler=None,
+    hooks=None,
     **kwargs,
 ):
     """A function which can create itself.
 
     Use this to build and run states in a state machine.
+
+    **Note:**
+
+      This function has three different jobs:
+
+        1. It change itself:
+
+            1. You can impose behavior
+            2. You can suggest behavior
+            3. You can remove behavior
+
+          After the function changes itself, it rebuilds itself using a partial,
+          adds it decorator then assigns this new version of itself to the
+          global namespace.
+
+        2. It can be called for its behavioral specification
+
+        3. It can be called as a regular state function.
 
     **Args**:
        | ``hsm=None`` (HsmWithQueues):
@@ -310,6 +329,7 @@ def __template_state(
                 sfl=sfl,
                 super_state=super_state,
                 this_function_name=this_function_name,
+                hooks=hooks
             )
             fn.__name__ = this_function_name
             fn = orthogonal_state(fn)
@@ -350,9 +370,10 @@ def __template_state(
     if isinstance(sfl, list):
         for (signal, function) in sfl:
             if token_match(signal, e.signal):
+                if this_function_name == 'p_p11' and e.signal == signals.e4:
+                  print("here")
                 handler = function
                 break
-
     if handler:
         status = handler(hsm, e, state_function_name=this_function_name)
     else:
@@ -381,6 +402,22 @@ def __template_handler(
     A template for building event and handler functions, once it is built, it
     will serve as a function to call when its state function receives a specific
     signal: ex. ``signals.ENTRY_SIGNAL``
+
+    **Note:**
+
+      This function has three different jobs:
+
+        * it creates itself: you provide it with specifications and it builds
+          itself using functools.partial with some pre-loaded arguments that you
+          provide (another function).  The new function, is registered with the
+          module_namespace and when you can its by name again it will behave the
+          way you have specified.
+
+        * it describes its specification, you can call it with the specification
+          named argument and it will return a SignalAndFunction namedtuple 
+
+        * if you call it with an event, it will dispatch the hsm, event and this
+          function's name to the handler it when you were specifying its behavior.
 
     **Args**:
        | ``hsm=None`` (HsmWithQueues):
@@ -484,9 +521,9 @@ def template_handled(hsm, e, state_name=None, **kwargs):
 
 hsm = HsmWithQueues()
 # Define our hsm
-a1 = partial(__template_state, this_function_name="a1", super_state=hsm.top)()
-b1 = partial(__template_state, this_function_name="b1", super_state=a1)()
-c1 = partial(__template_state, this_function_name="c1", super_state=hsm.top)()
+a1 = partial(__template_state, this_function_name="a1", super_state=hsm.top)(construct=True)
+b1 = partial(__template_state, this_function_name="b1", super_state=a1)(construct=True)
+c1 = partial(__template_state, this_function_name="c1", super_state=hsm.top)(construct=True)
 
 a1_entry_hh = partial(template_handled)
 a1_init_hh = partial(template_trans, trans="b1")

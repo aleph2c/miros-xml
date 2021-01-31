@@ -1737,7 +1737,7 @@ def p_r1_region(r, e):
 
     # if _state is None or is referencing another region then follow are default
     # init behavior
-    if _state is None or not within(r.state_fn, _state):
+    if _state is None ois a state function that r not within(r.state_fn, _state):
       status = r.trans(p_p11)
     else:
       # if _state is this state or a child of this state, transition to it
