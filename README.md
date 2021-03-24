@@ -42,6 +42,8 @@ The SCXML standard serves two different objectives:
 
 2. To solve specific industrial problems related to VoiceXML and CCXML.
 
+4. ``pass`` is a keyword in Python, so use another state or variable name when conducting your tests. (``_pass``)
+
 I will implement the statechart related parts, and ignore the rest of the standard.  All generalized programming will be done with Python (using the datamodel and data tags).
 
 If I can, I will raise the required errors so that this port can remain standards compliant.  If this turns out to be too much effort for too little value, I will break away from the standard entirely.
