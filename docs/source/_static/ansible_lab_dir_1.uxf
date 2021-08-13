@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLHierarchy</id>
+    <coordinates>
+      <x>440</x>
+      <y>80</y>
+      <w>310</w>
+      <h>630</h>
+    </coordinates>
+    <panel_attributes>type=Package
+ansible_lab
+	venv
+	.vault_pass
+	personal
+	site.yml
+	simulator.yml
+	soft_bridge.yml
+	group_vars
+		all
+		simulator
+		soft_bridge
+	roles
+		bitbucket_access
+		can_network
+		common
+		mqtt
+		pi_basic_setup
+		python
+		simulator
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

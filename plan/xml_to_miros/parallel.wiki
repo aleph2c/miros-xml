@@ -6,13 +6,20 @@
 
   *What defines Success?:* ([[subgoals.parallel|subgoals]], [[#Orient]], [[#Decide]])
 
-    You are looking for a kind of python c-style-preprocessor, or inheritance
-    with functions.
+    Clean up this planning folder.
+
+    The logs are garbage.  You can't expect anyone to know how to unscramble a log
+    file while trying to do something as hard as tracing a meta-event through
+    the chart.
+
+      Fix the logs: make sure their order matches what a person is expecting to
+      see when they look in the diagram.
+
 
     [[./docs]]
 
   *What is the problem?*
-  
+
     I don't understand how to read the debug output from the "investigate"
     feature.  You will need this skill ongoing.
 
